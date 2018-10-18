@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.collector.service;
 
+import com.alibaba.fastjson.JSON;
 import com.navercorp.pinpoint.collector.dao.ApplicationTraceIndexDao;
 import com.navercorp.pinpoint.collector.dao.HostApplicationMapDao;
 import com.navercorp.pinpoint.collector.dao.TraceDao;
@@ -24,13 +25,20 @@ import com.navercorp.pinpoint.common.server.bo.SpanChunkBo;
 import com.navercorp.pinpoint.common.server.bo.SpanEventBo;
 import com.navercorp.pinpoint.common.service.ServiceTypeRegistryService;
 import com.navercorp.pinpoint.common.trace.ServiceType;
+import com.navercorp.pinpoint.common.util.TransactionId;
 import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class TraceService {
@@ -51,6 +59,13 @@ public class TraceService {
     @Autowired
     private ServiceTypeRegistryService registry;
 
+    @Autowired
+    private AmqpTemplate amqpTemplate;
+
+    //线程池
+    private static ThreadPoolExecutor treadPool =
+            new ThreadPoolExecutor(5, 10, 5, TimeUnit.MINUTES, new LinkedBlockingDeque<>(), new ThreadPoolExecutor.AbortPolicy());
+
     public void insertSpanChunk(final SpanChunkBo spanChunkBo) {
         traceDao.insertSpanChunk(spanChunkBo);
         final ServiceType applicationServiceType = getApplicationServiceType(spanChunkBo);
@@ -67,11 +82,13 @@ public class TraceService {
     }
 
     public void insertSpan(final SpanBo spanBo) {
-        traceDao.insert(spanBo);
-        applicationTraceIndexDao.insert(spanBo);
-        insertAcceptorHost(spanBo);
-        insertSpanStat(spanBo);
-        insertSpanEventStat(spanBo);
+        traceDao.insert(spanBo);                    //TraceV2
+        applicationTraceIndexDao.insert(spanBo);    //ApplicationTraceIndex
+        insertAcceptorHost(spanBo);                 //HostApplicationMap_Ver2
+        insertSpanStat(spanBo);                     //HostApplicationMap_Ver2
+        insertSpanEventStat(spanBo);                //ApplicationMapStatisticsCallee_Ver2
+        //分析接口，做报警通知
+        sendSpanBoToMq(spanBo);
     }
 
     private void insertAcceptorHost(SpanBo span) {
@@ -196,5 +213,38 @@ public class TraceService {
             // save the information of callee (the span that spanevent called)
             statisticsService.updateCallee(spanEvent.getDestinationId(), spanEventType, applicationId, applicationServiceType, endPoint, elapsed, hasException);
         }
+    }
+    /**
+     * 把SpanBo数据发送到mq中，以 接口 为维度，做报警通知
+     * @param spanBo
+     */
+    private void sendSpanBoToMq(SpanBo spanBo) {
+        treadPool.execute(() -> {
+            if (spanBo.getRpc() == null || spanBo.getRpc().length() <= 0 ||
+                    spanBo.getElapsed() <= 0) {
+                return;
+            }
+
+            Map<String, Object> m = new HashMap();
+            TransactionId transactionId = spanBo.getTransactionId();
+            String key = transactionId.getAgentId()+"^"+
+                    transactionId.getAgentStartTime()+"^"+transactionId.getTransactionSequence();
+            m.put("SysName", "yxp_qichejianli");        //系统名称 例：yxp_golang_esproxy
+            m.put("key", key);                          //主键，反查用
+            m.put("BusinessName", spanBo.getApplicationId() + spanBo.getRpc());     //业务类型 接口或业务名称
+            m.put("CostTime", spanBo.getElapsed());     //总耗时
+            m.put("ClientIp", spanBo.getEndPoint());    //客户端ip
+            m.put("LogTime", spanBo.getStartTime()+"");    //记录时间
+            m.put("Error", spanBo.getErrCode());        //1代表错误
+            logger.debug("mq object{}",m);
+            amqpTemplate.convertAndSend("yxp_log_performance_analysis_ex", "yxp_log_qichejianli_analysis_rk", JSON.toJSONString(m));
+        });
+
+//        treadPool.execute(new Runnable() {
+//            @Override
+//            public void run() {
+//
+//            }
+//        });
     }
 }

@@ -48,6 +48,7 @@
             <list>
                 <value>classpath:hbase.properties</value>
                 <value>classpath:pinpoint-collector.properties</value>
+                <value>classpath:rabbitmq.properties</value>
             </list>
         </property>
 
@@ -80,6 +81,7 @@
 
     <import resource="classpath:applicationContext-hbase.xml"/>
     <import resource="classpath:applicationContext-collector-namespace.xml"/>
+    <import resource="classpath:applicationContext-rabbitmq.xml"/>
 
     <util:list id="cachedStatisticsDaoList" value-type="com.navercorp.pinpoint.collector.dao.CachedStatisticsDao">
         <beans:ref bean="hbaseMapStatisticsCallerDao"/>
