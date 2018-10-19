@@ -83,6 +83,7 @@
         <module>mongodb</module>
         <module>fastjson</module>
         <module>druid</module>
+        <module>log4j2</module>
     </modules>
 
     <dependencies>
@@ -344,6 +345,11 @@
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-druid-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-log4j2-plugin</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
