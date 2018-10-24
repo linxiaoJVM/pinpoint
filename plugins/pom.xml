@@ -84,6 +84,7 @@
         <module>fastjson</module>
         <module>druid</module>
         <module>log4j2</module>
+        <module>hbase</module>
     </modules>
 
     <dependencies>
@@ -350,6 +351,11 @@
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-log4j2-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-hbase-plugin</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
