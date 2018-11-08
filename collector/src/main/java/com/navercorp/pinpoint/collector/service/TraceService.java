@@ -29,6 +29,7 @@ import com.navercorp.pinpoint.common.util.TransactionId;
 import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -237,14 +238,12 @@ public class TraceService {
             m.put("LogTime", spanBo.getStartTime()+"");    //记录时间
             m.put("Error", spanBo.getErrCode());        //1代表错误
             logger.debug("mq object{}",m);
-            amqpTemplate.convertAndSend("yxp_log_performance_analysis_ex", "yxp_log_qichejianli_analysis_rk", JSON.toJSONString(m));
-        });
+            try {
+                amqpTemplate.convertAndSend("yxp_log_performance_analysis_ex", "yxp_log_qichejianli_analysis_rk", JSON.toJSONString(m));
+            }catch (AmqpException ae) {
+                logger.error("sendSpanBoToMq method unknow error ", ae);
+            }
 
-//        treadPool.execute(new Runnable() {
-//            @Override
-//            public void run() {
-//
-//            }
-//        });
+        });
     }
 }

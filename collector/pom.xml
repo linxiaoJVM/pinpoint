@@ -199,7 +199,7 @@
         <dependency>
             <groupId>org.springframework.amqp</groupId>
             <artifactId>spring-rabbit</artifactId>
-            <version>RELEASE</version>
+            <version>2.1.0.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>com.alibaba</groupId>
