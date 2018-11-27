@@ -55,6 +55,7 @@
         <module>user</module>
         <module>arcus</module>
         <module>google-httpclient</module>
+        <module>grpc</module>
         <module>jetty</module>
         <module>websphere</module>
         <module>spring</module>
@@ -211,6 +212,11 @@
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-google-httpclient-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-grpc-plugin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
