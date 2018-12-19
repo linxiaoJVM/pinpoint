@@ -50,6 +50,7 @@
         <module>jdk-http</module>
         <module>json-lib</module>
         <module>redis</module>
+        <module>redis-lettuce</module>
         <module>tomcat</module>
         <module>thrift</module>
         <module>user</module>
@@ -80,6 +81,7 @@
         <module>php</module>
         <module>akka-http</module>
         <module>undertow</module>
+        <module>undertow-servlet</module>
         <module>kafka</module>
         <module>mongodb</module>
         <module>fastjson</module>
@@ -87,6 +89,7 @@
         <module>log4j2</module>
         <module>hbase</module>
         <module>reactor-netty</module>
+        <module>openwhisk</module>
     </modules>
 
     <dependencies>
@@ -178,6 +181,11 @@
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-redis-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-redis-lettuce-plugin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -363,6 +371,11 @@
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-hbase-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-openwhisk-plugin</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
