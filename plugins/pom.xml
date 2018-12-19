@@ -86,6 +86,7 @@
         <module>druid</module>
         <module>log4j2</module>
         <module>hbase</module>
+        <module>reactor-netty</module>
     </modules>
 
     <dependencies>
