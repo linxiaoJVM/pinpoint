@@ -23,6 +23,9 @@ export class StoreHelperService {
     ) {
         this.dateFormatList = this.webAppSettingDataService.getDateFormatList();
     }
+    getURLPath(): Observable<string> {
+        return this.getObservable(STORE_KEY.URL_PATH);
+    }
     getApplicationList(unsubscribe: Subject<void>): Observable<IApplication[]> {
         return this.getObservable(STORE_KEY.APPLICATION_LIST, unsubscribe);
     }
@@ -135,34 +138,19 @@ export class StoreHelperService {
     getInspectorTimelineData(unsubscribe: Subject<void>): Observable<ITimelineInfo> {
         return this.getObservable(STORE_KEY.TIMELINE, unsubscribe);
     }
-    getInspectorTimelineRange(unsubscribe: Subject<void>): Observable<number[]> {
-        return this.store.pipe(
-            takeUntil(unsubscribe),
-            select(selectTimelineRange),
-            filter(([from, to]: number[]) => {
-                return (from === 0 && to === 0) ? false : true;
-            })
-        );
-    }
     getInspectorTimelineSelectionRange(unsubscribe: Subject<void>): Observable<number[]> {
         return this.store.pipe(
             takeUntil(unsubscribe),
             select(selectTimelineSelectionRange),
-            filter(([from, to]: number[]) => {
-                return (from === 0 && to === 0) ? false : true;
-            })
         );
     }
     getInspectorTimelineSelectedTime(unsubscribe: Subject<void>): Observable<number> {
         return this.store.pipe(
             takeUntil(unsubscribe),
             select(selectTimelineSelectedTime),
-            filter((time: number) => {
-                return time === 0 ? false : true;
-            })
         );
     }
-    private getObservable(key: string, unsubscribe?: Subject<void>): Observable<any> {
+    getObservable(key: string, unsubscribe?: Subject<void>): Observable<any> {
         return iif(
             () => !!unsubscribe,
             this.store.pipe(

@@ -5,7 +5,6 @@ import { UrlPath, UrlPathId } from 'app/shared/models';
 import { RealTimePagingContainerComponent } from 'app/core/components/real-time/real-time-paging-container.component';
 import { SystemConfigurationResolverService, ServerTimeResolverService } from 'app/shared/services';
 import { RealTimePageComponent } from './real-time-page.component';
-import { NewRealTimePagingContainerComponent } from 'app/core/components/real-time-new/new-real-time-paging-container.component';
 
 const TO_MAIN = '/' + UrlPath.MAIN;
 
@@ -18,9 +17,11 @@ export const routing: Routes = [
         },
         children: [
             {
-                path: '',
-                redirectTo: TO_MAIN,
-                pathMatch: 'full'
+                path: ':' + UrlPathId.APPLICATION + '/:' + UrlPathId.PAGE,
+                resolve: {
+                    serverTime: ServerTimeResolverService
+                },
+                component: RealTimePagingContainerComponent
             },
             {
                 path: ':' + UrlPathId.APPLICATION,
@@ -28,12 +29,9 @@ export const routing: Routes = [
                 pathMatch: 'full'
             },
             {
-                path: ':' + UrlPathId.APPLICATION + '/:' + UrlPathId.PAGE,
-                resolve: {
-                    serverTime: ServerTimeResolverService
-                },
-                // component: RealTimePagingContainerComponent
-                component: NewRealTimePagingContainerComponent
+                path: '',
+                redirectTo: TO_MAIN,
+                pathMatch: 'full'
             }
         ]
     }
