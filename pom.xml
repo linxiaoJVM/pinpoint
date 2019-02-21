@@ -105,7 +105,8 @@
 
         <httpcomponents.version>4.5.6</httpcomponents.version>
         <httpcomponents-core.version>4.4.10</httpcomponents-core.version>
-        <spring.version>4.3.20.RELEASE</spring.version>
+        <!--<spring.version>4.3.20.RELEASE</spring.version>-->
+        <spring.version>5.0.10.RELEASE</spring.version>
         <spring.batch.version>3.0.9.RELEASE</spring.batch.version>
         <spring.security.version>4.2.8.RELEASE</spring.security.version>
         <asm.version>7.0</asm.version>
@@ -705,7 +706,11 @@
                 <artifactId>reactor-netty</artifactId>
                 <version>0.7.10.RELEASE</version>
             </dependency>
-
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-webflux</artifactId>
+                <version>${spring.version}</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>

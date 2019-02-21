@@ -10,6 +10,12 @@ public class ReactorNettyTypeProvider implements TraceMetadataProvider {
     @Override
     public void setup(TraceMetadataSetupContext context) {
         context.addServiceType(ReactorNettyConstants.REACTOR_NETTY);
-        context.addServiceType(ReactorNettyConstants.REACTOR_NETTY_METHOD);
+        context.addServiceType(ReactorNettyConstants.REACTOR_NETTY_INTERNAL);
+
+        context.addServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_SERVER);
+        context.addServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_SERVER_METHOD);
+
+        context.addServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_CLIENT);
+        context.addServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_CLIENT_METHOD);
     }
 }

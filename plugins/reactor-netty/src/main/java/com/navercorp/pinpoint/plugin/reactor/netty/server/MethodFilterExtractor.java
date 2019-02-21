@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package com.navercorp.pinpoint.plugin.reactor.netty;
+package com.navercorp.pinpoint.plugin.reactor.netty.server;
 
 import com.navercorp.pinpoint.bootstrap.config.Filter;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterExtractor;
 import com.navercorp.pinpoint.common.util.Assert;
+//import org.springframework.http.server.reactive.ServerHttpRequest;
 import reactor.ipc.netty.http.server.HttpServerRequest;
 
 /**
- * @author Woonduk Kang(emeroad)
+ * @author linxiao
  */
 public class MethodFilterExtractor implements ParameterExtractor<HttpServerRequest> {
 
@@ -38,7 +39,7 @@ public class MethodFilterExtractor implements ParameterExtractor<HttpServerReque
 
     @Override
     public String extractParameter(HttpServerRequest httpServletRequest) {
-        if (excludeProfileMethodFilter.filter(httpServletRequest.method().toString())) {
+        if (excludeProfileMethodFilter.filter(httpServletRequest.method().name())) {
             return null;
         }
         return delegate.extractParameter(httpServletRequest);

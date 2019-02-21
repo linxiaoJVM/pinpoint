@@ -30,7 +30,6 @@
     <modules>
         <module>bom</module>
         <module>common-servlet</module>
-
         <module>httpclient3</module>
         <module>httpclient4</module>
         <module>ning-asynchttpclient</module>
@@ -345,6 +344,11 @@
         </dependency>
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-undertow-servlet-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-kafka-plugin</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -371,6 +375,11 @@
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-hbase-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-reactor-netty-plugin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

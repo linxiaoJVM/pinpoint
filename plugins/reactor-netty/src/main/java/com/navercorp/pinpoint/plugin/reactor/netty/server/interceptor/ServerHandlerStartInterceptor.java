@@ -1,4 +1,20 @@
-package com.navercorp.pinpoint.plugin.reactor.netty.interceptor;
+/*
+ * Copyright 2018 NAVER Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor;
 
 import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessor;
 import com.navercorp.pinpoint.bootstrap.config.Filter;
@@ -13,14 +29,18 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.RequestTraceReader;
 import com.navercorp.pinpoint.bootstrap.plugin.request.ServerRequestRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.RemoteAddressResolverFactory;
-import com.navercorp.pinpoint.plugin.reactor.netty.*;
+import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyConstants;
+import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyHttpServerConfig;
+import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyHttpServerMethodDescriptor;
+import com.navercorp.pinpoint.plugin.reactor.netty.server.HttpServerRequestAdaptor;
+import com.navercorp.pinpoint.plugin.reactor.netty.server.ParameterRecorderFactory;
+import com.navercorp.pinpoint.plugin.reactor.netty.server.ReactorNettyHttpHeaderFilter;
 import reactor.ipc.netty.http.server.HttpServerRequest;
-import reactor.ipc.netty.http.server.HttpServerResponse;
 
 /**
- * Created by linxiao on 2018/12/18.
+ * Created by linxiao on 2019/1/29.
  */
-public class ServerContextHandlerInterceptor implements AroundInterceptor {
+public class ServerHandlerStartInterceptor implements AroundInterceptor {
     private static final String SCOPE_NAME = "##REACTOR_NETTY_SERVER_CONNECTION_TRACE";
     private static final ReactorNettyHttpServerMethodDescriptor REACTOR_NETTY_HTTP_SERVER_METHOD_DESCRIPTOR = new ReactorNettyHttpServerMethodDescriptor();
 
@@ -39,7 +59,7 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
     private TraceContext traceContext;
     private MethodDescriptor descriptor;
 
-    public ServerContextHandlerInterceptor(final TraceContext traceContext, final MethodDescriptor methodDescriptor) {
+    public ServerHandlerStartInterceptor(final TraceContext traceContext, final MethodDescriptor methodDescriptor) {
         this.traceContext = traceContext;
         this.descriptor = methodDescriptor;
 
@@ -50,12 +70,11 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
         requestAdaptor = RemoteAddressResolverFactory.wrapRealIpSupport(requestAdaptor, config.getRealIpHeader(), config.getRealIpEmptyValue());
         this.parameterRecorder = ParameterRecorderFactory.newParameterRecorderFactory(config.getExcludeProfileMethodFilter(), config.isTraceRequestParam());
 
-        this.proxyHttpHeaderRecorder = new ProxyHttpHeaderRecorder<HttpServerRequest>(traceContext.getProfilerConfig().isProxyHttpHeaderEnable(), requestAdaptor);
+        this.proxyHttpHeaderRecorder = new ProxyHttpHeaderRecorder<>(traceContext.getProfilerConfig().isProxyHttpHeaderEnable(), requestAdaptor);
         this.httpHeaderFilter = new ReactorNettyHttpHeaderFilter(config.isHidePinpointHeader());
-        this.serverRequestRecorder = new ServerRequestRecorder<HttpServerRequest>(requestAdaptor);
-        this.requestTraceReader = new RequestTraceReader<HttpServerRequest>(traceContext, requestAdaptor, true);
+        this.serverRequestRecorder = new ServerRequestRecorder<>(requestAdaptor);
+        this.requestTraceReader = new RequestTraceReader<>(traceContext, requestAdaptor, true);
         traceContext.cacheApi(REACTOR_NETTY_HTTP_SERVER_METHOD_DESCRIPTOR);
-
     }
 
     @Override
@@ -66,31 +85,20 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
 
         if (traceContext.currentRawTraceObject() != null) {
             // duplicate trace.
+            logger.debug("duplicate trace {}", traceContext.currentRawTraceObject());
             return;
         }
 
         try {
-            if (!validate(args)) {
-                // invalid args.
-                return;
-            }
-
-            final HttpServerRequest request = (HttpServerRequest) args[0];
+            HttpServerRequest request = (HttpServerRequest) target;
             if (isDebug) {
                 logger.debug("HttpServerRequest {}", request);
             }
 
-//            final HttpServerResponse response = request.response();
-//            if (!(response instanceof AsyncContextAccessor)) {
-//                if (isDebug) {
-//                    logger.debug("Invalid response. Need metadata accessor({}).", AsyncContextAccessor.class.getName());
-//                }
-//                return;
-//            }
-
             // create trace for standalone entry point.
             final Trace trace = createTrace(request);
             if (trace == null) {
+                logger.debug("trace is null");
                 return;
             }
 
@@ -102,12 +110,19 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
             }
 
             final SpanEventRecorder recorder = trace.traceBlockBegin();
-            recorder.recordServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_SERVER);
+            if (isDebug) {
+                logger.debug("SpanEventRecorder {}", recorder);
+            }
+
+            recorder.recordServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_SERVER_METHOD);
 
             // make asynchronous trace-id
             final AsyncContext asyncContext = recorder.recordNextAsyncContext(true);
+
             ((AsyncContextAccessor) request)._$PINPOINT$_setAsyncContext(asyncContext);
-//            ((AsyncContextAccessor) response)._$PINPOINT$_setAsyncContext(asyncContext);
+            //((AbstractServerHttpRequest)request).getNativeRequest()  is HttpServerOperations
+//            ((AsyncContextAccessor) ((AbstractServerHttpRequest)request).getNativeRequest())._$PINPOINT$_setAsyncContext(asyncContext);
+
             if (isDebug) {
                 logger.debug("Set closeable-AsyncContext {}", asyncContext);
             }
@@ -116,31 +131,6 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
                 logger.warn("BEFORE. Caused:{}", t.getMessage(), t);
             }
         }
-    }
-
-    private boolean validate(final Object[] args) {
-        if (args == null || args.length < 1) {
-            if (isDebug) {
-                logger.debug("Invalid args object. args={}.", args);
-            }
-            return false;
-        }
-
-        if (!(args[0] instanceof HttpServerRequest)) {
-            if (isDebug) {
-                logger.debug("Invalid args[0] object. {}.", args[0]);
-            }
-            return false;
-        }
-
-        if (!(args[0] instanceof AsyncContextAccessor)) {
-            if (isDebug) {
-                logger.debug("Invalid args[0] object. Need metadata accessor({}).", AsyncContextAccessor.class.getName());
-            }
-            return false;
-        }
-
-        return true;
     }
 
     @Override
@@ -155,7 +145,7 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
         }
 
         if (!hasScope(trace)) {
-            // not vertx trace.
+            // not reactor-netty trace.
             return;
         }
 
@@ -182,10 +172,9 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
             recorder.recordApi(descriptor);
             recorder.recordException(throwable);
-            if (validate(args)) {
-                final HttpServerRequest request = (HttpServerRequest) args[0];
-                parameterRecorder.record(recorder, request, throwable);
-            }
+
+            final HttpServerRequest request = (HttpServerRequest) target;
+            parameterRecorder.record(recorder, request, throwable);
         } catch (Throwable t) {
             if (logger.isWarnEnabled()) {
                 logger.warn("AFTER. Caused:{}", t.getMessage(), t);
@@ -197,6 +186,7 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
     }
     private Trace createTrace(final HttpServerRequest request) {
         final String requestURI = request.path();
+        //过滤不需要监控的url
         if (requestURI != null && excludeUrlFilter.filter(requestURI)) {
             // skip request.
             if (isTrace) {
@@ -205,11 +195,20 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
             return null;
         }
 
-        final Trace trace = this.requestTraceReader.read(request);
+        Trace read = this.requestTraceReader.read(request);
+        final Trace trace = read;
+        if (isDebug) {
+            logger.debug("The begin Trace object: {}",trace);
+        }
+
         if (trace.canSampled()) {
             final SpanRecorder recorder = trace.getSpanRecorder();
+            if (isDebug) {
+                logger.debug("The SpanRecorder object: {}",recorder);
+            }
+
             // root
-            recorder.recordServiceType(ReactorNettyConstants.REACTOR_NETTY);
+            recorder.recordServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_SERVER);
             recorder.recordApi(REACTOR_NETTY_HTTP_SERVER_METHOD_DESCRIPTOR);
             this.serverRequestRecorder.record(recorder, request);
             // record proxy HTTP header.
@@ -221,10 +220,16 @@ public class ServerContextHandlerInterceptor implements AroundInterceptor {
             deleteTrace(trace);
             return null;
         }
+        if (isDebug) {
+            logger.debug("The end Trace object: {}",trace);
+        }
         return trace;
     }
 
     private void deleteTrace(final Trace trace) {
+        if (isDebug) {
+            logger.debug("Delete async trace {}.", trace);
+        }
         traceContext.removeTraceObject();
         trace.close();
     }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.navercorp.pinpoint.plugin.reactor.netty;
+package com.navercorp.pinpoint.plugin.reactor.netty.server;
 
 import com.navercorp.pinpoint.bootstrap.config.Filter;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.DisableParameterRecorder;
@@ -24,15 +24,15 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
 import reactor.ipc.netty.http.server.HttpServerRequest;
 
 /**
- * @author Woonduk Kang(emeroad)
+ * @author linxiao
  */
 public class ParameterRecorderFactory {
     public static ParameterRecorder<HttpServerRequest> newParameterRecorderFactory(Filter<String> excludeProfileMethodFilter, boolean traceRequestParam) {
         if (!traceRequestParam) {
-            return new DisableParameterRecorder<HttpServerRequest>();
+            return new DisableParameterRecorder<>();
         }
         ParameterExtractor<HttpServerRequest> parameterExtractor = new HttpServerParameterExtractor(64, 512);
         ParameterExtractor<HttpServerRequest> methodFilterExtractor = new MethodFilterExtractor(excludeProfileMethodFilter, parameterExtractor);
-        return new HttpParameterRecorder<HttpServerRequest>(methodFilterExtractor);
+        return new HttpParameterRecorder<>(methodFilterExtractor);
     }
 }

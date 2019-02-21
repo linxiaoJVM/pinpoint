@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-package com.navercorp.pinpoint.plugin.reactor.netty;
+package com.navercorp.pinpoint.plugin.reactor.netty.server;
 
 import com.navercorp.pinpoint.bootstrap.context.Header;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import reactor.ipc.netty.http.server.HttpServerRequest;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 /**
- * @author jaehong.kim
+ * @author  linxiao
  */
 public class ReactorNettyHttpHeaderFilter {
     private final boolean enable;
@@ -34,16 +39,10 @@ public class ReactorNettyHttpHeaderFilter {
             return;
         }
 
-//        request.requestHeaders().names().forEach(name -> {
-//            if (Header.startWithPinpointHeader(name)) {
-//                request.requestHeaders().remove(name);
-//            }
-//        });
-
-        for (String name : request.requestHeaders().names()) {
+        request.requestHeaders().names().forEach(name -> {
             if (Header.startWithPinpointHeader(name)) {
                 request.requestHeaders().remove(name);
             }
-        }
+        });
     }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.navercorp.pinpoint.plugin.reactor.netty.interceptor;
+package com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor;
 
 import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessorUtils;
 import com.navercorp.pinpoint.bootstrap.context.*;
@@ -23,6 +23,8 @@ import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.common.util.Assert;
+import org.springframework.http.server.reactive.AbstractServerHttpRequest;
+import org.springframework.web.server.ServerWebExchange;
 
 /**
  * Created by linxiao on 2018/12/19.
@@ -56,6 +58,7 @@ public abstract class AsyncContextSpanEventEndPointInterceptor implements Around
 
         final Trace trace = getAsyncTrace(asyncContext);
         if (trace == null) {
+            logger.debug("Trace not found");
             return;
         }
 
@@ -95,6 +98,7 @@ public abstract class AsyncContextSpanEventEndPointInterceptor implements Around
 
         final Trace trace = asyncContext.currentAsyncTraceObject();
         if (trace == null) {
+            logger.debug("Not found asynchronous Trace");
             return;
         }
         if (isDebug) {
@@ -134,6 +138,10 @@ public abstract class AsyncContextSpanEventEndPointInterceptor implements Around
 
     protected AsyncContext getAsyncContext(Object target) {
         return AsyncContextAccessorUtils.getAsyncContext(target);
+    }
+
+    protected AsyncContext getAsyncContextFromArgs(Object[] args) {
+        return AsyncContextAccessorUtils.getAsyncContext(((AbstractServerHttpRequest) ((ServerWebExchange)args[0]).getRequest()).getNativeRequest());
     }
 
     private Trace getAsyncTrace(AsyncContext asyncContext) {

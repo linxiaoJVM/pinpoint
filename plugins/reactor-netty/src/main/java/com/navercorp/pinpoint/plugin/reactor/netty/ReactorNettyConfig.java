@@ -10,7 +10,7 @@ import java.util.List;
 public class ReactorNettyConfig {
     private final boolean enable;
     private final boolean enableHttpServer;
-//    private final boolean enableHttpClient;
+    private final boolean enableHttpClient;
     private final List<String> bootstrapMains;
 
     public ReactorNettyConfig(ProfilerConfig config) {
@@ -21,7 +21,7 @@ public class ReactorNettyConfig {
         // plugin
         this.enable = config.readBoolean("profiler.reactor.netty.enable", true);
         this.enableHttpServer = config.readBoolean("profiler.reactor.netty.http.server.enable", true);
-//        this.enableHttpClient = config.readBoolean("profiler.reactor.netty.http.client.enable", true);
+        this.enableHttpClient = config.readBoolean("profiler.reactor.netty.http.client.enable", true);
         this.bootstrapMains = config.readList("profiler.reactor.netty.bootstrap.main");
     }
 
@@ -33,9 +33,9 @@ public class ReactorNettyConfig {
         return enableHttpServer;
     }
 
-//    public boolean isEnableHttpClient() {
-//        return enableHttpClient;
-//    }
+    public boolean isEnableHttpClient() {
+        return enableHttpClient;
+    }
 
     public List<String> getBootstrapMains() {
         return bootstrapMains;
@@ -46,6 +46,7 @@ public class ReactorNettyConfig {
         return "ReactorNettyConfig{" +
                 "enable=" + enable +
                 ", enableHttpServer=" + enableHttpServer +
+                ", enableHttpClient=" + enableHttpClient +
                 ", bootstrapMains=" + bootstrapMains +
                 '}';
     }
