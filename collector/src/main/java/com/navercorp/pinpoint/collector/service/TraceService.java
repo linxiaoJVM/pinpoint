@@ -230,13 +230,15 @@ public class TraceService {
             TransactionId transactionId = spanBo.getTransactionId();
             String key = transactionId.getAgentId()+"^"+
                     transactionId.getAgentStartTime()+"^"+transactionId.getTransactionSequence();
-            m.put("SysName", "yxp_qichejianli");        //系统名称 例：yxp_golang_esproxy
-            m.put("key", key);                          //主键，反查用
+            m.put("SysName", "yxp_qichejianli");                    //系统名称 例：yxp_golang_esproxy
+            m.put("key", key);                                      //主键，反查用
             m.put("BusinessName", spanBo.getApplicationId() + spanBo.getRpc());     //业务类型 接口或业务名称
-            m.put("CostTime", spanBo.getElapsed());     //总耗时
-            m.put("ClientIp", spanBo.getEndPoint());    //客户端ip
-            m.put("LogTime", spanBo.getStartTime()+"");    //记录时间
-            m.put("Error", spanBo.getErrCode());        //1代表错误
+            m.put("CostTime", spanBo.getElapsed());                 //总耗时
+            m.put("ClientIp", spanBo.getEndPoint());                //客户端ip
+            m.put("LogTime", spanBo.getStartTime()+"");             //记录时间
+            m.put("Error", spanBo.getErrCode());                    //1代表错误
+            m.put("ErrorMsg", spanBo.getExceptionMessage());        //错误信息
+
             logger.debug("mq object{}",m);
             try {
                 amqpTemplate.convertAndSend("yxp_log_performance_analysis_ex", "yxp_log_qichejianli_analysis_rk", JSON.toJSONString(m));

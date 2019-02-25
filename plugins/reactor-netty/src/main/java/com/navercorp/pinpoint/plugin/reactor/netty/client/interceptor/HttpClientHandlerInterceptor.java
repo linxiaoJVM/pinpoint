@@ -8,21 +8,14 @@ import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.request.*;
-import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieExtractor;
-import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorder;
-import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorderFactory;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyConstants;
-import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyHttpServerConfig;
 import com.navercorp.pinpoint.plugin.reactor.netty.client.*;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpRequest;
 import reactor.core.publisher.Mono;
 import reactor.ipc.netty.http.client.HttpClientRequest;
 import reactor.ipc.netty.http.client.HttpClientResponse;
 
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 
 /**
  * Created by linxiao on 2019/1/10.

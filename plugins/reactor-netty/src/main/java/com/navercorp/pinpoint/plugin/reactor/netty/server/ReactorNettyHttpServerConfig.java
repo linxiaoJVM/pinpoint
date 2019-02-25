@@ -1,4 +1,4 @@
-package com.navercorp.pinpoint.plugin.reactor.netty;
+package com.navercorp.pinpoint.plugin.reactor.netty.server;
 
 import com.navercorp.pinpoint.bootstrap.config.*;
 
@@ -13,7 +13,6 @@ public class ReactorNettyHttpServerConfig {
     private final String realIpEmptyValue;
     private final Filter<String> excludeProfileMethodFilter;
     private final boolean hidePinpointHeader;
-    private final String requestHandlerMethodName;
 
     public ReactorNettyHttpServerConfig(ProfilerConfig config) {
         if (config == null) {
@@ -21,24 +20,24 @@ public class ReactorNettyHttpServerConfig {
         }
 
         // runtime
-        this.traceRequestParam = config.readBoolean("profiler.vertx.http.server.tracerequestparam", true);
-        final String tomcatExcludeURL = config.readString("profiler.vertx.http.server.excludeurl", "");
+        this.traceRequestParam = config.readBoolean("profiler.reactor.netty.http.server.tracerequestparam", true);
+        final String tomcatExcludeURL = config.readString("profiler.reactor.netty.http.server.excludeurl", "");
         if (!tomcatExcludeURL.isEmpty()) {
             this.excludeUrlFilter = new ExcludePathFilter(tomcatExcludeURL);
         } else {
             this.excludeUrlFilter = new SkipFilter<String>();
         }
-        this.realIpHeader = config.readString("profiler.vertx.http.server.realipheader", null);
-        this.realIpEmptyValue = config.readString("profiler.vertx.http.server.realipemptyvalue", null);
+        this.realIpHeader = config.readString("profiler.reactor.netty.http.server.realipheader", null);
+        this.realIpEmptyValue = config.readString("profiler.reactor.netty.http.server.realipemptyvalue", null);
 
-        final String tomcatExcludeProfileMethod = config.readString("profiler.vertx.http.server.excludemethod", "");
+        final String tomcatExcludeProfileMethod = config.readString("profiler.reactor.netty.http.server.excludemethod", "");
         if (!tomcatExcludeProfileMethod.isEmpty()) {
             this.excludeProfileMethodFilter = new ExcludeMethodFilter(tomcatExcludeProfileMethod);
         } else {
             this.excludeProfileMethodFilter = new SkipFilter<String>();
         }
-        this.hidePinpointHeader = config.readBoolean("profiler.vertx.http.server.hidepinpointheader", true);
-        this.requestHandlerMethodName = config.readString("profiler.vertx.http.server.request-handler.method.name", "io.vertx.ext.web.impl.RouterImpl.accept");
+        this.hidePinpointHeader = config.readBoolean("profiler.reactor.netty.http.server.hidepinpointheader", true);
+
     }
 
     public boolean isTraceRequestParam() {
@@ -63,9 +62,5 @@ public class ReactorNettyHttpServerConfig {
 
     public boolean isHidePinpointHeader() {
         return hidePinpointHeader;
-    }
-
-    public String getRequestHandlerMethodName() {
-        return requestHandlerMethodName;
     }
 }

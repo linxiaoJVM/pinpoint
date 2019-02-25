@@ -14,13 +14,13 @@ public class ReactorNettyHttpClientConfig {
     private boolean statusCode = true;
 
     public ReactorNettyHttpClientConfig(ProfilerConfig config) {
-        this.param = config.readBoolean("profiler.vertx.http.client.param", true);
-        boolean cookie = config.readBoolean("profiler.vertx.http.client.cookie", false);
-        DumpType cookieDumpType = config.readDumpType("profiler.vertx.http.client.cookie.dumptype", DumpType.EXCEPTION);
-        int cookieSamplingRate = config.readInt("profiler.vertx.http.client.cookie.sampling.rate", 1);
-        int cookieDumpSize = config.readInt("profiler.vertx.http.client.cookie.dumpsize", 1024);
+        this.param = config.readBoolean("profiler.reactor.netty.http.client.param", true);
+        boolean cookie = config.readBoolean("profiler.reactor.netty.http.client.cookie", false);
+        DumpType cookieDumpType = config.readDumpType("profiler.reactor.netty.http.client.cookie.dumptype", DumpType.EXCEPTION);
+        int cookieSamplingRate = config.readInt("profiler.reactor.netty.http.client.cookie.sampling.rate", 1);
+        int cookieDumpSize = config.readInt("profiler.reactor.netty.http.client.cookie.dumpsize", 1024);
         this.httpDumpConfig = HttpDumpConfig.get(cookie, cookieDumpType, cookieSamplingRate, cookieDumpSize, false, cookieDumpType, 1, 1024);
-        this.statusCode = config.readBoolean("profiler.vertx.http.client.entity.statuscode", true);
+        this.statusCode = config.readBoolean("profiler.reactor.netty.http.client.entity.statuscode", true);
     }
 
     public boolean isParam() {

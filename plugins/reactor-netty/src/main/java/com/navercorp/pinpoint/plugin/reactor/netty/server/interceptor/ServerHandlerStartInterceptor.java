@@ -30,7 +30,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.ServerRequestRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.RemoteAddressResolverFactory;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyConstants;
-import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyHttpServerConfig;
+import com.navercorp.pinpoint.plugin.reactor.netty.server.ReactorNettyHttpServerConfig;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyHttpServerMethodDescriptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.server.HttpServerRequestAdaptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.server.ParameterRecorderFactory;
