@@ -26,8 +26,6 @@ public class HttpClientHandlerConstructorInterceptor implements AroundIntercepto
         if (isDebug) {
             logger.beforeInterceptor(target, args);
         }
-
-
     }
 
     @Override

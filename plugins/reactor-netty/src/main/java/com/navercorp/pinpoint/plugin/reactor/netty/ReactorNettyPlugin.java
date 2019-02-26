@@ -82,43 +82,46 @@ public class ReactorNettyPlugin implements ProfilerPlugin, MatchableTransformTem
     }
 
     private void addDispatcherHandler() {
-        transformTemplate.transform("org.springframework.web.reactive.DispatcherHandler", new TransformCallback() {
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
-                final InstrumentMethod handleRequestMethod = target.getDeclaredMethod("handle",
-                        "org.springframework.web.server.ServerWebExchange");
-                if (handleRequestMethod != null) {
-                    handleRequestMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor.DispatcherHandlerInterceptor");
-                }
+        transformTemplate.transform("org.springframework.web.reactive.DispatcherHandler", DispatcherHandlerTransform.class);
+    }
+    public static class DispatcherHandlerTransform implements TransformCallback {
 
-                return target.toBytecode();
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+            final InstrumentMethod handleRequestMethod = target.getDeclaredMethod("handle",
+                    "org.springframework.web.server.ServerWebExchange");
+            if (handleRequestMethod != null) {
+                handleRequestMethod.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor.DispatcherHandlerInterceptor.class);
             }
-        });
+
+            return target.toBytecode();
+        }
     }
 
     private void addServerHandlerStart() {
-        transformTemplate.transform("reactor.ipc.netty.http.server.HttpServerOperations", new TransformCallback() {
+        transformTemplate.transform("reactor.ipc.netty.http.server.HttpServerOperations", ServerHandlerStartTransform.class);
+    }
+    public static class ServerHandlerStartTransform implements TransformCallback {
 
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
-                target.addField(AsyncContextAccessor.class.getName());
-                //Complete status
-                final InstrumentMethod onOutboundComplete = target.getDeclaredMethod("onOutboundComplete");
-                if (onOutboundComplete != null) {
-                    onOutboundComplete.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor.OutboundCompleteInterceptor");
-                }
-
-                // entry point
-                final InstrumentMethod sendMethod = target.getDeclaredMethod("onHandlerStart");
-                if (sendMethod != null) {
-                    sendMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor.ServerHandlerStartInterceptor");
-                }
-
-                return target.toBytecode();
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+            target.addField(AsyncContextAccessor.class);
+            //Complete status
+            final InstrumentMethod onOutboundComplete = target.getDeclaredMethod("onOutboundComplete");
+            if (onOutboundComplete != null) {
+                onOutboundComplete.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor.OutboundCompleteInterceptor.class);
             }
-        });
+
+            // entry point
+            final InstrumentMethod sendMethod = target.getDeclaredMethod("onHandlerStart");
+            if (sendMethod != null) {
+                sendMethod.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor.ServerHandlerStartInterceptor.class);
+            }
+
+            return target.toBytecode();
+        }
     }
 
     private void addServerWebExchange() {
@@ -126,139 +129,146 @@ public class ReactorNettyPlugin implements ProfilerPlugin, MatchableTransformTem
     }
 
     private void addAsyncContextAccessor(final String className) {
-        transformTemplate.transform(className, new TransformCallback() {
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
-                target.addField(AsyncContextAccessor.class.getName());
-                return target.toBytecode();
-            }
-        });
+        transformTemplate.transform(className, AsyncContextAccessorTransform.class);
     }
+    public static class AsyncContextAccessorTransform implements TransformCallback {
 
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+            target.addField(AsyncContextAccessor.class);
+            return target.toBytecode();
+        }
+    }
     //------------------------      server end     ----------------------------------------
 
     //------------------------      client begin    ----------------------------------------
     private void addNettyRoutingFilter() {
-        transformTemplate.transform("org.springframework.cloud.gateway.filter.NettyRoutingFilter", new TransformCallback() {
+        transformTemplate.transform("org.springframework.cloud.gateway.filter.NettyRoutingFilter", NettyRoutingFilterTransform.class);
+    }
+    public static class NettyRoutingFilterTransform implements TransformCallback {
 
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
 
-                target.addGetter("com.navercorp.pinpoint.plugin.reactor.netty.client.HttpClientGetter", "httpClient");
+            target.addGetter(com.navercorp.pinpoint.plugin.reactor.netty.client.HttpClientGetter.class, "httpClient");
 
-                final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("filter",
-                        "org.springframework.web.server.ServerWebExchange",
-                        "org.springframework.cloud.gateway.filter.GatewayFilterChain");
-                if (handleExceptionMethod != null) {
-                    handleExceptionMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.NettyRoutingFilterInterceptor");
-                }
-
-                return target.toBytecode();
+            final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("filter",
+                    "org.springframework.web.server.ServerWebExchange",
+                    "org.springframework.cloud.gateway.filter.GatewayFilterChain");
+            if (handleExceptionMethod != null) {
+                handleExceptionMethod.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.NettyRoutingFilterInterceptor.class);
             }
-        });
+
+            return target.toBytecode();
+        }
     }
 
     private void addHttpClient() {
-        transformTemplate.transform("reactor.ipc.netty.http.client.HttpClient", new TransformCallback() {
+        transformTemplate.transform("reactor.ipc.netty.http.client.HttpClient", HttpClientTransform.class);
+    }
+    public static class HttpClientTransform implements TransformCallback {
 
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
-                target.addField(AsyncContextAccessor.class.getName());
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+            target.addField(AsyncContextAccessor.class);
 
-                for (InstrumentMethod method : target.getDeclaredMethods(MethodFilters.name("delete", "get", "patch", "post", "put", "ws"))) {
-                    if (method != null) {
-                        method.addScopedInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientInterceptor", ReactorNettyConstants.HTTP_CLIENT_REQUEST_SCOPE);
-                    }
+            for (InstrumentMethod method : target.getDeclaredMethods(MethodFilters.name("delete", "get", "patch", "post", "put", "ws"))) {
+                if (method != null) {
+                    method.addScopedInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientInterceptor.class, ReactorNettyConstants.HTTP_CLIENT_REQUEST_SCOPE);
                 }
-
-                final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("request",
-                        "io.netty.handler.codec.http.HttpMethod",
-                        "java.lang.String",
-                        "java.util.function.Function");
-                if (handleExceptionMethod != null) {
-                    handleExceptionMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientImplRequestInterceptor");
-                }
-
-                return target.toBytecode();
             }
-        });
+
+            final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("request",
+                    "io.netty.handler.codec.http.HttpMethod",
+                    "java.lang.String",
+                    "java.util.function.Function");
+            if (handleExceptionMethod != null) {
+                handleExceptionMethod.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientImplRequestInterceptor.class);
+            }
+
+            return target.toBytecode();
+        }
     }
 
     private void addHttpClientOperations() {
-        transformTemplate.transform("reactor.ipc.netty.http.client.HttpClientOperations", new TransformCallback() {
+        transformTemplate.transform("reactor.ipc.netty.http.client.HttpClientOperations", HttpClientOperationsTransform.class);
+    }
+    public static class HttpClientOperationsTransform implements TransformCallback {
 
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
-                target.addField(AsyncContextAccessor.class.getName());
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+            target.addField(AsyncContextAccessor.class);
 
-                final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("checkResponseCode",
-                        "io.netty.handler.codec.http.HttpResponse");
-                if (handleExceptionMethod != null) {
-                    handleExceptionMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientOperationsResponseCodeInterceptor");
-                }
+//            final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("checkResponseCode",
+//                    "io.netty.handler.codec.http.HttpResponse");
+//            if (handleExceptionMethod != null) {
+//                handleExceptionMethod.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientOperationsResponseCodeInterceptor.class);
+//            }
 
-//                final InstrumentMethod sendMethod = target.getDeclaredMethod("onHandlerStart");
-//                if (sendMethod != null) {
-//                    sendMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.ClientHandlerStartInterceptor");
-//                }
+//            final InstrumentMethod bindHttp = target.getConstructor(
+//                    "io.netty.channel.Channel",
+//                    "java.util.function.BiFunction",
+//                    "reactor.ipc.netty.channel.ContextHandler");
+//            if (bindHttp != null) {
+//                bindHttp.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.BindHttpInterceptor.class);
+//            }
 
-                return target.toBytecode();
-            }
-        });
+//            final InstrumentMethod sendMethod = target.getDeclaredMethod("onHandlerStart");
+//            if (sendMethod != null) {
+//                sendMethod.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.ClientHandlerStartInterceptor.class);
+//            }
+
+            return target.toBytecode();
+        }
     }
 
     private void addMonoHttpClientResponse() {
-        transformTemplate.transform("reactor.ipc.netty.http.client.MonoHttpClientResponse", new TransformCallback() {
+        transformTemplate.transform("reactor.ipc.netty.http.client.MonoHttpClientResponse", MonoHttpClientResponseTransform.class);
+    }
+    public static class MonoHttpClientResponseTransform implements TransformCallback {
 
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
-                target.addField(AsyncContextAccessor.class.getName());
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+            target.addField(AsyncContextAccessor.class);
 
-                target.addGetter("com.navercorp.pinpoint.plugin.reactor.netty.client.UrlGetter", "startURI");
+            target.addGetter(com.navercorp.pinpoint.plugin.reactor.netty.client.UrlGetter.class, "startURI");
 
-//                final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("subscribe",
-//                        "reactor.core.CoreSubscriber");
-//                if (handleExceptionMethod != null) {
-//                    handleExceptionMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientHandlerInterceptor");
-//                }
-
-
-                return target.toBytecode();
-            }
-        });
+            return target.toBytecode();
+        }
     }
 
     private void addHttpClientHandler() {
-        transformTemplate.transform("reactor.ipc.netty.http.client.MonoHttpClientResponse$HttpClientHandler", new TransformCallback() {
+        transformTemplate.transform("reactor.ipc.netty.http.client.MonoHttpClientResponse$HttpClientHandler",HttpClientHandlerTransform.class);
+    }
+    public static class HttpClientHandlerTransform implements TransformCallback {
 
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
-                target.addField(AsyncContextAccessor.class.getName());
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+            target.addField(AsyncContextAccessor.class);
 
-                target.addField(MonoHttpClientResponseAccess.class.getName());
+            target.addField(MonoHttpClientResponseAccess.class);
 
-                final InstrumentMethod constructor = target.getConstructor("reactor.ipc.netty.http.client.MonoHttpClientResponse",
-                        "reactor.ipc.netty.http.client.MonoHttpClientResponse$ReconnectableBridge");
-                if (constructor != null) {
-                    constructor.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientHandlerConstructorInterceptor");
-                }
+            final InstrumentMethod constructor = target.getConstructor("reactor.ipc.netty.http.client.MonoHttpClientResponse",
+                    "reactor.ipc.netty.http.client.MonoHttpClientResponse$ReconnectableBridge");
+            if (constructor != null) {
+                constructor.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientHandlerConstructorInterceptor.class);
+            }
 
                 final InstrumentMethod handleExceptionMethod = target.getDeclaredMethod("apply",
                         "reactor.ipc.netty.NettyInbound",
                         "reactor.ipc.netty.NettyOutbound");
                 if (handleExceptionMethod != null) {
-                    handleExceptionMethod.addInterceptor("com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientHandlerInterceptor");
+                    handleExceptionMethod.addInterceptor(com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor.HttpClientHandlerInterceptor.class);
                 }
 
-                return target.toBytecode();
-            }
-        });
+            return target.toBytecode();
+        }
     }
 
 

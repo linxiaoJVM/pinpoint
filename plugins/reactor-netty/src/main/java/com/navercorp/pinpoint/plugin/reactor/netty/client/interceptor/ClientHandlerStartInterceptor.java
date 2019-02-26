@@ -10,6 +10,7 @@ import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.request.*;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyConstants;
 import com.navercorp.pinpoint.plugin.reactor.netty.client.*;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import reactor.core.publisher.Mono;
@@ -65,19 +66,28 @@ public class ClientHandlerStartInterceptor implements AroundInterceptor {
             return;
         }
 
+        // entry scope.
+//        entryAsyncTraceScope(trace);
+
         try {
             final SpanEventRecorder recorder = trace.traceBlockBegin();
+//            if (!validate(args)) {
+//                return;
+//            }
 
-            if (target instanceof AsyncContextAccessor) {
-                ((AsyncContextAccessor) target)._$PINPOINT$_setAsyncContext(asyncContext);
+            final HttpClientRequest request = (HttpClientRequest) target;
+            final HttpHeaders headers = request.requestHeaders();
+            if (headers == null) {
+                // defense code.
+                return;
             }
+            logger.debug("before HttpHeaders {}",headers);
 
-            final String host = toHostAndPort(target);
-            // generate next trace id.
-            final TraceId nextId = trace.getTraceId().getNextTraceId();
-            recorder.recordNextSpanId(nextId.getSpanId());
+//            if (args[0] instanceof AsyncContextAccessor) {
+//                ((AsyncContextAccessor) args[0])._$PINPOINT$_setAsyncContext(asyncContext);
+//                logger.debug("HttpClientHandlerInterceptor  AsyncContextAccessor is {}", asyncContext);
+//            }
 
-            requestTraceWriter.write((HttpClientRequest)target, nextId, host);
         } catch (Throwable t) {
             if (logger.isWarnEnabled()) {
                 logger.warn("BEFORE. Caused:{}", t.getMessage(), t);
@@ -110,6 +120,7 @@ public class ClientHandlerStartInterceptor implements AroundInterceptor {
             logger.afterInterceptor(target, args, result, throwable);
         }
 
+//        Object target_tem = ((HttpClientResponseGetter)target)._$PINPOINT$_getParent();
         final AsyncContext asyncContext = getAsyncContext(target);
         if (asyncContext == null) {
             logger.debug("AsyncContext not found");
@@ -121,36 +132,59 @@ public class ClientHandlerStartInterceptor implements AroundInterceptor {
             return;
         }
 
+        // leave scope.
+//        if (!leaveAsyncTraceScope(trace)) {
+//            if (logger.isWarnEnabled()) {
+//                logger.warn("Failed to leave scope of async trace {}.", trace);
+//            }
+//            // delete unstable trace.
+//            deleteAsyncContext(trace, asyncContext);
+//            return;
+//        }
+
+
         try {
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
             recorder.recordApi(descriptor);
             recorder.recordException(throwable);
             recorder.recordServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_CLIENT);
 
-            final HttpClientRequest request = (HttpClientRequest) args[0];
-            final HttpHeaders headers = request.requestHeaders();
-            if (headers == null) {
-                return;
-            }
+//            if (!validate(args)) {
+//                return;
+//            }
+
+            final HttpClientRequest request = (HttpClientRequest) target;
 
             final String host = toHostAndPort(target);
+            // generate next trace id.
+            final TraceId nextId = trace.getTraceId().getNextTraceId();
+            recorder.recordNextSpanId(nextId.getSpanId());
+
+            requestTraceWriter.write(request, nextId, host);
+
+            final HttpHeaders headers = request.requestHeaders();
+            logger.debug("after HttpHeaders {}",headers);
+
             ClientRequestWrapper clientRequest = new ReactorNettyHttpClientRequestWrapper(request, host);
-            this.clientRequestRecorder.record(recorder, clientRequest, throwable);
-//            this.cookieRecorder.record(recorder, request, throwable);
+            this.clientRequestRecorder.record(recorder, clientRequest, null);
+
         } catch (Throwable t) {
             if (logger.isWarnEnabled()) {
                 logger.warn("AFTER. Caused:{}", t.getMessage(), t);
             }
         } finally {
             trace.traceBlockEnd();
+//            if (isAsyncTraceDestination(trace)) {
+                deleteAsyncContext(trace, asyncContext);
+//            }
         }
     }
 
     private String toHostAndPort(final Object target) {
-        final ChannelOperations channelOperations = (ChannelOperations) target;
-        SocketAddress address = channelOperations.channel().remoteAddress();
+        HttpClientRequest request = (HttpClientRequest) target;
+        String host = request.requestHeaders().get(HttpHeaderNames.HOST);
 
-        return address.toString();
+        return host;
     }
 
     protected AsyncContext getAsyncContext(Object target) {

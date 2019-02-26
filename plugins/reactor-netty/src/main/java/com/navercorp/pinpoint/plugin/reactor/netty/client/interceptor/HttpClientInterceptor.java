@@ -69,7 +69,7 @@ public class HttpClientInterceptor implements AroundInterceptor {
             recorder.recordException(throwable);
         } finally {
             trace.traceBlockEnd();
-//            deleteAsyncContext(trace, asyncContext);
+            deleteAsyncContext(trace, asyncContext);
         }
     }
 
@@ -90,12 +90,12 @@ public class HttpClientInterceptor implements AroundInterceptor {
 
         return trace;
     }
-//    private void deleteAsyncContext(final Trace trace, AsyncContext asyncContext) {
-//        if (isDebug) {
-//            logger.debug("Delete async trace {}.", trace);
-//        }
-//
-//        trace.close();
-//        asyncContext.close();
-//    }
+    private void deleteAsyncContext(final Trace trace, AsyncContext asyncContext) {
+        if (isDebug) {
+            logger.debug("Delete async trace {}.", trace);
+        }
+
+        trace.close();
+        asyncContext.close();
+    }
 }

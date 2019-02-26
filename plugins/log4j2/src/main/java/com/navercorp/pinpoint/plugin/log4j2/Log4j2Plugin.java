@@ -19,11 +19,13 @@ import com.navercorp.pinpoint.bootstrap.instrument.*;
 import com.navercorp.pinpoint.bootstrap.instrument.transformer.TransformCallback;
 import com.navercorp.pinpoint.bootstrap.instrument.transformer.TransformTemplate;
 import com.navercorp.pinpoint.bootstrap.instrument.transformer.TransformTemplateAware;
+import com.navercorp.pinpoint.bootstrap.interceptor.Interceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.ProfilerPlugin;
 import com.navercorp.pinpoint.bootstrap.plugin.ProfilerPluginSetupContext;
 import com.navercorp.pinpoint.bootstrap.plugin.util.InstrumentUtils;
+import com.navercorp.pinpoint.plugin.log4j2.interceptor.LoggingEventOfLog4j2Interceptor;
 
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -31,13 +33,7 @@ import java.util.Arrays;
 import static com.navercorp.pinpoint.common.util.VarArgs.va;
 
 /**
- * This modifier support log4j 1.2.15 version, or greater.
- * Because under 1.2.15 version is not exist MDC function and the number of constructor is different
- * and under 1.2.15 version is too old.
- * For reference 1.2.14 version release on Sep. 2006.
- * Refer to url http://mvnrepository.com/artifact/log4j/log4j for detail.
- * 
- * @author minwoo.jung
+ * @author linxiao
  */
 public class Log4j2Plugin implements ProfilerPlugin, TransformTemplateAware {
     private final PLogger logger = PLoggerFactory.getLogger(getClass());
@@ -56,61 +52,42 @@ public class Log4j2Plugin implements ProfilerPlugin, TransformTemplateAware {
             return;
         }
         //new org.apache.logging.log4j.spi.AbstractLogger();
-        transformTemplate.transform("org.apache.logging.log4j.ThreadContext", new TransformCallback() {
-            
-            @Override
-            public byte[] doInTransform(Instrumentor instrumentor, ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-                InstrumentClass mdcClass = instrumentor.getInstrumentClass(loader, "org.apache.logging.log4j.ThreadContext", null);
+        transformTemplate.transform("org.apache.logging.log4j.ThreadContext", LoggingEventTransform.class);
+    }
+    public static class LoggingEventTransform implements TransformCallback {
+        private final PLogger logger = PLoggerFactory.getLogger(getClass());
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
 
-                if (mdcClass == null) {
-                    logger.warn("Can not modify. Because org.apache.logging.log4j.ThreadContext does not exist.");
-                    return null;
-                }
-
-                if (!mdcClass.hasMethod("put", "java.lang.String", "java.lang.String")) {
-                    logger.warn("Can not modify. Because put method does not exist at org.apache.logging.log4j.ThreadContext class.");
-                    return null;
-                }
-                if (!mdcClass.hasMethod("remove", "java.lang.String")) {
-                    logger.warn("Can not modify. Because remove method does not exist at org.apache.logging.log4j.ThreadContext class.");
-                    return null;
-                }
-                
-                InstrumentClass target = instrumentor.getInstrumentClass(loader, className, classfileBuffer);
-
-//                for (InstrumentMethod method : target.getDeclaredMethods(MethodFilters.name("logIfEnabled"))) {
-//                    // Add interceptor to each method. Note that each method will be injected with a dedicated interceptor instance.
-//                    method.addInterceptor("com.navercorp.pinpoint.plugin.log4j2.interceptor.LoggingEventOfLog4j2Interceptor", va("SMAPLE_07_LOGGER"));
-//                }
-
-                final String interceptorClassName = "com.navercorp.pinpoint.plugin.log4j2.interceptor.LoggingEventOfLog4j2Interceptor";
-                addInterceptor(target,"getImmutableContext",new String[]{}, interceptorClassName);
-                addInterceptor(target,"getContext",new String[]{}, interceptorClassName);
-
-//                final String interceptorClassName = "com.navercorp.pinpoint.plugin.log4j2.interceptor.LoggingEventOfLog4j2Interceptor";
-//                addInterceptor(target, new String[]{}, interceptorClassName);
-//                addInterceptor(target, new String[]{"java.lang.String"}, interceptorClassName);
-//                addInterceptor(target, new String[]{"java.lang.String", "org.apache.logging.log4j.message.MessageFactory"}, interceptorClassName);
-
-                return target.toBytecode();
+            if (target == null) {
+                logger.warn("Can not modify. Because org.apache.logging.log4j.ThreadContext does not exist.");
+                return null;
             }
 
-//            private void addInterceptor(InstrumentClass target, String[] parameterTypes, String interceptorClassName) throws InstrumentException {
-//                InstrumentMethod constructor = InstrumentUtils.findConstructor(target, parameterTypes);
-//                if (constructor == null) {
-//                    throw new NotFoundInstrumentException("Cannot find constructor with parameter types: " + Arrays.toString(parameterTypes));
-//                }
-//                constructor.addInterceptor(interceptorClassName);
-//            }
-
-            private void addInterceptor(InstrumentClass target, String methodName,String[] parameterTypes, String interceptorClassName) throws InstrumentException {
-                InstrumentMethod method = InstrumentUtils.findMethod(target,methodName,parameterTypes);
-                if (method == null) {
-                    throw new NotFoundInstrumentException("Cannot find constructor with parameter types: " + Arrays.toString(parameterTypes));
-                }
-                method.addInterceptor(interceptorClassName);
+            if (!target.hasMethod("put", "java.lang.String", "java.lang.String")) {
+                logger.warn("Can not modify. Because put method does not exist at org.apache.logging.log4j.ThreadContext class.");
+                return null;
             }
-        });
+            if (!target.hasMethod("remove", "java.lang.String")) {
+                logger.warn("Can not modify. Because remove method does not exist at org.apache.logging.log4j.ThreadContext class.");
+                return null;
+            }
+
+            final Class<? extends Interceptor> interceptorClassName = LoggingEventOfLog4j2Interceptor.class;
+
+            addInterceptor(target,"getImmutableContext",new String[]{}, interceptorClassName);
+            addInterceptor(target,"getContext",new String[]{}, interceptorClassName);
+
+            return target.toBytecode();
+        }
+        private void addInterceptor(InstrumentClass target, String methodName,String[] parameterTypes, Class<? extends Interceptor> interceptorClassName) throws InstrumentException {
+            InstrumentMethod method = InstrumentUtils.findMethod(target,methodName,parameterTypes);
+            if (method == null) {
+                throw new NotFoundInstrumentException("Cannot find constructor with parameter types: " + Arrays.toString(parameterTypes));
+            }
+            method.addInterceptor(interceptorClassName);
+        }
     }
 
     @Override

@@ -20,34 +20,9 @@ public class HttpClientOperationsResponseCodeInterceptor extends AsyncContextSpa
 
     @Override
     protected void doInBeforeTrace(SpanEventRecorder recorder, AsyncContext asyncContext, Object target, Object[] args) {
-//        if (!validate(args)) {
-//            return;
-//        }
-
         final HttpResponse response = (HttpResponse) args[0];
-//        int code = response.getStatus().code();
         int code = response.status().code();
         recorder.recordAttribute(AnnotationKey.HTTP_STATUS_CODE, code);
-
-//        ((AsyncContextAccessor) response)._$PINPOINT$_setAsyncContext(asyncContext);
-    }
-
-    private boolean validate(final Object[] args) {
-//        if (args == null || args.length < 1 || !(args[0] instanceof HttpClientResponseImpl)) {
-//            if (isDebug) {
-//                logger.debug("Invalid args[0] object. args={}.", args);
-//            }
-//            return false;
-//        }
-//
-//        if (!(args[0] instanceof AsyncContextAccessor)) {
-//            if (isDebug) {
-//                logger.debug("Invalid args[0] object. Need metadata accessor({}).", AsyncContextAccessor.class.getName());
-//            }
-//            return false;
-//        }
-
-        return true;
     }
 
     @Override

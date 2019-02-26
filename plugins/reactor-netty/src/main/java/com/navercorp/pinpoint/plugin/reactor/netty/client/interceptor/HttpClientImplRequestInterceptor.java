@@ -3,6 +3,7 @@ package com.navercorp.pinpoint.plugin.reactor.netty.client.interceptor;
 import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessor;
 import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessorUtils;
 import com.navercorp.pinpoint.bootstrap.context.*;
+import com.navercorp.pinpoint.bootstrap.context.scope.TraceScope;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.interceptor.AsyncContextSpanEventSimpleAroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
@@ -29,6 +30,7 @@ public class HttpClientImplRequestInterceptor implements AroundInterceptor {
     private final PLogger logger = PLoggerFactory.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
 
+    protected static final String ASYNC_TRACE_SCOPE = AsyncContext.ASYNC_TRACE_SCOPE;
 //    private final RequestTraceWriter<HttpClientRequest> requestTraceWriter;
 //    private final TraceContext traceContext;
     private final MethodDescriptor methodDescriptor;
@@ -61,8 +63,15 @@ public class HttpClientImplRequestInterceptor implements AroundInterceptor {
         if (trace == null) {
             return;
         }
-
-        trace.traceBlockBegin();
+        // entry scope.
+        entryAsyncTraceScope(trace);
+        try {
+            trace.traceBlockBegin();
+        }catch (Throwable t) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("BEFORE. Caused:{}", t.getMessage(), t);
+            }
+        }
     }
 
 
@@ -82,7 +91,15 @@ public class HttpClientImplRequestInterceptor implements AroundInterceptor {
         if (trace == null) {
             return;
         }
-
+        // leave scope.
+        if (!leaveAsyncTraceScope(trace)) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Failed to leave scope of async trace {}.", trace);
+            }
+            // delete unstable trace.
+            deleteAsyncContext(trace, asyncContext);
+            return;
+        }
         try {
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
             recorder.recordApi(methodDescriptor);
@@ -103,7 +120,7 @@ public class HttpClientImplRequestInterceptor implements AroundInterceptor {
             }
         } finally {
             trace.traceBlockEnd();
-//            deleteAsyncContext(trace, asyncContext);
+            deleteAsyncContext(trace, asyncContext);
         }
     }
 
@@ -145,12 +162,38 @@ public class HttpClientImplRequestInterceptor implements AroundInterceptor {
 
         return trace;
     }
-//    private void deleteAsyncContext(final Trace trace, AsyncContext asyncContext) {
-//        if (isDebug) {
-//            logger.debug("Delete async trace {}.", trace);
-//        }
-//
-//        trace.close();
-//        asyncContext.close();
-//    }
+    private void entryAsyncTraceScope(final Trace trace) {
+        final TraceScope scope = trace.getScope(ASYNC_TRACE_SCOPE);
+        if (scope != null) {
+            scope.tryEnter();
+        }
+    }
+    private boolean leaveAsyncTraceScope(final Trace trace) {
+        final TraceScope scope = trace.getScope(ASYNC_TRACE_SCOPE);
+        if (scope != null) {
+            if (scope.canLeave()) {
+                scope.leave();
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isAsyncTraceDestination(final Trace trace) {
+        if (!trace.isAsync()) {
+            return false;
+        }
+
+        final TraceScope scope = trace.getScope(ASYNC_TRACE_SCOPE);
+        return scope != null && !scope.isActive();
+    }
+    private void deleteAsyncContext(final Trace trace, AsyncContext asyncContext) {
+        if (isDebug) {
+            logger.debug("Delete async trace {}.", trace);
+        }
+
+        trace.close();
+        asyncContext.close();
+    }
 }

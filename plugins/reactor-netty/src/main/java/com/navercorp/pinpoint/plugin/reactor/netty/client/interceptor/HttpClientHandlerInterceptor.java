@@ -52,8 +52,6 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
             logger.beforeInterceptor(target, args);
         }
 
-        //  ((HttpClientResponseGetter)target)._$PINPOINT$_getParent() is MonoHttpClientResponse
-//        Object target_tem = ((HttpClientResponseGetter)target)._$PINPOINT$_getParent();
         if (!(target instanceof AsyncContextAccessor)) {
             logger.debug("target {} not AsyncContextAccessor", target);
             return;
@@ -71,13 +69,10 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
         }
 
         // entry scope.
-//        entryAsyncTraceScope(trace);
+        entryAsyncTraceScope(trace);
 
         try {
-            final SpanEventRecorder recorder = trace.traceBlockBegin();
-//            if (!validate(args)) {
-//                return;
-//            }
+            trace.traceBlockBegin();
 
             final HttpClientRequest request = (HttpClientRequest) args[0];
             final HttpHeaders headers = request.requestHeaders();
@@ -86,27 +81,11 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
                 return;
             }
             logger.debug("before HttpHeaders {}",headers);
-//            MonoHttpClientResponse.HttpClientHandler a = (MonoHttpClientResponse.HttpClientHandler)target;
 
             if (args[0] instanceof AsyncContextAccessor) {
                 ((AsyncContextAccessor) args[0])._$PINPOINT$_setAsyncContext(asyncContext);
                 logger.debug("HttpClientHandlerInterceptor  AsyncContextAccessor is {}", asyncContext);
             }
-
-//            final String host = toHostAndPort(target);
-//            // generate next trace id.
-//            final TraceId nextId = trace.getTraceId().getNextTraceId();
-//            recorder.recordNextSpanId(nextId.getSpanId());
-//
-//            requestTraceWriter.write(request, nextId, host);
-//            final HttpHeaders headers = request.requestHeaders();
-////            headers.set("Pinpoint-Host","172.16.98.14:8005");
-//            logger.debug("before HttpHeaders {}",headers);
-//
-////            final String host = toHostAndPort(target);
-//            ClientRequestWrapper clientRequest = new ReactorNettyHttpClientRequestWrapper(request, host);
-//            this.clientRequestRecorder.record(recorder, clientRequest, null);
-//            this.cookieRecorder.record(recorder, request, throwable);
 
         } catch (Throwable t) {
             if (logger.isWarnEnabled()) {
@@ -115,32 +94,12 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
         }
     }
 
-//    private boolean validate(final Object[] args) {
-//        if (args == null || args.length < 2) {
-//            logger.debug("Invalid args object. args={}.", args);
-//            return false;
-//        }
-//
-//        if (!(args[0] instanceof HttpRequest)) {
-//            logger.debug("Invalid args[0] object. {}.", args[0]);
-//            return false;
-//        }
-//
-//        if (!(args[1] instanceof String)) {
-//            logger.debug("Invalid args[1] object. {}.", args[1]);
-//            return false;
-//        }
-//
-//        return true;
-//    }
-
     @Override
     public void after(Object target, Object[] args, Object result, Throwable throwable) {
         if (isDebug) {
             logger.afterInterceptor(target, args, result, throwable);
         }
 
-//        Object target_tem = ((HttpClientResponseGetter)target)._$PINPOINT$_getParent();
         final AsyncContext asyncContext = getAsyncContext(target);
         if (asyncContext == null) {
             logger.debug("AsyncContext not found");
@@ -153,25 +112,20 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
         }
 
         // leave scope.
-//        if (!leaveAsyncTraceScope(trace)) {
-//            if (logger.isWarnEnabled()) {
-//                logger.warn("Failed to leave scope of async trace {}.", trace);
-//            }
-//            // delete unstable trace.
-//            deleteAsyncContext(trace, asyncContext);
-//            return;
-//        }
-
+        if (!leaveAsyncTraceScope(trace)) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Failed to leave scope of async trace {}.", trace);
+            }
+            // delete unstable trace.
+            deleteAsyncContext(trace, asyncContext);
+            return;
+        }
 
         try {
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
             recorder.recordApi(descriptor);
             recorder.recordException(throwable);
             recorder.recordServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_CLIENT);
-
-//            if (!validate(args)) {
-//                return;
-//            }
 
             final HttpClientRequest request = (HttpClientRequest) args[0];
 
@@ -194,9 +148,9 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
             }
         } finally {
             trace.traceBlockEnd();
-//            if (isAsyncTraceDestination(trace)) {
-//                deleteAsyncContext(trace, asyncContext);
-//            }
+            if (isAsyncTraceDestination(trace)) {
+                deleteAsyncContext(trace, asyncContext);
+            }
         }
     }
 
