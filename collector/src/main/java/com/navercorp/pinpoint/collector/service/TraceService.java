@@ -37,6 +37,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -237,8 +238,15 @@ public class TraceService {
             m.put("ClientIp", spanBo.getEndPoint());                //客户端ip
             m.put("LogTime", spanBo.getStartTime()+"");             //记录时间
             m.put("Error", spanBo.getErrCode());                    //1代表错误
-            m.put("ErrorMsg", spanBo.getExceptionMessage());        //错误信息
-
+            if (spanBo.hasException()) {
+                m.put("ErrorMsg", spanBo.getExceptionMessage());        //错误信息
+            } else {
+                spanBo.getSpanEventBoList().
+                        stream().
+                        filter(p -> p.hasException()).//保留有错误的
+                        findFirst().        //返回第一个
+                        ifPresent(u -> m.put("ErrorMsg", u.getExceptionMessage()));
+            }
             logger.debug("mq object{}",m);
             try {
                 amqpTemplate.convertAndSend("yxp_log_performance_analysis_ex", "yxp_log_qichejianli_analysis_rk", JSON.toJSONString(m));
