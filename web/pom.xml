@@ -338,6 +338,7 @@
                 </excludes>
             </resource>
             <resource>
+                <filtering>true</filtering>
                 <directory>${basedir}/src/main/resources</directory>
             </resource>
             <resource>
@@ -440,6 +441,26 @@
         </plugins>
     </build>
     <profiles>
+
+        <profile>
+            <id>release</id>
+            <properties>
+                <hbase.ip>172.20.40.10,172.20.40.11,172.20.40.12</hbase.ip>
+                <zk.ip>172.20.40.10,172.20.40.11,172.20.40.12</zk.ip>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>dev</id>
+            <properties>
+                <hbase.ip>172.16.98.10</hbase.ip>
+                <zk.ip>172.16.98.10</zk.ip>
+            </properties>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+
         <profile>
             <!-- for ci server -->
             <id>run-integration-test</id>

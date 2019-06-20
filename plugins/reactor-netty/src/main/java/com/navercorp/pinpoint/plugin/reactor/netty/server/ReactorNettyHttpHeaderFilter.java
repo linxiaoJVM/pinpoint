@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.plugin.reactor.netty.server;
 
 import com.navercorp.pinpoint.bootstrap.context.Header;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import reactor.ipc.netty.http.server.HttpServerRequest;
+import reactor.netty.http.server.HttpServerRequest;
 
 import java.util.List;
 import java.util.Map;

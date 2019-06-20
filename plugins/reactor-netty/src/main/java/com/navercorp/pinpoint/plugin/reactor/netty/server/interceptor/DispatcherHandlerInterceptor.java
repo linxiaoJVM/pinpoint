@@ -73,7 +73,7 @@ public class DispatcherHandlerInterceptor implements AroundInterceptor {
 
             ServerHttpRequest request = ((ServerWebExchange) args[0]).getRequest();
             if (isDebug) {
-                logger.debug("ServerHttpRequest {}", request);
+                logger.debug("args[0]: {}, ServerHttpRequest: {}", args[0], request);
             }
 
             final SpanEventRecorder recorder = trace.traceBlockBegin();

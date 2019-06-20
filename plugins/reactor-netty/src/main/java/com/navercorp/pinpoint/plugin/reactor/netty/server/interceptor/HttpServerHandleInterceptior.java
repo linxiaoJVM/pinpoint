@@ -1,19 +1,3 @@
-/*
- * Copyright 2018 NAVER Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor;
 
 import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessor;
@@ -30,17 +14,19 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.ServerRequestRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.RemoteAddressResolverFactory;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyConstants;
-import com.navercorp.pinpoint.plugin.reactor.netty.server.ReactorNettyHttpServerConfig;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyHttpServerMethodDescriptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.server.HttpServerRequestAdaptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.server.ParameterRecorderFactory;
 import com.navercorp.pinpoint.plugin.reactor.netty.server.ReactorNettyHttpHeaderFilter;
-import reactor.ipc.netty.http.server.HttpServerRequest;
+import com.navercorp.pinpoint.plugin.reactor.netty.server.ReactorNettyHttpServerConfig;
+import reactor.netty.ConnectionObserver;
+import reactor.netty.http.server.HttpServerRequest;
+import reactor.netty.http.server.HttpServerState;
 
 /**
- * Created by linxiao on 2019/1/29.
+ * Created by linxiao on 2019/3/14.
  */
-public class ServerHandlerStartInterceptor implements AroundInterceptor {
+public class HttpServerHandleInterceptior implements AroundInterceptor {
     private static final String SCOPE_NAME = "##REACTOR_NETTY_SERVER_CONNECTION_TRACE";
     private static final ReactorNettyHttpServerMethodDescriptor REACTOR_NETTY_HTTP_SERVER_METHOD_DESCRIPTOR = new ReactorNettyHttpServerMethodDescriptor();
 
@@ -55,18 +41,19 @@ public class ServerHandlerStartInterceptor implements AroundInterceptor {
     private final ServerRequestRecorder<HttpServerRequest> serverRequestRecorder;
     private final RequestTraceReader<HttpServerRequest> requestTraceReader;
     private final ParameterRecorder<HttpServerRequest> parameterRecorder;
+    private   RequestAdaptor<HttpServerRequest> requestAdaptor;
 
     private TraceContext traceContext;
     private MethodDescriptor descriptor;
 
-    public ServerHandlerStartInterceptor(final TraceContext traceContext, final MethodDescriptor methodDescriptor) {
+    public HttpServerHandleInterceptior(final TraceContext traceContext, final MethodDescriptor methodDescriptor) {
         this.traceContext = traceContext;
         this.descriptor = methodDescriptor;
 
         final ReactorNettyHttpServerConfig config = new ReactorNettyHttpServerConfig(traceContext.getProfilerConfig());
         this.excludeUrlFilter = config.getExcludeUrlFilter();
 
-        RequestAdaptor<HttpServerRequest> requestAdaptor = new HttpServerRequestAdaptor();
+        requestAdaptor = new HttpServerRequestAdaptor();
         requestAdaptor = RemoteAddressResolverFactory.wrapRealIpSupport(requestAdaptor, config.getRealIpHeader(), config.getRealIpEmptyValue());
         this.parameterRecorder = ParameterRecorderFactory.newParameterRecorderFactory(config.getExcludeProfileMethodFilter(), config.isTraceRequestParam());
 
@@ -82,15 +69,18 @@ public class ServerHandlerStartInterceptor implements AroundInterceptor {
         if (isDebug) {
             logger.beforeInterceptor(target, args);
         }
-
+        logger.debug("The traceContext {}", traceContext);
         if (traceContext.currentRawTraceObject() != null) {
             // duplicate trace.
             logger.debug("duplicate trace {}", traceContext.currentRawTraceObject());
             return;
         }
+        if (!validate(args)) {
+            return;
+        }
 
         try {
-            HttpServerRequest request = (HttpServerRequest) target;
+            HttpServerRequest request = (HttpServerRequest) args[0];
             if (isDebug) {
                 logger.debug("HttpServerRequest {}", request);
             }
@@ -141,11 +131,16 @@ public class ServerHandlerStartInterceptor implements AroundInterceptor {
 
         final Trace trace = traceContext.currentRawTraceObject();
         if (trace == null) {
+            logger.debug("The  Trace is null, the traceContext is {}", traceContext);
             return;
         }
 
         if (!hasScope(trace)) {
             // not reactor-netty trace.
+            return;
+        }
+
+        if (!validate(args)) {
             return;
         }
 
@@ -173,7 +168,7 @@ public class ServerHandlerStartInterceptor implements AroundInterceptor {
             recorder.recordApi(descriptor);
             recorder.recordException(throwable);
 
-            final HttpServerRequest request = (HttpServerRequest) target;
+            final HttpServerRequest request = (HttpServerRequest) args[0];
             parameterRecorder.record(recorder, request, throwable);
         } catch (Throwable t) {
             if (logger.isWarnEnabled()) {
@@ -185,12 +180,13 @@ public class ServerHandlerStartInterceptor implements AroundInterceptor {
         }
     }
     private Trace createTrace(final HttpServerRequest request) {
-        final String requestURI = request.path();
+        final String requestURI = requestAdaptor.getRpcName(request);
+//        logger.debug("requestURI:{}, excludeUrlFilter:{}", requestURI, excludeUrlFilter);
         //过滤不需要监控的url
         if (requestURI != null && excludeUrlFilter.filter(requestURI)) {
             // skip request.
-            if (isTrace) {
-                logger.trace("filter requestURI:{}", requestURI);
+            if (isDebug) {
+                logger.debug("filter requestURI:{}", requestURI);
             }
             return null;
         }
@@ -283,5 +279,16 @@ public class ServerHandlerStartInterceptor implements AroundInterceptor {
     private boolean isEndScope(final Trace trace) {
         final TraceScope scope = trace.getScope(SCOPE_NAME);
         return scope != null && !scope.isActive();
+    }
+
+    private boolean validate(final Object[] args) {
+        if (!( (ConnectionObserver.State)args[1] == HttpServerState.REQUEST_RECEIVED)) {
+            if (isDebug) {
+                logger.debug("The HttpServerState is not [REQUEST_RECEIVED],current server state is  ({}).", args[1]);
+            }
+            return false;
+        }
+
+        return true;
     }
 }

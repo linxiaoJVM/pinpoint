@@ -33,7 +33,7 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>io.projectreactor.ipc</groupId>
+            <groupId>io.projectreactor.netty</groupId>
             <artifactId>reactor-netty</artifactId>
             <scope>provided</scope>
         </dependency>

@@ -9,13 +9,13 @@ import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 
 /**
- * Created by linxiao on 2019/1/16.
+ * Created by linxiao on 2019/3/21.
  */
-public class HttpClientHandlerConstructorInterceptor implements AroundInterceptor {
+public class HttpClientTcpConfigInterceptor implements AroundInterceptor {
     private final PLogger logger = PLoggerFactory.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
 
-    public HttpClientHandlerConstructorInterceptor(final TraceContext traceContext, final MethodDescriptor methodDescriptor) {
+    public HttpClientTcpConfigInterceptor(final TraceContext traceContext, final MethodDescriptor methodDescriptor) {
     }
 
     @Override
@@ -31,18 +31,18 @@ public class HttpClientHandlerConstructorInterceptor implements AroundIntercepto
             logger.afterInterceptor(target, args);
         }
 
-        if (args[0] instanceof AsyncContextAccessor) {
-            AsyncContext asyncContext = ((AsyncContextAccessor) args[0])._$PINPOINT$_getAsyncContext();
-            logger.debug("args[0]  AsyncContextAccessor {} ", asyncContext);
-            if (target instanceof AsyncContextAccessor) {
-                ((AsyncContextAccessor) target)._$PINPOINT$_setAsyncContext(asyncContext);
-                logger.debug("target  AsyncContextAccessor {} ", asyncContext);
+        if (target instanceof AsyncContextAccessor) {
+            AsyncContext asyncContext = ((AsyncContextAccessor) target)._$PINPOINT$_getAsyncContext();
+            logger.debug("target  {}, AsyncContextAccessor {} ", target, asyncContext);
+            if (result instanceof AsyncContextAccessor) {
+                ((AsyncContextAccessor) result)._$PINPOINT$_setAsyncContext(asyncContext);
+                logger.debug("result  {}, AsyncContextAccessor {} ", result, asyncContext);
             }else {
-                logger.debug("target {} not AsyncContextAccessor", target);
+                logger.debug("result {} not AsyncContextAccessor", result);
             }
 
         } else {
-            logger.debug("args[0] {} not AsyncContextAccessor", args[0]);
+            logger.debug("target {} not AsyncContextAccessor", target);
         }
 
     }

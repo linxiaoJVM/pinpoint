@@ -8,6 +8,7 @@ import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.plugin.reactor.netty.client.HttpClientGetter;
 import org.springframework.web.server.ServerWebExchangeDecorator;
+import reactor.netty.http.client.HttpClient;
 
 /**
  * Created by linxiao on 2019/1/14.
@@ -64,7 +65,19 @@ public class NettyRoutingFilterInterceptor implements AroundInterceptor {
 
 
     protected AsyncContext getAsyncContextFromArgs(Object[] args) {
-        return AsyncContextAccessorUtils.getAsyncContext(((ServerWebExchangeDecorator)args[0]).getDelegate());
+        logger.debug("args[0] {}", args[0]);
+        Object object = ((ServerWebExchangeDecorator)args[0]).getDelegate();
+        logger.debug("((ServerWebExchangeDecorator)args[0]).getDelegate() {}", object);
+        if (object instanceof AsyncContextAccessor) {
+            logger.debug("object is AsyncContextAccessor", object);
+            return ((AsyncContextAccessor) object)._$PINPOINT$_getAsyncContext();
+        }else if (((ServerWebExchangeDecorator)object).getDelegate() instanceof AsyncContextAccessor) {
+            logger.debug("((ServerWebExchangeDecorator)object).getDelegate() is AsyncContextAccessor", ((ServerWebExchangeDecorator)object).getDelegate());
+            return ((AsyncContextAccessor) ((ServerWebExchangeDecorator)object).getDelegate())._$PINPOINT$_getAsyncContext();
+        }
+        return null;
+
+//        return AsyncContextAccessorUtils.getAsyncContext(obj);
     }
 
 //    private void deleteAsyncContext(final Trace trace, AsyncContext asyncContext) {

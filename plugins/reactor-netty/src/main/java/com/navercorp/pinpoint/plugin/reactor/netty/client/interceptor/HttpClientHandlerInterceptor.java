@@ -10,10 +10,11 @@ import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.request.*;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyConstants;
 import com.navercorp.pinpoint.plugin.reactor.netty.client.*;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import reactor.core.publisher.Mono;
-import reactor.ipc.netty.http.client.HttpClientRequest;
-import reactor.ipc.netty.http.client.HttpClientResponse;
+import reactor.netty.http.client.HttpClientRequest;
+import reactor.netty.http.client.HttpClientResponse;
 
 import java.net.URI;
 
@@ -128,16 +129,15 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
             recorder.recordServiceType(ReactorNettyConstants.REACTOR_NETTY_HTTP_CLIENT);
 
             final HttpClientRequest request = (HttpClientRequest) args[0];
+            final HttpHeaders headers = request.requestHeaders();
+            logger.debug("after HttpHeaders {}",headers);
 
-            final String host = toHostAndPort(target);
+            final String host = toHostAndPort(headers);
             // generate next trace id.
             final TraceId nextId = trace.getTraceId().getNextTraceId();
             recorder.recordNextSpanId(nextId.getSpanId());
 
             requestTraceWriter.write(request, nextId, host);
-
-            final HttpHeaders headers = request.requestHeaders();
-            logger.debug("after HttpHeaders {}",headers);
 
             ClientRequestWrapper clientRequest = new ReactorNettyHttpClientRequestWrapper(request, host);
             this.clientRequestRecorder.record(recorder, clientRequest, null);
@@ -212,20 +212,7 @@ public class HttpClientHandlerInterceptor implements AroundInterceptor {
         return scope != null && !scope.isActive();
     }
 
-    private String toHostAndPort(final Object target) {
-        if (target instanceof MonoHttpClientResponseAccess) {
-            Mono<HttpClientResponse> httpClientResponseMono =
-                    ((MonoHttpClientResponseAccess)target)._$PINPOINT$_getHttpClientResponse();
-
-            if (httpClientResponseMono  instanceof UrlGetter) {
-                URI uri = ((UrlGetter)httpClientResponseMono)._$PINPOINT$_getStartURI();
-                String host = uri.getHost();
-                int port = uri.getPort();
-                return host + ':' + port;
-            }
-
-        }
-
-        return null;
+    private String toHostAndPort(final HttpHeaders headers) {
+        return headers.get(HttpHeaderNames.HOST);
     }
 }

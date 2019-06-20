@@ -27,7 +27,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import reactor.ipc.netty.http.server.HttpServerRequest;
+import reactor.netty.http.server.HttpServerRequest;
 
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
@@ -127,16 +127,14 @@ public class HttpServerParameterExtractor implements ParameterExtractor<HttpServ
             }
         }
         else {
-            InetSocketAddress localAddress = (InetSocketAddress) request.context().channel().localAddress();
+            InetSocketAddress localAddress = request.hostAddress();
             return new URI(scheme, null, localAddress.getHostString(),
                     localAddress.getPort(), null, null, null);
         }
     }
 
     private static String getScheme(HttpServerRequest request) {
-        ChannelPipeline pipeline = request.context().channel().pipeline();
-        boolean ssl = pipeline.get(SslHandler.class) != null;
-        return ssl ? "https" : "http";
+        return request.scheme();
     }
 
     private static String resolveRequestUri(HttpServerRequest request) {

@@ -1,6 +1,6 @@
 package com.navercorp.pinpoint.plugin.reactor.netty.client;
 
-import reactor.ipc.netty.http.client.HttpClientResponse;
+import reactor.netty.http.client.HttpClientResponse;
 
 /**
  * Created by linxiao on 2019/1/14.

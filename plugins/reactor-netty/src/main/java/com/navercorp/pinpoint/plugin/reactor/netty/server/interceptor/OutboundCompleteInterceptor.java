@@ -19,7 +19,7 @@ package com.navercorp.pinpoint.plugin.reactor.netty.server.interceptor;
 import com.navercorp.pinpoint.bootstrap.context.*;
 import com.navercorp.pinpoint.bootstrap.plugin.http.HttpStatusCodeRecorder;
 import com.navercorp.pinpoint.plugin.reactor.netty.ReactorNettyConstants;
-import reactor.ipc.netty.http.server.HttpServerResponse;
+import reactor.netty.http.server.HttpServerResponse;
 
 /**
  * Created by linxiao on 2019/1/30.

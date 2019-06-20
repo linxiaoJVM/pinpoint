@@ -20,7 +20,7 @@ import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.request.ClientHeaderAdaptor;
 import io.netty.handler.codec.http.HttpHeaders;
-import reactor.ipc.netty.http.client.HttpClientRequest;
+import reactor.netty.http.client.HttpClientRequest;
 
 /**
  * @author Woonduk Kang(emeroad)

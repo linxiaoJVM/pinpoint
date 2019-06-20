@@ -18,12 +18,17 @@ package com.navercorp.pinpoint.plugin.log4j2.interceptor;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor0;
+import com.navercorp.pinpoint.bootstrap.logging.PLogger;
+import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import org.apache.logging.log4j.ThreadContext;
 
 /**
  * @author minwoo.jung
  */
 public class LoggingEventOfLog4j2Interceptor implements AroundInterceptor0 {
+    private final PLogger logger = PLoggerFactory.getLogger(this.getClass());
+    private final boolean isDebug = logger.isDebugEnabled();
+
     private static final String TRANSACTION_ID = "PtxId";
     private static final String SPAN_ID = "PspanId";
 
@@ -35,13 +40,19 @@ public class LoggingEventOfLog4j2Interceptor implements AroundInterceptor0 {
 
     @Override
     public void before(Object target) {
+        if (isDebug) {
+            logger.beforeInterceptor(target, null);
+        }
+
         Trace trace = traceContext.currentTraceObject();
         
         if (trace == null) {
+            logger.debug("trace is null ");
             ThreadContext.remove(TRANSACTION_ID);
             ThreadContext.remove(SPAN_ID);
             return;
         } else {
+            logger.debug("PtxId={},PspanId={}", trace.getTraceId().getTransactionId(), String.valueOf(trace.getTraceId().getSpanId()));
             ThreadContext.put(TRANSACTION_ID, trace.getTraceId().getTransactionId());
             ThreadContext.put(SPAN_ID, String.valueOf(trace.getTraceId().getSpanId()));
         }
@@ -52,6 +63,8 @@ public class LoggingEventOfLog4j2Interceptor implements AroundInterceptor0 {
 //    @IgnoreMethod
     @Override
     public void after(Object target, Object result, Throwable throwable) {
-
+        if (isDebug) {
+            logger.afterInterceptor(target, null);
+        }
     }
 }

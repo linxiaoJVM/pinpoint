@@ -20,7 +20,7 @@ import com.navercorp.pinpoint.bootstrap.config.Filter;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterExtractor;
 import com.navercorp.pinpoint.common.util.Assert;
 //import org.springframework.http.server.reactive.ServerHttpRequest;
-import reactor.ipc.netty.http.server.HttpServerRequest;
+import reactor.netty.http.server.HttpServerRequest;
 
 /**
  * @author linxiao

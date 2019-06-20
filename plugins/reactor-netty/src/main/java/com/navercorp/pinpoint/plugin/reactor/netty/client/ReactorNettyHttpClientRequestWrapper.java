@@ -5,7 +5,7 @@ import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.request.ClientRequestWrapper;
 import com.navercorp.pinpoint.common.util.Assert;
 import io.netty.handler.codec.http.HttpRequest;
-import reactor.ipc.netty.http.client.HttpClientRequest;
+import reactor.netty.http.client.HttpClientRequest;
 
 /**
  * Created by linxiao on 2019/1/10.

@@ -21,7 +21,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.util.DisableParameterReco
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.HttpParameterRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterExtractor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
-import reactor.ipc.netty.http.server.HttpServerRequest;
+import reactor.netty.http.server.HttpServerRequest;
 
 /**
  * @author linxiao

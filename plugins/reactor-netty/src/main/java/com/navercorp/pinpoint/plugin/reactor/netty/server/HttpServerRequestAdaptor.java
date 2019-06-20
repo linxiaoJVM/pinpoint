@@ -21,7 +21,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.RequestAdaptor;
 import com.navercorp.pinpoint.bootstrap.util.NetworkUtils;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import reactor.ipc.netty.http.server.HttpServerRequest;
+import reactor.netty.http.server.HttpServerRequest;
 
 /**
  * Created by linxiao on 2019/1/29.
