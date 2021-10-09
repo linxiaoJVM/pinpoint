@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ComponentFactoryResolver, Injector, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { of, Subject, forkJoin, fromEvent } from 'rxjs';
-import { takeUntil, filter, delay } from 'rxjs/operators';
+import { Subject, forkJoin, fromEvent } from 'rxjs';
+import { takeUntil, filter, delay, tap } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 
 import {
@@ -14,7 +14,7 @@ import {
     MessageQueueService,
     MESSAGE_TO
 } from 'app/shared/services';
-import { UrlPath, UrlPathId } from 'app/shared/models';
+import { UrlPath, UrlPathId, UrlQuery } from 'app/shared/models';
 import { EndTime } from 'app/core/models';
 import { ScatterChartDataService } from './scatter-chart-data.service';
 import { ScatterChart } from './class/scatter-chart.class';
@@ -35,8 +35,8 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
     instanceKey = 'side-bar';
     addWindow = true;
     i18nText: { [key: string]: string };
-    currentRange: { from: number, to: number } = {
-        from : 0,
+    currentRange: {from: number, to: number} = {
+        from: 0,
         to: 0
     };
     selectedTarget: ISelectedTarget;
@@ -57,6 +57,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
     dateFormat: string[];
     showBlockMessagePopup = false;
     shouldHide = true;
+    enableServerSideScan: boolean;
 
     constructor(
         private storeHelperService: StoreHelperService,
@@ -75,6 +76,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
     ) {}
 
     ngOnInit() {
+        this.enableServerSideScan = this.webAppSettingDataService.getExperimentalOption('scatterScan');
         this.setScatterY();
 
         forkJoin(
@@ -115,6 +117,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
                     false
                 );
             }
+
             this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
             this.cd.detectChanges();
         });
@@ -122,16 +125,16 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
         this.scatterChartDataService.outRealTimeScatterData$.pipe(
             takeUntil(this.unsubscribe)
         ).subscribe((scatterData: IScatterData) => {
-            if (scatterData.reset) {
-                this.fromX = scatterData.currentServerTime - this.webAppSettingDataService.getSystemDefaultPeriod().getMiliSeconds();
-                this.toX = scatterData.currentServerTime;
-                this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
-                of(1).pipe(delay(1000)).subscribe((useless: number) => {
-                    this.getScatterData();
-                });
-            } else {
-                this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
-            }
+            this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
+            this.cd.detectChanges();
+        });
+
+        this.scatterChartDataService.onReset$.pipe(
+            takeUntil(this.unsubscribe),
+            tap(() => this.reset()),
+            delay(1000)
+        ).subscribe(() => {
+            this.getScatterData();
             this.cd.detectChanges();
         });
 
@@ -155,6 +158,13 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
         this.unsubscribe.complete();
     }
 
+    private reset(range?: {[key: string]: number}): void {
+        this.toX = range ? range.toX : Date.now();
+        this.fromX = range ? range.fromX : this.toX - this.webAppSettingDataService.getSystemDefaultPeriod().getMiliSeconds();
+
+        this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+    }
+
     private addEventListener(): void {
         const visibility$ = fromEvent(document, 'visibilitychange').pipe(
             takeUntil(this.unsubscribe),
@@ -162,12 +172,15 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
         );
 
         // visible
-        visibility$.pipe(
-            filter(() => !document.hidden),
-        ).subscribe(() => {
-            // TODO: Consider preserving the data during the previous 10sec
-            this.getScatterData();
-        });
+        // visibility$.pipe(
+        //     filter(() => !document.hidden),
+        //     filter(() => !this.scatterChartDataService.isConnected()),
+        //     tap(() => this.reset()),
+        //     delay(1000)
+        // ).subscribe(() => {
+        //     this.getScatterData();
+        //     this.cd.detectChanges();
+        // });
 
         // hidden
         visibility$.pipe(
@@ -181,7 +194,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
 
     private setScatterY() {
         const {min, max} = this.webAppSettingDataService.getScatterY(this.instanceKey);
-
+        // 0, 8000
         this.fromY = min;
         this.toY = max;
     }
@@ -208,7 +221,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
             if (!this.shouldHide) {
                 this.selectedAgent = '';
                 this.selectedApplication = this.selectedTarget.node[0];
-                this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+                this.reset({fromX: this.fromX, toX: this.toX});
                 this.getScatterData();
             }
             this.cd.detectChanges();
@@ -246,6 +259,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
     }
 
     onApplySetting(params: any): void {
+        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.CHANGE_Y_RANGE_ON_SCATTER);
         this.fromY = params.min;
         this.toY = params.max;
         this.scatterChartInteractionService.changeYRange({
@@ -255,6 +269,8 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
         });
         this.hideSettingPopup = true;
         this.webAppSettingDataService.setScatterY(this.instanceKey, { min: params.min, max: params.max });
+        this.reset({fromX: this.fromX, toX: this.toX});
+        this.getScatterData();
     }
 
     onCancelSetting(): void {
@@ -277,7 +293,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
             this.urlRouteManagerService.openPage({
                 path: [
                     UrlPath.SCATTER_FULL_SCREEN_MODE,
-                    this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).getUrlStr(),
+                    `${this.selectedApplication.replace('^', '@')}`,
                     this.newUrlStateNotificationService.getPathValue(UrlPathId.PERIOD).getValueWithTime(),
                     this.newUrlStateNotificationService.getPathValue(UrlPathId.END_TIME).getEndTime(),
                     this.selectedAgent
@@ -288,7 +304,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
                 path: [
                     UrlPath.SCATTER_FULL_SCREEN_MODE,
                     UrlPathId.REAL_TIME,
-                    this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).getUrlStr(),
+                    `${this.selectedApplication.replace('^', '@')}`,
                     this.selectedAgent
                 ]
             });
@@ -331,29 +347,36 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
     }
 
     onSelectArea(params: any): void {
-        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_TRANSACTION_LIST);
-        let returnOpenWindow;
-        if (this.newUrlStateNotificationService.isRealTimeMode()) {
-            returnOpenWindow = this.urlRouteManagerService.openPage({
-                path: [
-                    UrlPath.TRANSACTION_LIST,
-                    this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).getUrlStr(),
-                    this.webAppSettingDataService.getSystemDefaultPeriod().getValueWithTime(),
-                    EndTime.newByNumber(this.currentRange.to).getEndTime(),
-                ],
-                metaInfo: `${this.selectedApplication}|${params.x.from}|${params.x.to}|${params.y.from}|${params.y.to}|${this.selectedAgent}|${params.type.join(',')}`
-            });
-        } else {
-            returnOpenWindow = this.urlRouteManagerService.openPage({
-                path: [
-                    UrlPath.TRANSACTION_LIST,
-                    this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).getUrlStr(),
-                    this.newUrlStateNotificationService.getPathValue(UrlPathId.PERIOD).getValueWithTime(),
-                    this.newUrlStateNotificationService.getPathValue(UrlPathId.END_TIME).getEndTime()
-                ],
-                metaInfo: `${this.selectedApplication}|${params.x.from}|${params.x.to}|${params.y.from}|${params.y.to}|${this.selectedAgent}|${params.type.join(',')}`
-            });
-        }
+        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.SELECT_AREA_ON_SCATTER);
+        const {period, endTime} = this.newUrlStateNotificationService.isRealTimeMode() ?
+            {
+                period: this.webAppSettingDataService.getSystemDefaultPeriod().getValueWithTime(),
+                endTime: EndTime.newByNumber(this.currentRange.to).getEndTime()
+            } :
+            {
+                period: this.newUrlStateNotificationService.getPathValue(UrlPathId.PERIOD).getValueWithTime(),
+                endTime: this.newUrlStateNotificationService.getPathValue(UrlPathId.END_TIME).getEndTime()
+            };
+
+        const returnOpenWindow = this.urlRouteManagerService.openPage({
+            path: [
+                UrlPath.TRANSACTION_LIST,
+                `${this.selectedApplication.replace('^', '@')}`,
+                period,
+                endTime
+            ],
+            queryParams: {
+                [UrlQuery.DRAG_INFO]: {
+                    x1: params.x.from,
+                    x2: params.x.to,
+                    y1: params.y.from,
+                    y2: params.y.to,
+                    agentId: this.selectedAgent,
+                    dotStatus: params.type
+                }
+            },
+        });
+
         if (returnOpenWindow === null || returnOpenWindow === undefined) {
             this.showBlockMessagePopup = true;
         }

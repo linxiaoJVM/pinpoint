@@ -20,6 +20,7 @@ import org.apache.thrift.TBase;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author koo.taejin
@@ -105,7 +106,7 @@ public enum TCommandTypeVersion {
         return supportCommandList;
     }
 
-    public boolean isSupportCommand(TBase command) {
+    public boolean isSupportCommand(TBase<?, ?> command) {
         if (command == null) {
             return false;
         }
@@ -128,9 +129,7 @@ public enum TCommandTypeVersion {
     }
 
     public static TCommandTypeVersion getVersion(String version) {
-        if (version == null) {
-            throw new NullPointerException("version");
-        }
+        Objects.requireNonNull(version, "version");
 
         for (TCommandTypeVersion versionType : TCommandTypeVersion.values()) {
             if (versionType.getVersionName().equals(version)) {

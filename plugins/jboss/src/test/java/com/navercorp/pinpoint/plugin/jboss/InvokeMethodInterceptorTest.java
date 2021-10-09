@@ -24,8 +24,9 @@ import com.navercorp.pinpoint.bootstrap.config.DefaultProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.bootstrap.plugin.RequestRecorderFactory;
+import com.navercorp.pinpoint.bootstrap.plugin.proxy.DisableRequestRecorder;
+import com.navercorp.pinpoint.bootstrap.plugin.request.RequestAdaptor;
 import com.navercorp.pinpoint.profiler.context.id.DefaultTraceId;
-import com.navercorp.pinpoint.profiler.context.module.ApplicationContext;
 import com.navercorp.pinpoint.profiler.context.module.DefaultApplicationContext;
 import com.navercorp.pinpoint.test.MockTraceContextFactory;
 import org.junit.After;
@@ -62,12 +63,12 @@ public class InvokeMethodInterceptorTest {
 
     /** The descriptor. */
     private final MethodDescriptor descriptor = new DefaultMethodDescriptor("org.apache.catalina.core.StandardHostValve", "invoke", new String[] {
-        "org.apache.catalina.connector.Request", "org.apache.catalina.connector.Response" }, new String[] { "request", "response" });
+        "org.apache.catalina.connector.Request", "org.apache.catalina.connector.Response" }, new String[] { "request", "response" }, 0);
 
     private DefaultApplicationContext applicationContext;
 
     @Mock
-    private RequestRecorderFactory requestRecorderFactory;
+    private RequestRecorderFactory<HttpServletRequest> requestRecorderFactory;
 
     /**
      * Before.
@@ -85,6 +86,8 @@ public class InvokeMethodInterceptorTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+
+        when(requestRecorderFactory.getProxyRequestRecorder(any(RequestAdaptor.class))).thenReturn(new DisableRequestRecorder<HttpServletRequest>());
 
         ProfilerConfig profilerConfig = new DefaultProfilerConfig();
         applicationContext = MockTraceContextFactory.newMockApplicationContext(profilerConfig);

@@ -23,7 +23,6 @@ import com.navercorp.pinpoint.web.vo.stat.AggreJoinDataSourceBo;
 import com.navercorp.pinpoint.web.vo.stat.AggreJoinDataSourceListBo;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import com.navercorp.pinpoint.web.vo.stat.chart.application.ApplicationDataSourceChart;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -34,21 +33,21 @@ import java.util.*;
 @Service
 public class ApplicationDataSourceService {
 
-    @Autowired
-    private ApplicationDataSourceDao applicationDataSourceDao;
+    private final ApplicationDataSourceDao applicationDataSourceDao;
 
-    @Autowired
-    private ServiceTypeRegistryService serviceTypeRegistryService;
+    private final ServiceTypeRegistryService serviceTypeRegistryService;
 
-    private static final AggreJoinDataSourceBoComparator comparator = new AggreJoinDataSourceBoComparator();
+    private static final Comparator<AggreJoinDataSourceBo> comparator
+            = Comparator.comparingLong(AggreJoinDataSourceBo::getTimestamp);
+
+    public ApplicationDataSourceService(ApplicationDataSourceDao applicationDataSourceDao, ServiceTypeRegistryService serviceTypeRegistryService) {
+        this.applicationDataSourceDao = Objects.requireNonNull(applicationDataSourceDao, "applicationDataSourceDao");
+        this.serviceTypeRegistryService = Objects.requireNonNull(serviceTypeRegistryService, "serviceTypeRegistryService");
+    }
 
     public List<StatChart> selectApplicationChart(String applicationId, TimeWindow timeWindow) {
-        if (applicationId == null) {
-            throw new NullPointerException("applicationId");
-        }
-        if (timeWindow == null) {
-            throw new NullPointerException("timeWindow");
-        }
+        Objects.requireNonNull(applicationId, "applicationId");
+        Objects.requireNonNull(timeWindow, "timeWindow");
 
         List<StatChart> result = new ArrayList<>();
         List<AggreJoinDataSourceListBo> aggreJoinDataSourceListBoList = this.applicationDataSourceDao.getApplicationStatList(applicationId, timeWindow);
@@ -90,10 +89,4 @@ public class ApplicationDataSourceService {
         return aggreJoinDataSourceBoMap;
     }
 
-    private static class AggreJoinDataSourceBoComparator implements Comparator<AggreJoinDataSourceBo> {
-        @Override
-        public int compare(AggreJoinDataSourceBo bo1, AggreJoinDataSourceBo bo2) {
-            return bo1.getTimestamp() < bo2.getTimestamp() ? -1 : 1;
-        }
-    }
 }

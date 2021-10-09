@@ -6,11 +6,13 @@ import com.navercorp.pinpoint.web.util.DefaultCellTracker;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Result;
 
+import java.util.Objects;
+
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class CellTraceMapper<T> implements RowMapper<T> {
-    private RowMapper<T> delegate;
+    private final RowMapper<T> delegate;
 
     public static <T> RowMapper<T> wrap(RowMapper<T> deleagate) {
 
@@ -19,10 +21,7 @@ public class CellTraceMapper<T> implements RowMapper<T> {
 
 
     private CellTraceMapper(RowMapper<T> delegate) {
-        if (delegate == null) {
-            throw new NullPointerException("delegate");
-        }
-        this.delegate = delegate;
+        this.delegate = Objects.requireNonNull(delegate, "delegate");
     }
 
     @Override

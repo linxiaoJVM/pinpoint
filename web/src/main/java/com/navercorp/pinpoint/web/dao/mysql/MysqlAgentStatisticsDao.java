@@ -20,11 +20,11 @@ import com.navercorp.pinpoint.web.dao.AgentStatisticsDao;
 import com.navercorp.pinpoint.web.vo.AgentCountStatistics;
 import com.navercorp.pinpoint.web.vo.Range;
 import org.mybatis.spring.SqlSessionTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -32,11 +32,13 @@ import java.util.List;
 @Repository
 public class MysqlAgentStatisticsDao implements AgentStatisticsDao {
 
-    private static final String NAMESPACE = MysqlAgentStatisticsDao.class.getPackage().getName() + "." + MysqlAgentStatisticsDao.class.getSimpleName() + ".";
+    private static final String NAMESPACE = MysqlAgentStatisticsDao.class.getName() + ".";
 
-    @Autowired
-    @Qualifier("sqlSessionTemplate")
-    private SqlSessionTemplate sqlSessionTemplate;
+    private final SqlSessionTemplate sqlSessionTemplate;
+
+    public MysqlAgentStatisticsDao(@Qualifier("sqlSessionTemplate") SqlSessionTemplate sqlSessionTemplate) {
+        this.sqlSessionTemplate = Objects.requireNonNull(sqlSessionTemplate, "sqlSessionTemplate");
+    }
 
     @Override
     public boolean insertAgentCount(AgentCountStatistics agentCountStatistics) {

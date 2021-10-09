@@ -21,15 +21,15 @@ import com.navercorp.pinpoint.common.server.bo.stat.AgentStatType;
 import com.navercorp.pinpoint.common.server.bo.stat.JvmGcDetailedBo;
 import com.navercorp.pinpoint.web.dao.stat.SampledJvmGcDetailedDao;
 import com.navercorp.pinpoint.web.mapper.stat.AgentStatMapperV2;
-import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.JvmGcDetailedSampler;
 import com.navercorp.pinpoint.web.mapper.stat.SampledAgentStatResultExtractor;
+import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.JvmGcDetailedSampler;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.SampledJvmGcDetailed;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -37,20 +37,22 @@ import java.util.List;
 @Repository("sampledJvmGcDetailedDaoV2")
 public class HbaseSampledJvmGcDetailedDaoV2 implements SampledJvmGcDetailedDao {
 
-    @Autowired
-    private JvmGcDetailedDecoder jvmGcDetailedDecoder;
+    private final HbaseAgentStatDaoOperationsV2 operations;
 
-    @Autowired
-    private JvmGcDetailedSampler jvmGcDetailedSampler;
+    private final JvmGcDetailedDecoder jvmGcDetailedDecoder;
+    private final JvmGcDetailedSampler jvmGcDetailedSampler;
 
-    @Autowired
-    private HbaseAgentStatDaoOperationsV2 operations;
+    public HbaseSampledJvmGcDetailedDaoV2(HbaseAgentStatDaoOperationsV2 operations, JvmGcDetailedDecoder jvmGcDetailedDecoder, JvmGcDetailedSampler jvmGcDetailedSampler) {
+        this.operations = Objects.requireNonNull(operations, "operations");
+        this.jvmGcDetailedDecoder = Objects.requireNonNull(jvmGcDetailedDecoder, "jvmGcDetailedDecoder");
+        this.jvmGcDetailedSampler = Objects.requireNonNull(jvmGcDetailedSampler, "jvmGcDetailedSampler");
+    }
 
     @Override
     public List<SampledJvmGcDetailed> getSampledAgentStatList(String agentId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         AgentStatMapperV2<JvmGcDetailedBo> mapper = operations.createRowMapper(jvmGcDetailedDecoder, range);
         SampledAgentStatResultExtractor<JvmGcDetailedBo, SampledJvmGcDetailed> resultExtractor = new SampledAgentStatResultExtractor<>(timeWindow, mapper, jvmGcDetailedSampler);
         return operations.getSampledAgentStatList(AgentStatType.JVM_GC_DETAILED, resultExtractor, agentId, range);

@@ -90,13 +90,13 @@ public class ActiveThreadCountWorker implements PinpointWebSocketHandlerWorker {
     }
 
     @Override
-    public void start(AgentInfo agentInfo) {
+    public StreamChannel connect(AgentInfo agentInfo) {
         if (!applicationName.equals(agentInfo.getApplicationName())) {
-            return;
+            return null;
         }
 
         if (!agentId.equals(agentInfo.getAgentId())) {
-            return;
+            return null;
         }
 
         synchronized (lock) {
@@ -104,7 +104,41 @@ public class ActiveThreadCountWorker implements PinpointWebSocketHandlerWorker {
                 started = true;
 
                 logger.info("ActiveThreadCountWorker start. applicationName:{}, agentId:{}", applicationName, agentId);
-                this.active = active0(agentInfo);
+
+                StreamChannel streamChannel = null;
+                try {
+                    streamChannel = connect0(agentInfo);
+                    return streamChannel;
+                } catch (StreamException streamException) {
+                    if (streamChannel != null) {
+                        streamChannel.close(streamException.getStreamCode());
+                    }
+
+                    StreamCode streamCode = streamException.getStreamCode();
+                    if (streamCode == StreamCode.CONNECTION_NOT_FOUND) {
+                        workerActiveManager.addReactiveWorker(agentInfo);
+                    }
+                    setDefaultErrorMessage(streamCode.name());
+                } catch (TException exception) {
+                    if (streamChannel != null) {
+                        streamChannel.close(StreamCode.TYPE_UNKNOWN);
+                    }
+                    setDefaultErrorMessage(TRouteResult.NOT_SUPPORTED_REQUEST.name());
+                }
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void active(StreamChannel streamChannel, long waitTimeout) {
+        synchronized (lock) {
+            if (started) {
+                if (streamChannel != null) {
+                    this.active = active0(streamChannel, waitTimeout);
+                } else {
+                    workerActiveManager.addReactiveWorker(applicationName, agentId);
+                }
             }
         }
     }
@@ -145,21 +179,46 @@ public class ActiveThreadCountWorker implements PinpointWebSocketHandlerWorker {
 
     private boolean active0(AgentInfo agentInfo) {
         synchronized (lock) {
+            StreamChannel streamChannel = null;
             try {
-                streamChannel = agentService.openStream(agentInfo, COMMAND_INSTANCE, eventHandler);
-                setDefaultErrorMessage(TRouteResult.TIMEOUT.name());
-                return true;
+                streamChannel = connect0(agentInfo);
+                return active0(streamChannel, 3000);
             } catch (StreamException streamException) {
+                if (streamChannel != null) {
+                    streamChannel.close(streamException.getStreamCode());
+                }
+
                 StreamCode streamCode = streamException.getStreamCode();
                 if (streamCode == StreamCode.CONNECTION_NOT_FOUND) {
                     workerActiveManager.addReactiveWorker(agentInfo);
                 }
                 setDefaultErrorMessage(streamCode.name());
             } catch (TException exception) {
+                if (streamChannel != null) {
+                    streamChannel.close(StreamCode.TYPE_UNKNOWN);
+                }
                 setDefaultErrorMessage(TRouteResult.NOT_SUPPORTED_REQUEST.name());
             }
             return false;
         }
+    }
+
+    private boolean active0(StreamChannel streamChannel, long timeout) {
+        synchronized (lock) {
+            boolean connected = streamChannel.awaitOpen(timeout);
+            if (connected) {
+                this.streamChannel = streamChannel;
+                setDefaultErrorMessage(TRouteResult.TIMEOUT.name());
+                return true;
+            } else {
+                streamChannel.close(StreamCode.CONNECTION_TIMEOUT);
+                return false;
+            }
+        }
+    }
+
+    private StreamChannel connect0(AgentInfo agentInfo) throws TException, StreamException {
+        return agentService.openStream(agentInfo, COMMAND_INSTANCE, eventHandler);
     }
 
     private boolean isTurnOn() {
@@ -201,7 +260,7 @@ public class ActiveThreadCountWorker implements PinpointWebSocketHandlerWorker {
                 logger.debug("handleStreamResponsePacket() streamChannel:{}, packet:{}", streamChannel, packet);
             }
 
-            TBase response = agentService.deserializeResponse(packet.getPayload(), null);
+            TBase<?, ?> response = agentService.deserializeResponse(packet.getPayload(), null);
             AgentActiveThreadCount activeThreadCount = getAgentActiveThreadCount(response);
             responseAggregator.response(activeThreadCount);
         }
@@ -233,7 +292,7 @@ public class ActiveThreadCountWorker implements PinpointWebSocketHandlerWorker {
             }
         }
 
-        private AgentActiveThreadCount getAgentActiveThreadCount(TBase routeResponse) {
+        private AgentActiveThreadCount getAgentActiveThreadCount(TBase<?, ?> routeResponse) {
             if (routeResponse instanceof TCommandTransferResponse) {
                 byte[] payload = ((TCommandTransferResponse) routeResponse).getPayload();
                 TBase<?, ?> activeThreadCountResponse = agentService.deserializeResponse(payload, null);

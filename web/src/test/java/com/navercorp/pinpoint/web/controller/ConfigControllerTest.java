@@ -47,7 +47,7 @@ import com.navercorp.pinpoint.web.vo.User;
 @Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @WebAppConfiguration
-@ContextConfiguration(locations = {"classpath:servlet-context.xml", "classpath:applicationContext-web.xml"})
+@ContextConfiguration(locations = {"classpath:servlet-context-web.xml", "classpath:applicationContext-web.xml"})
 public class ConfigControllerTest {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     @Autowired
@@ -58,7 +58,7 @@ public class ConfigControllerTest {
     
     private MockMvc mockMvc;
     
-    private static User user = new User("naver01", "min", "pinpoint", "010", "min@naver0.com");
+    private static final  User user = new User("naver01", "min", "pinpoint", 82, "010", "min@naver0.com");
 
     @Before
     public void before() {

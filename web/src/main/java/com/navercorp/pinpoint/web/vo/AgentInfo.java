@@ -23,6 +23,7 @@ import com.navercorp.pinpoint.common.server.bo.AgentInfoBo;
 import com.navercorp.pinpoint.common.server.bo.JvmInfoBo;
 import com.navercorp.pinpoint.common.server.bo.ServerMetaDataBo;
 import com.navercorp.pinpoint.web.view.AgentInfoSerializer;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * @author HyunGil Jeong
@@ -30,17 +31,12 @@ import com.navercorp.pinpoint.web.view.AgentInfoSerializer;
 @JsonSerialize(using = AgentInfoSerializer.class)
 public class AgentInfo {
 
-    public static final Comparator<AgentInfo> AGENT_NAME_ASC_COMPARATOR = new Comparator<AgentInfo>() {
-        @Override
-        public int compare(AgentInfo lhs, AgentInfo rhs) {
-            final String lhsAgentId = lhs.agentId == null ? "" : lhs.agentId;
-            final String rhsAgentId = rhs.agentId == null ? "" : rhs.agentId;
-            return lhsAgentId.compareTo(rhsAgentId);
-        }
-    };
+    public static final Comparator<AgentInfo> AGENT_NAME_ASC_COMPARATOR
+            = Comparator.comparing(agentInfo -> StringUtils.defaultString(agentInfo.agentId));
 
     private String applicationName;
     private String agentId;
+    private String agentName;
     private long startTimestamp;
     private String hostName;
     private String ip;
@@ -61,6 +57,7 @@ public class AgentInfo {
     public AgentInfo(AgentInfoBo agentInfoBo) {
         this.applicationName = agentInfoBo.getApplicationName();
         this.agentId = agentInfoBo.getAgentId();
+        this.agentName = agentInfoBo.getAgentName();
         this.startTimestamp = agentInfoBo.getStartTime();
         this.hostName = agentInfoBo.getHostName();
         this.ip = agentInfoBo.getIp();
@@ -88,6 +85,14 @@ public class AgentInfo {
 
     public void setAgentId(String agentId) {
         this.agentId = agentId;
+    }
+
+    public String getAgentName() {
+        return agentName;
+    }
+
+    public void setAgentName(String agentName) {
+        this.agentName = agentName;
     }
 
     public long getStartTimestamp() {
@@ -218,6 +223,7 @@ public class AgentInfo {
         final StringBuilder sb = new StringBuilder("AgentInfo{");
         sb.append("applicationName='").append(applicationName).append('\'');
         sb.append(", agentId='").append(agentId).append('\'');
+        sb.append(", agentName='").append(agentName).append('\'');
         sb.append(", startTimestamp=").append(startTimestamp);
         sb.append(", hostName='").append(hostName).append('\'');
         sb.append(", ip='").append(ip).append('\'');

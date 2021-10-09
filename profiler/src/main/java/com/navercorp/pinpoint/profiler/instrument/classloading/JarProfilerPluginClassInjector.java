@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.profiler.instrument.classloading;
 import java.io.InputStream;
 import java.net.URLClassLoader;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.profiler.instrument.InstrumentEngine;
 import com.navercorp.pinpoint.profiler.plugin.PluginConfig;
 
@@ -40,10 +40,9 @@ public class JarProfilerPluginClassInjector implements ClassInjector {
     private final ClassInjector plainClassLoaderHandler;
 
     public JarProfilerPluginClassInjector(PluginConfig pluginConfig, InstrumentEngine instrumentEngine, BootstrapCore bootstrapCore) {
-        if (pluginConfig == null) {
-            throw new NullPointerException("pluginConfig");
-        }
-        this.bootstrapCore = Assert.requireNonNull(bootstrapCore, "bootstrapCore");
+        Objects.requireNonNull(pluginConfig, "pluginConfig");
+
+        this.bootstrapCore = Objects.requireNonNull(bootstrapCore, "bootstrapCore");
         this.bootstrapClassLoaderHandler = new BootstrapClassLoaderHandler(pluginConfig, instrumentEngine);
         this.urlClassLoaderHandler = new URLClassLoaderHandler(pluginConfig);
         this.plainClassLoaderHandler = new PlainClassLoaderHandler(pluginConfig);
@@ -57,12 +56,12 @@ public class JarProfilerPluginClassInjector implements ClassInjector {
                 return bootstrapCore.loadClass(className);
             }
             if (classLoader == null) {
-                return (Class<T>)bootstrapClassLoaderHandler.injectClass(null, className);
+                return bootstrapClassLoaderHandler.injectClass(null, className);
             } else if (classLoader instanceof URLClassLoader) {
                 final URLClassLoader urlClassLoader = (URLClassLoader) classLoader;
-                return (Class<T>)urlClassLoaderHandler.injectClass(urlClassLoader, className);
+                return urlClassLoaderHandler.injectClass(urlClassLoader, className);
             } else {
-                return (Class<T>)plainClassLoaderHandler.injectClass(classLoader, className);
+                return plainClassLoaderHandler.injectClass(classLoader, className);
             }
         } catch (Throwable e) {
             // fixed for LinkageError

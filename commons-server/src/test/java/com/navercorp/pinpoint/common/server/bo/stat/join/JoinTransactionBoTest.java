@@ -21,7 +21,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author minwoo.jung
@@ -29,8 +29,8 @@ import static org.junit.Assert.*;
 public class JoinTransactionBoTest {
 
     @Test
-    public void joinTransactionBoLIstTest() {
-        List<JoinTransactionBo> joinTransactionBoList = new ArrayList<JoinTransactionBo>();
+    public void joinTransactionBoListTest() {
+        List<JoinTransactionBo> joinTransactionBoList = new ArrayList<>();
         JoinTransactionBo joinTransactionBo1 = new JoinTransactionBo("agent1", 5000, 150, 12, "agent1", 230, "agent1", 1496988667231L);
         JoinTransactionBo joinTransactionBo2 = new JoinTransactionBo("agent2", 5000, 110, 40, "agent2", 240, "agent2", 1496988667231L);
         JoinTransactionBo joinTransactionBo3 = new JoinTransactionBo("agent3", 5000, 120, 50, "agent3", 130, "agent3", 1496988667231L);
@@ -42,21 +42,17 @@ public class JoinTransactionBoTest {
         joinTransactionBoList.add(joinTransactionBo4);
         joinTransactionBoList.add(joinTransactionBo5);
 
-        JoinTransactionBo joinTransactionBo = JoinTransactionBo.joinTransactionBoLIst(joinTransactionBoList, 1496988667231L);
+        JoinTransactionBo joinTransactionBo = JoinTransactionBo.joinTransactionBoList(joinTransactionBoList, 1496988667231L);
         assertEquals("agent1", joinTransactionBo.getId());
         assertEquals(1496988667231L, joinTransactionBo.getTimestamp());
         assertEquals(5000, joinTransactionBo.getCollectInterval());
-        assertEquals(130, joinTransactionBo.getTotalCount());
-        assertEquals(11, joinTransactionBo.getMinTotalCount());
-        assertEquals("agent5", joinTransactionBo.getMinTotalCountAgentId());
-        assertEquals(630, joinTransactionBo.getMaxTotalCount());
-        assertEquals("agent4", joinTransactionBo.getMaxTotalCountAgentId());
+        assertEquals(new JoinLongFieldBo(130L, 11L, "agent5", 630L, "agent4"), joinTransactionBo.getTotalCountJoinValue());
     }
 
     @Test
-    public void joinTransactionBoLIst2Test() {
-        List<JoinTransactionBo> joinTransactionBoList = new ArrayList<JoinTransactionBo>();
-        JoinTransactionBo joinTransactionBo = JoinTransactionBo.joinTransactionBoLIst(joinTransactionBoList, 1496988667231L);
+    public void joinTransactionBoList2Test() {
+        List<JoinTransactionBo> joinTransactionBoList = new ArrayList<>();
+        JoinTransactionBo joinTransactionBo = JoinTransactionBo.joinTransactionBoList(joinTransactionBoList, 1496988667231L);
         assertEquals(joinTransactionBo, JoinTransactionBo.EMPTY_JOIN_TRANSACTION_BO);
     }
 }

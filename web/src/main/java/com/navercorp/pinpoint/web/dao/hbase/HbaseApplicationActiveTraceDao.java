@@ -22,16 +22,16 @@ import com.navercorp.pinpoint.web.dao.ApplicationActiveTraceDao;
 import com.navercorp.pinpoint.web.mapper.stat.ApplicationStatMapper;
 import com.navercorp.pinpoint.web.mapper.stat.SampledApplicationStatResultExtractor;
 import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.ApplicationStatSampler;
-import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.JoinActiveTraceSampler;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.AggreJoinActiveTraceBo;
 import com.navercorp.pinpoint.web.vo.stat.AggregationStatData;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author minwoo.jung
@@ -39,20 +39,23 @@ import java.util.List;
 @Repository
 public class HbaseApplicationActiveTraceDao implements ApplicationActiveTraceDao {
 
-    @Autowired
-    private ActiveTraceDecoder activeTraceDecoder;
+    private final ActiveTraceDecoder activeTraceDecoder;
 
-    @Autowired
-    private ApplicationStatSampler<JoinActiveTraceBo> activeTraceSampler;
+    private final ApplicationStatSampler<JoinActiveTraceBo> activeTraceSampler;
 
-    @Autowired
-    private HbaseApplicationStatDaoOperations operations;
+    private final HbaseApplicationStatDaoOperations operations;
+
+    public HbaseApplicationActiveTraceDao(ActiveTraceDecoder activeTraceDecoder, ApplicationStatSampler<JoinActiveTraceBo> activeTraceSampler, HbaseApplicationStatDaoOperations operations) {
+        this.activeTraceDecoder = Objects.requireNonNull(activeTraceDecoder, "activeTraceDecoder");
+        this.activeTraceSampler = Objects.requireNonNull(activeTraceSampler, "activeTraceSampler");
+        this.operations = Objects.requireNonNull(operations, "operations");
+    }
 
     @Override
     public List<AggreJoinActiveTraceBo> getApplicationStatList(String applicationId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         ApplicationStatMapper mapper = operations.createRowMapper(activeTraceDecoder, range);
         SampledApplicationStatResultExtractor resultExtractor = new SampledApplicationStatResultExtractor(timeWindow, mapper, activeTraceSampler);
         List<AggregationStatData> aggregationStatDataList = operations.getSampledStatList(StatType.APP_ACTIVE_TRACE_COUNT, resultExtractor, applicationId, range);

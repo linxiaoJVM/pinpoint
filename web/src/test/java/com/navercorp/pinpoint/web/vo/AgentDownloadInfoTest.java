@@ -18,14 +18,15 @@ package com.navercorp.pinpoint.web.vo;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.pinpoint.common.Charsets;
+import com.navercorp.pinpoint.common.util.BytesUtils;
+import com.navercorp.pinpoint.common.util.IOUtils;
 import com.navercorp.pinpoint.web.dao.AgentDownloadInfoDao;
 import com.navercorp.pinpoint.web.dao.AgentDownloadInfoDaoFactory;
 import com.navercorp.pinpoint.web.dao.memory.MemoryAgentDownloadInfoDao;
 import com.navercorp.pinpoint.web.dao.rest.GithubAgentDownloadInfoDao;
-import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,20 +37,22 @@ import java.util.List;
  */
 public class AgentDownloadInfoTest {
 
+    private RestTemplate restTemplate = new RestTemplate();
+
     @Test
     public void factoryTest() {
         String version = "1.6.0";
         String downloadUrl = "http://localhost:8080/pinpoint-agent-1.6.0.tar.gz";
 
-        AgentDownloadInfoDao agentDownloadInfoDao = AgentDownloadInfoDaoFactory.create(version, downloadUrl);
+        AgentDownloadInfoDao agentDownloadInfoDao = AgentDownloadInfoDaoFactory.create(version, downloadUrl, restTemplate);
         Assert.assertTrue(agentDownloadInfoDao instanceof MemoryAgentDownloadInfoDao);
         Assert.assertEquals(version, agentDownloadInfoDao.getDownloadInfoList().get(0).getVersion());
         Assert.assertEquals(downloadUrl, agentDownloadInfoDao.getDownloadInfoList().get(0).getDownloadUrl());
 
-        agentDownloadInfoDao = AgentDownloadInfoDaoFactory.create(version, "");
+        agentDownloadInfoDao = AgentDownloadInfoDaoFactory.create(version, "", restTemplate);
         Assert.assertTrue(agentDownloadInfoDao instanceof GithubAgentDownloadInfoDao);
 
-        agentDownloadInfoDao = AgentDownloadInfoDaoFactory.create("   ", downloadUrl);
+        agentDownloadInfoDao = AgentDownloadInfoDaoFactory.create("   ", downloadUrl, restTemplate);
         Assert.assertTrue(agentDownloadInfoDao instanceof GithubAgentDownloadInfoDao);
     }
 
@@ -65,13 +68,14 @@ public class AgentDownloadInfoTest {
     }
 
     private String getMockJsonString() throws IOException {
-        InputStream resourceAsStream = null;
-        try {
-            resourceAsStream = this.getClass().getClassLoader().getResourceAsStream("mock/github_pinpoint_release_response.json");
-            return IOUtils.toString(resourceAsStream, Charsets.UTF_8);
-        } finally {
-            IOUtils.closeQuietly(resourceAsStream);
+        try (InputStream resourceAsStream = getResourceAsStream("mock/github_pinpoint_release_response.json"))  {
+            byte[] bytes = IOUtils.toByteArray(resourceAsStream);
+            return BytesUtils.toString(bytes);
         }
+    }
+
+    private InputStream getResourceAsStream(String name) {
+        return this.getClass().getClassLoader().getResourceAsStream(name);
     }
 
 }

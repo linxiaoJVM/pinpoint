@@ -21,17 +21,21 @@ import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
 import com.navercorp.pinpoint.common.hbase.TableDescriptor;
 import com.navercorp.pinpoint.common.server.bo.ApiMetaDataBo;
+import com.navercorp.pinpoint.common.server.bo.serializer.RowKeyEncoder;
+import com.navercorp.pinpoint.common.server.bo.serializer.metadata.DefaultMetaDataRowKey;
+import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetaDataRowKey;
+import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetadataEncoder;
 import com.navercorp.pinpoint.web.dao.ApiMetaDataDao;
 
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Get;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author emeroad
@@ -41,29 +45,34 @@ import java.util.List;
 public class HbaseApiMetaDataDao implements ApiMetaDataDao {
     static final String SPEL_KEY = "#agentId.toString() + '.' + #time.toString() + '.' + #apiId.toString()";
 
-    @Autowired
-    private HbaseOperations2 hbaseOperations2;
+    private final HbaseOperations2 hbaseOperations2;
 
-    @Autowired
-    @Qualifier("apiMetaDataMapper")
-    private RowMapper<List<ApiMetaDataBo>> apiMetaDataMapper;
+    private final RowMapper<List<ApiMetaDataBo>> apiMetaDataMapper;
 
-    @Autowired
-    @Qualifier("metadataRowKeyDistributor")
-    private RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
+    private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
 
-    @Autowired
-    private TableDescriptor<HbaseColumnFamily.ApiMetadata> descriptor;
+    private final TableDescriptor<HbaseColumnFamily.ApiMetadata> descriptor;
+
+    private final RowKeyEncoder<MetaDataRowKey> rowKeyEncoder = new MetadataEncoder();
+
+    public HbaseApiMetaDataDao(HbaseOperations2 hbaseOperations2,
+                               TableDescriptor<HbaseColumnFamily.ApiMetadata> descriptor,
+                               @Qualifier("apiMetaDataMapper") RowMapper<List<ApiMetaDataBo>> apiMetaDataMapper,
+                               @Qualifier("metadataRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix) {
+        this.hbaseOperations2 = Objects.requireNonNull(hbaseOperations2, "hbaseOperations2");
+        this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
+        this.apiMetaDataMapper = Objects.requireNonNull(apiMetaDataMapper, "apiMetaDataMapper");
+        this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
+    }
 
     @Override
-    @Cacheable(value="apiMetaData", key=SPEL_KEY)
+    @Cacheable(cacheNames="apiMetaData", key=SPEL_KEY, cacheManager = "apiMeatData")
     public List<ApiMetaDataBo> getApiMetaData(String agentId, long time, int apiId) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
+        Objects.requireNonNull(agentId, "agentId");
 
-        ApiMetaDataBo apiMetaDataBo = new ApiMetaDataBo(agentId, time, apiId);
-        byte[] sqlId = getDistributedKey(apiMetaDataBo.toRowKey());
+        MetaDataRowKey metaDataRowKey = new DefaultMetaDataRowKey(agentId, time, apiId);
+        byte[] sqlId = getDistributedKey(rowKeyEncoder.encodeRowKey(metaDataRowKey));
+
         Get get = new Get(sqlId);
         get.addFamily(descriptor.getColumnFamilyName());
 

@@ -16,21 +16,12 @@
 package com.navercorp.pinpoint.collector.service;
 
 import com.navercorp.pinpoint.collector.dao.AgentStatDaoV2;
-import com.navercorp.pinpoint.common.server.bo.stat.ActiveTraceBo;
 import com.navercorp.pinpoint.common.server.bo.stat.AgentStatBo;
-import com.navercorp.pinpoint.common.server.bo.stat.CpuLoadBo;
-import com.navercorp.pinpoint.common.server.bo.stat.DataSourceListBo;
-import com.navercorp.pinpoint.common.server.bo.stat.DeadlockThreadCountBo;
-import com.navercorp.pinpoint.common.server.bo.stat.DirectBufferBo;
-import com.navercorp.pinpoint.common.server.bo.stat.FileDescriptorBo;
-import com.navercorp.pinpoint.common.server.bo.stat.JvmGcBo;
-import com.navercorp.pinpoint.common.server.bo.stat.JvmGcDetailedBo;
-import com.navercorp.pinpoint.common.server.bo.stat.ResponseTimeBo;
-import com.navercorp.pinpoint.common.server.bo.stat.TransactionBo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Objects;
 
 /**
  * @author minwoo.jung
@@ -40,52 +31,24 @@ public class HBaseAgentStatService implements AgentStatService {
 
     private final Logger logger = LoggerFactory.getLogger(HBaseAgentStatService.class.getName());
 
-    @Autowired
-    private AgentStatDaoV2<JvmGcBo> jvmGcDao;
+    private final AgentStatDaoV2<?>[] agentStatDaoList;
 
-    @Autowired
-    private AgentStatDaoV2<JvmGcDetailedBo> jvmGcDetailedDao;
+    public HBaseAgentStatService(AgentStatDaoV2<?>[] agentStatDaoList) {
+        this.agentStatDaoList = Objects.requireNonNull(agentStatDaoList, "agentStatDaoList");
 
-    @Autowired
-    private AgentStatDaoV2<CpuLoadBo> cpuLoadDao;
-
-    @Autowired
-    private AgentStatDaoV2<TransactionBo> transactionDao;
-
-    @Autowired
-    private AgentStatDaoV2<ActiveTraceBo> activeTraceDao;
-
-    @Autowired
-    private AgentStatDaoV2<DataSourceListBo> dataSourceListDao;
-
-    @Autowired
-    private AgentStatDaoV2<ResponseTimeBo> responseTimeDao;
-
-    @Autowired
-    private AgentStatDaoV2<DeadlockThreadCountBo> deadlockDao;
-
-    @Autowired
-    private AgentStatDaoV2<FileDescriptorBo> fileDescriptorDao;
-
-    @Autowired
-    private AgentStatDaoV2<DirectBufferBo> directBufferDao;
+        for (AgentStatDaoV2<?> agentStatDaoV2 : agentStatDaoList) {
+            logger.info("AgentStatDaoV2:{}", agentStatDaoV2.getClass().getSimpleName());
+        }
+    }
 
     @Override
     public void save(AgentStatBo agentStatBo) {
-        final String agentId = agentStatBo.getAgentId();
-        try {
-            this.jvmGcDao.insert(agentId, agentStatBo.getJvmGcBos());
-            this.jvmGcDetailedDao.insert(agentId, agentStatBo.getJvmGcDetailedBos());
-            this.cpuLoadDao.insert(agentId, agentStatBo.getCpuLoadBos());
-            this.transactionDao.insert(agentId, agentStatBo.getTransactionBos());
-            this.activeTraceDao.insert(agentId, agentStatBo.getActiveTraceBos());
-            this.dataSourceListDao.insert(agentId, agentStatBo.getDataSourceListBos());
-            this.responseTimeDao.insert(agentId, agentStatBo.getResponseTimeBos());
-            this.deadlockDao.insert(agentId, agentStatBo.getDeadlockThreadCountBos());
-            this.fileDescriptorDao.insert(agentId, agentStatBo.getFileDescriptorBos());
-            this.directBufferDao.insert(agentId, agentStatBo.getDirectBufferBos());
-        } catch (Exception e) {
-            logger.warn("Error inserting AgentStatBo. Caused:{}", e.getMessage(), e);
+        for (AgentStatDaoV2<?> agentStatDao : agentStatDaoList) {
+            try {
+                agentStatDao.dispatch(agentStatBo);
+            } catch (Exception e) {
+                logger.warn("Error inserting AgentStatBo. Caused:{}", e.getMessage(), e);
+            }
         }
     }
 

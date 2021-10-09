@@ -1,6 +1,6 @@
 package com.navercorp.pinpoint.test.plugin.util;
 
-import java.util.List;
+import java.util.Collection;
 
 public final class StringUtils {
     private StringUtils() {
@@ -28,20 +28,18 @@ public final class StringUtils {
         return false;
     }
 
-    public static String join(List<String> stringList, char separator) {
-
-        StringBuilder classPath = new StringBuilder();
-        boolean first = true;
-
-        for (String lib : stringList) {
-            if (first) {
-                first = false;
-            } else {
-                classPath.append(separator);
-            }
-
-            classPath.append(lib);
+    public static <T> int getLength(final String string, final int nullValue) {
+        if (string == null) {
+            return nullValue;
         }
-        return classPath.toString();
+        return string.length();
+    }
+
+    public static String join(Collection<String> stringList, String separator) {
+        StringJoiner joiner = new StringJoiner(separator);
+        for (String str : stringList) {
+            joiner.add(str);
+        }
+        return joiner.toString();
     }
 }

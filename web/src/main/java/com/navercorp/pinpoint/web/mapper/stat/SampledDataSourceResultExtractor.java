@@ -26,7 +26,6 @@ import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.AgentStatSampler;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.stat.SampledDataSource;
 import com.navercorp.pinpoint.web.vo.stat.SampledDataSourceList;
-
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 
@@ -89,12 +88,7 @@ public class SampledDataSourceResultExtractor implements ResultsExtractor<List<S
     }
 
     private SampledDataSourceList getSampleData(List<DataSourceBo> dataSourceBoList) {
-        dataSourceBoList.sort(new Comparator<DataSourceBo>() {
-            @Override
-            public int compare(DataSourceBo o1, DataSourceBo o2) {
-                return Long.compare(o2.getTimestamp(), o1.getTimestamp());
-            }
-        });
+        dataSourceBoList.sort(Comparator.comparingLong(DataSourceBo::getTimestamp).reversed());
 
         AgentStatSamplingHandler<DataSourceBo, SampledDataSource> samplingHandler = new EagerSamplingHandler<>(timeWindow, sampler);
         for (DataSourceBo dataSourceBo : dataSourceBoList) {

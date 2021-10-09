@@ -20,7 +20,6 @@ import com.navercorp.pinpoint.loader.service.TraceMetadataLoaderService;
 import com.navercorp.pinpoint.common.trace.AnnotationKeyMatcher;
 import com.navercorp.pinpoint.common.trace.AnnotationKeyMatcherLocator;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -37,7 +36,6 @@ public class DefaultAnnotationKeyMatcherService implements AnnotationKeyMatcherS
 
     private final AnnotationKeyMatcherLocator annotationKeyMatcherLocator;
 
-    @Autowired
     public DefaultAnnotationKeyMatcherService(TraceMetadataLoaderService typeLoaderService) {
         Objects.requireNonNull(typeLoaderService, "typeLoaderService");
         this.annotationKeyMatcherLocator = typeLoaderService.getAnnotationKeyMatcherLocator();

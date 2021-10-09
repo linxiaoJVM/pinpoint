@@ -16,9 +16,10 @@
 package com.navercorp.pinpoint.web.dao.mysql;
 
 import java.util.List;
+import java.util.Objects;
 
+import com.navercorp.pinpoint.web.vo.UserPhoneInfo;
 import org.mybatis.spring.SqlSessionTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
@@ -32,11 +33,13 @@ import com.navercorp.pinpoint.web.vo.UserGroupMember;
 @Repository
 public class MysqlUserGroupDao implements UserGroupDao {
     
-    private static final String NAMESPACE = UserGroupDao.class.getPackage().getName() + "." + UserGroupDao.class.getSimpleName() + ".";
+    private static final String NAMESPACE = UserGroupDao.class.getName() + ".";
 
-    @Autowired
-    @Qualifier("sqlSessionTemplate")
-    private SqlSessionTemplate sqlSessionTemplate;
+    private final SqlSessionTemplate sqlSessionTemplate;
+
+    public MysqlUserGroupDao(@Qualifier("sqlSessionTemplate") SqlSessionTemplate sqlSessionTemplate) {
+        this.sqlSessionTemplate = Objects.requireNonNull(sqlSessionTemplate, "sqlSessionTemplate");
+    }
 
     @Override
     public String createUserGroup(UserGroup userGroup) {
@@ -52,6 +55,11 @@ public class MysqlUserGroupDao implements UserGroupDao {
     @Override
     public boolean isExistUserGroup(String userGroupId) {
         return sqlSessionTemplate.selectOne(NAMESPACE + "isExistUserGroup", userGroupId);
+    }
+
+    @Override
+    public List<UserPhoneInfo> selectPhoneInfoOfMember(String userGroupId) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectPhoneInfoOfMember", userGroupId);
     }
 
     @Override

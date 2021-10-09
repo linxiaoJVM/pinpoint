@@ -15,15 +15,16 @@
  */
 package com.navercorp.pinpoint.flink.mapper.thrift.stat;
 
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinAgentStatBo;
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinLongFieldBo;
 import com.navercorp.pinpoint.common.server.bo.stat.join.JoinTransactionBo;
-import com.navercorp.pinpoint.flink.mapper.thrift.ThriftBoMapper;
 import com.navercorp.pinpoint.thrift.dto.flink.TFAgentStat;
 import com.navercorp.pinpoint.thrift.dto.flink.TFTransaction;
 
 /**
  * @author minwoo.jung
  */
-public class JoinTransactionBoMapper implements ThriftBoMapper<JoinTransactionBo, TFAgentStat> {
+public class JoinTransactionBoMapper implements ThriftStatMapper<JoinTransactionBo, TFAgentStat> {
 
     @Override
     public JoinTransactionBo map(TFAgentStat tFAgentStat) {
@@ -39,11 +40,7 @@ public class JoinTransactionBoMapper implements ThriftBoMapper<JoinTransactionBo
         joinTransactionBo.setId(agentId);
         joinTransactionBo.setCollectInterval(tFAgentStat.getCollectInterval());
         joinTransactionBo.setTimestamp(tFAgentStat.getTimestamp());
-        joinTransactionBo.setTotalCount(totalCount);
-        joinTransactionBo.setMaxTotalCount(totalCount);
-        joinTransactionBo.setMaxTotalCountAgentId(agentId);
-        joinTransactionBo.setMinTotalCount(totalCount);
-        joinTransactionBo.setMinTotalCountAgentId(agentId);
+        joinTransactionBo.setTotalCountJoinValue(new JoinLongFieldBo(totalCount, totalCount, agentId, totalCount, agentId));
 
         return joinTransactionBo;
     }
@@ -57,5 +54,16 @@ public class JoinTransactionBoMapper implements ThriftBoMapper<JoinTransactionBo
         totalCount += tFtransaction.getSkippedNewCount();
         totalCount += tFtransaction.getSkippedContinuationCount();
         return totalCount;
+    }
+
+    @Override
+    public void build(TFAgentStat tFAgentStat, JoinAgentStatBo.Builder builder) {
+        JoinTransactionBo joinTransactionBo = this.map(tFAgentStat);
+
+        if (joinTransactionBo == JoinTransactionBo.EMPTY_JOIN_TRANSACTION_BO) {
+            return;
+        }
+
+        builder.addTransaction(joinTransactionBo);
     }
 }

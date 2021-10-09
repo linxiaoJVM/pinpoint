@@ -27,32 +27,39 @@ import com.navercorp.pinpoint.thrift.dto.TAgentStatBatch;
 import org.apache.thrift.TBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.Objects;
 
 /**
  * @author emeroad
  * @author HyunGil Jeong
  */
 @Service
-public class ThriftAgentStatHandlerV2 implements SimpleHandler {
+public class ThriftAgentStatHandlerV2 implements SimpleHandler<TBase<?, ?>> {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    @Autowired
-    private ThriftAgentStatMapper agentStatMapper;
+    private final ThriftAgentStatMapper agentStatMapper;
 
-    @Autowired
-    private ThriftAgentStatBatchMapper agentStatBatchMapper;
+    private final ThriftAgentStatBatchMapper agentStatBatchMapper;
 
-    @Autowired(required = false)
-    private List<AgentStatService> agentStatServiceList = Collections.emptyList();
+    private final AgentStatService[] agentStatServiceList;
+
+    public ThriftAgentStatHandlerV2(ThriftAgentStatMapper agentStatMapper,
+                                    ThriftAgentStatBatchMapper agentStatBatchMapper,
+                                    AgentStatService[] agentStatServiceList) {
+        this.agentStatMapper = Objects.requireNonNull(agentStatMapper, "agentStatMapper");
+        this.agentStatBatchMapper = Objects.requireNonNull(agentStatBatchMapper, "agentStatBatchMapper");
+
+        this.agentStatServiceList = Objects.requireNonNull(agentStatServiceList, "agentStatServiceList");
+        for (AgentStatService agentStatService : this.agentStatServiceList) {
+            logger.info("AgentStatService:{}", agentStatService.getClass().getSimpleName());
+        }
+    }
 
     @Override
-    public void handleSimple(ServerRequest serverRequest) {
-        final Object data = serverRequest.getData();
+    public void handleSimple(ServerRequest<TBase<?, ?>> serverRequest) {
+        final TBase<?, ?> data = serverRequest.getData();
         if (logger.isDebugEnabled()) {
             logger.debug("Handle simple data={}", data);
         }

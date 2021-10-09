@@ -19,11 +19,11 @@ package com.navercorp.pinpoint.web.service.stat;
 import com.navercorp.pinpoint.common.server.bo.stat.TransactionBo;
 import com.navercorp.pinpoint.web.dao.stat.TransactionDao;
 import com.navercorp.pinpoint.web.vo.Range;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -33,19 +33,15 @@ public class TransactionService implements AgentStatService<TransactionBo> {
 
     private final TransactionDao transactionDao;
 
-    @Autowired
     public TransactionService(@Qualifier("transactionDaoFactory") TransactionDao transactionDao) {
-        this.transactionDao = transactionDao;
+        this.transactionDao = Objects.requireNonNull(transactionDao, "transactionDao");
     }
 
     @Override
     public List<TransactionBo> selectAgentStatList(String agentId, Range range) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
-        if (range == null) {
-            throw new NullPointerException("range");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(range, "range");
+
         return this.transactionDao.getAgentStatList(agentId, range);
     }
 }

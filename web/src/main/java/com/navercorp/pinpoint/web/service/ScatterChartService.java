@@ -16,13 +16,12 @@
 
 package com.navercorp.pinpoint.web.service;
 
-import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.common.profiler.util.TransactionId;
+import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.web.filter.Filter;
 import com.navercorp.pinpoint.web.scatter.ScatterData;
 import com.navercorp.pinpoint.web.vo.GetTraceInfo;
 import com.navercorp.pinpoint.web.vo.Range;
-import com.navercorp.pinpoint.web.vo.SelectedScatterArea;
 import com.navercorp.pinpoint.web.vo.scatter.Dot;
 
 import java.util.List;
@@ -37,32 +36,14 @@ public interface ScatterChartService {
      * @param filter
      * @return
      */
-    List<Dot> selectScatterData(List<TransactionId> traceIds, String applicationName, Filter filter);
+    List<Dot> selectScatterData(List<TransactionId> traceIds, String applicationName, Filter<List<SpanBo>> filter);
 
-    /**
-     * @param applicationName
-     * @param area
-     * @param offsetTransactionId
-     * @param offsetTransactionElapsed
-     * @param limit
-     * @return
-     */
-    List<Dot> selectScatterData(String applicationName, SelectedScatterArea area, TransactionId offsetTransactionId, int offsetTransactionElapsed, int limit);
-
-    /**
-     * Queries for scatter dots limited by the given limit.
-     *
-     * @param applicationName
-     * @param from
-     * @param to
-     * @param limit
-     * @return
-     */
-//  List<TransactionId> selectScatterTraceIdList(String applicationName, long from, long to, int limit);
     List<SpanBo> selectTransactionMetadata(List<GetTraceInfo> getTraceInfoList);
+
+    List<SpanBo> selectTransactionMetadata(TransactionId transactionId);
 
     ScatterData selectScatterData(String applicationName, Range range, int xGroupUnit, int yGroupUnit, int limit, boolean backwardDirection);
 
-    ScatterData selectScatterData(List<TransactionId> transactionIdList, String applicationName, Range range, int xGroupUnit, int yGroupUnit, Filter filter);
+    ScatterData selectScatterData(List<TransactionId> transactionIdList, String applicationName, Range range, int xGroupUnit, int yGroupUnit, Filter<List<SpanBo>> filter);
 
 }

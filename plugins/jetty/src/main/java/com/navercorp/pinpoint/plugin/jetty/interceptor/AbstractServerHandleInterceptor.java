@@ -16,16 +16,22 @@
 
 package com.navercorp.pinpoint.plugin.jetty.interceptor;
 
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.context.*;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.RequestRecorderFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.request.RequestAdaptor;
-import com.navercorp.pinpoint.bootstrap.plugin.request.ServletRequestListenerInterceptorHelper;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServerCookieRecorder;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServerHeaderRecorder;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServletRequestListener;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServletRequestListenerBuilder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
-import com.navercorp.pinpoint.bootstrap.plugin.request.util.RemoteAddressResolverFactory;
+import com.navercorp.pinpoint.bootstrap.plugin.response.ServletResponseListener;
+import com.navercorp.pinpoint.bootstrap.plugin.response.ServletResponseListenerBuilder;
 import com.navercorp.pinpoint.plugin.common.servlet.util.HttpServletRequestAdaptor;
+import com.navercorp.pinpoint.plugin.common.servlet.util.HttpServletResponseAdaptor;
 import com.navercorp.pinpoint.plugin.common.servlet.util.ParameterRecorderFactory;
 import com.navercorp.pinpoint.plugin.jetty.JettyConfiguration;
 import com.navercorp.pinpoint.plugin.jetty.JettyConstants;
@@ -45,16 +51,32 @@ public abstract class AbstractServerHandleInterceptor implements AroundIntercept
     private final boolean isInfo = logger.isInfoEnabled();
 
     private final MethodDescriptor methodDescriptor;
-    private final ServletRequestListenerInterceptorHelper<HttpServletRequest> servletRequestListenerInterceptorHelper;
+    private final ServletRequestListener<HttpServletRequest> servletRequestListener;
+    private final ServletResponseListener<HttpServletResponse> servletResponseListener;
 
-    public AbstractServerHandleInterceptor(TraceContext traceContext, MethodDescriptor descriptor, RequestRecorderFactory<HttpServletRequest> requestRecorderFactory) {
+    public AbstractServerHandleInterceptor(TraceContext traceContext, MethodDescriptor descriptor,
+                                           RequestRecorderFactory<HttpServletRequest> requestRecorderFactory) {
 
         this.methodDescriptor = descriptor;
         final JettyConfiguration config = new JettyConfiguration(traceContext.getProfilerConfig());
-        RequestAdaptor<HttpServletRequest> requestRequestAdaptor = new HttpServletRequestAdaptor();
-        requestRequestAdaptor = RemoteAddressResolverFactory.wrapRealIpSupport(requestRequestAdaptor, config.getRealIpHeader(), config.getRealIpEmptyValue());
+        RequestAdaptor<HttpServletRequest> requestAdaptor = new HttpServletRequestAdaptor();
         ParameterRecorder<HttpServletRequest> parameterRecorder = ParameterRecorderFactory.newParameterRecorderFactory(config.getExcludeProfileMethodFilter(), config.isTraceRequestParam());
-        this.servletRequestListenerInterceptorHelper = new ServletRequestListenerInterceptorHelper<HttpServletRequest>(JettyConstants.JETTY, traceContext, requestRequestAdaptor, config.getExcludeUrlFilter(), parameterRecorder, requestRecorderFactory);
+
+        ServletRequestListenerBuilder<HttpServletRequest> reqBuilder = new ServletRequestListenerBuilder<>(JettyConstants.JETTY, traceContext, requestAdaptor);
+        reqBuilder.setExcludeURLFilter(config.getExcludeUrlFilter());
+        reqBuilder.setParameterRecorder(parameterRecorder);
+        reqBuilder.setRequestRecorderFactory(requestRecorderFactory);
+
+        final ProfilerConfig profilerConfig = traceContext.getProfilerConfig();
+        reqBuilder.setRealIpSupport(config.getRealIpHeader(), config.getRealIpEmptyValue());
+        reqBuilder.setHttpStatusCodeRecorder(profilerConfig.getHttpStatusCodeErrors());
+        reqBuilder.setServerHeaderRecorder(profilerConfig.readList(ServerHeaderRecorder.CONFIG_KEY_RECORD_REQ_HEADERS));
+        reqBuilder.setServerCookieRecorder(profilerConfig.readList(ServerCookieRecorder.CONFIG_KEY_RECORD_REQ_COOKIES));
+        reqBuilder.setRecordStatusCode(false);
+
+        this.servletRequestListener = reqBuilder.build();
+
+        this.servletResponseListener = new ServletResponseListenerBuilder<>(traceContext, new HttpServletResponseAdaptor()).build();
     }
 
     abstract HttpServletRequest toHttpServletRequest(Object[] args);
@@ -75,7 +97,9 @@ public abstract class AbstractServerHandleInterceptor implements AroundIntercept
                 }
                 return;
             }
-            this.servletRequestListenerInterceptorHelper.initialized(request, JettyConstants.JETTY_METHOD, this.methodDescriptor);
+            this.servletRequestListener.initialized(request, JettyConstants.JETTY_METHOD, this.methodDescriptor);
+            final HttpServletResponse response = toHttpServletResponse(args);
+            this.servletResponseListener.initialized(response, JettyConstants.JETTY_METHOD, this.methodDescriptor); //must after request listener due to trace block begin
         } catch (Throwable t) {
             logger.info("Failed to servlet request event handle.", t);
         }
@@ -97,7 +121,8 @@ public abstract class AbstractServerHandleInterceptor implements AroundIntercept
                 return;
             }
             final int statusCode = getStatusCode(response);
-            this.servletRequestListenerInterceptorHelper.destroyed(request, throwable, statusCode);
+            this.servletResponseListener.destroyed(response, throwable, statusCode); //must before request listener due to trace block ending
+            this.servletRequestListener.destroyed(request, throwable, statusCode);
         } catch (Throwable t) {
             if (isInfo) {
                 logger.info("Failed to servlet request event handle.", t);

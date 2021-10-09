@@ -21,12 +21,12 @@ import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.stat.SampledTransaction;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import com.navercorp.pinpoint.web.vo.stat.chart.agent.TransactionChart;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -36,19 +36,15 @@ public class TransactionChartService implements AgentStatChartService {
 
     private final SampledTransactionDao sampledTransactionDao;
 
-    @Autowired
     public TransactionChartService(@Qualifier("sampledTransactionDaoFactory") SampledTransactionDao sampledTransactionDao) {
-        this.sampledTransactionDao = sampledTransactionDao;
+        this.sampledTransactionDao = Objects.requireNonNull(sampledTransactionDao, "sampledTransactionDao");
     }
 
     @Override
     public StatChart selectAgentChart(String agentId, TimeWindow timeWindow) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
-        if (timeWindow == null) {
-            throw new NullPointerException("timeWindow");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(timeWindow, "timeWindow");
+
         List<SampledTransaction> sampledTransactions = this.sampledTransactionDao.getSampledAgentStatList(agentId, timeWindow);
         return new TransactionChart(timeWindow, sampledTransactions);
     }

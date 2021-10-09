@@ -18,8 +18,6 @@ package com.navercorp.pinpoint.common.profiler.util;
 
 import com.navercorp.pinpoint.common.buffer.AutomaticBuffer;
 import com.navercorp.pinpoint.common.buffer.Buffer;
-import com.navercorp.pinpoint.common.profiler.util.TransactionId;
-import com.navercorp.pinpoint.common.profiler.util.TransactionIdUtils;
 import org.junit.Assert;
 
 import org.junit.Test;
@@ -68,7 +66,7 @@ public class TransactionIdUtilsTest {
     public void testParseTransactionIdByte1() {
         long time = System.currentTimeMillis();
         byte[] bytes = TransactionIdUtils.formatBytes(AGENT_ID, time, 2);
-        TransactionId transactionId = TransactionIdUtils.parseTransactionId(bytes);
+        TransactionId transactionId = TransactionIdUtils.parseTransactionId(bytes, AGENT_ID);
         Assert.assertEquals(transactionId.getAgentId(), AGENT_ID);
         Assert.assertEquals(transactionId.getAgentStartTime(), time);
         Assert.assertEquals(transactionId.getTransactionSequence(), 2L);
@@ -78,7 +76,7 @@ public class TransactionIdUtilsTest {
     public void testParseTransactionIdByte2() {
         long time = Long.MAX_VALUE;
         byte[] bytes = TransactionIdUtils.formatBytes(AGENT_ID, time, Long.MAX_VALUE);
-        TransactionId transactionId = TransactionIdUtils.parseTransactionId(bytes);
+        TransactionId transactionId = TransactionIdUtils.parseTransactionId(bytes, AGENT_ID);
         Assert.assertEquals(transactionId.getAgentId(), AGENT_ID);
         Assert.assertEquals(transactionId.getAgentStartTime(), Long.MAX_VALUE);
         Assert.assertEquals(transactionId.getTransactionSequence(), Long.MAX_VALUE);
@@ -88,21 +86,18 @@ public class TransactionIdUtilsTest {
     public void testParseTransactionIdByte3() {
         long time = Long.MIN_VALUE;
         byte[] bytes = TransactionIdUtils.formatBytes(AGENT_ID, time, Long.MIN_VALUE);
-        TransactionId transactionId = TransactionIdUtils.parseTransactionId(bytes);
+        TransactionId transactionId = TransactionIdUtils.parseTransactionId(bytes, AGENT_ID);
         Assert.assertEquals(transactionId.getAgentId(), AGENT_ID);
         Assert.assertEquals(transactionId.getAgentStartTime(), Long.MIN_VALUE);
         Assert.assertEquals(transactionId.getTransactionSequence(), Long.MIN_VALUE);
     }
 
 
-    @Test
+    @Test(expected = NullPointerException.class)
     public void testParseTransactionIdByte_AgentIdisNull() {
         long time = System.currentTimeMillis();
         byte[] bytes = TransactionIdUtils.formatBytes(null, time, 1);
-        TransactionId transactionId = TransactionIdUtils.parseTransactionId(bytes);
-        Assert.assertEquals(transactionId.getAgentId(), null);
-        Assert.assertEquals(transactionId.getAgentStartTime(), time);
-        Assert.assertEquals(transactionId.getTransactionSequence(), 1L);
+        TransactionIdUtils.parseTransactionId(bytes, null);
     }
 
     @Test

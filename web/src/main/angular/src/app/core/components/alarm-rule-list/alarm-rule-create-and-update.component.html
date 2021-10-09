@@ -1,10 +1,14 @@
 <div class="l-wrapper">
     <button class="btn btn-black l-close" (click)="onClose(); formDir.resetForm();"><i class="fas fa-times"></i></button>
-    <h1>Alarm</h1> 
+    <h1>Alarm</h1>
     <form [formGroup]="alarmForm" #formDir="ngForm" (ngSubmit)="onCreateOrUpdate()">
         <div class="l-form-grid">
             <div>
-                <div class="l-form-label">{{i18nLabel.CHECKER_LABEL}} <span class="l-required-icon">*</span></div>
+                <div class="l-form-label">
+                    {{i18nLabel.CHECKER_LABEL}}
+                    <span class="l-required-icon">*</span>
+                    <button type="button" class="fas fa-question-circle" (click)="onShowHelp($event.target)"></button>
+                </div>
                 <select class="l-select" formControlName="checkerName" required>
                     <option value="">Select rule</option>
                     <option *ngFor="let checker of checkerList" [value]="checker">{{checker}}</option>
@@ -41,6 +45,7 @@
                     <option value="all">All</option>
                     <option value="email">Email</option>
                     <option value="sms">SMS</option>
+                    <option *ngIf="webhookEnable" value="webhook">Webhook</option>
                     <option value="none">None</option>
                 </select>
                 <span class="fas fa-angle-down"></span>
@@ -48,6 +53,6 @@
         </div>
         <div class="l-form-label">{{i18nLabel.NOTES_LABEL}}</div>
         <textarea id="notes" class="l-textarea" formControlName="notes"></textarea>
-        <button type="submit" class="btn btn-blue l-create" [disabled]="alarmForm.invalid">OK</button>
+        <button type="submit" class="btn btn-blue l-create">OK</button>
     </form>
 </div>

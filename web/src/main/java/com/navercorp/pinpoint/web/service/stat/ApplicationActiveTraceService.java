@@ -21,10 +21,10 @@ import com.navercorp.pinpoint.web.vo.stat.AggreJoinActiveTraceBo;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import com.navercorp.pinpoint.web.vo.stat.chart.application.ApplicationActiveTraceChart;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author minwoo.jung
@@ -32,17 +32,17 @@ import java.util.List;
 @Service
 public class ApplicationActiveTraceService implements ApplicationStatChartService {
 
-    @Autowired
-    private ApplicationActiveTraceDao applicationActiveTraceDao;
+    private final ApplicationActiveTraceDao applicationActiveTraceDao;
+
+    public ApplicationActiveTraceService(ApplicationActiveTraceDao applicationActiveTraceDao) {
+        this.applicationActiveTraceDao = Objects.requireNonNull(applicationActiveTraceDao, "applicationActiveTraceDao");
+    }
 
     @Override
     public StatChart selectApplicationChart(String applicationId, TimeWindow timeWindow) {
-        if (applicationId == null) {
-            throw new NullPointerException("applicationId");
-        }
-        if (timeWindow == null) {
-            throw new NullPointerException("timeWindow");
-        }
+        Objects.requireNonNull(applicationId, "applicationId");
+        Objects.requireNonNull(timeWindow, "timeWindow");
+
         List<AggreJoinActiveTraceBo> aggreJoinActiveTraceBoList = this.applicationActiveTraceDao.getApplicationStatList(applicationId, timeWindow);
         return new ApplicationActiveTraceChart(timeWindow, aggreJoinActiveTraceBoList);
     }

@@ -26,10 +26,10 @@ import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.DirectBufferSampl
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.SampledDirectBuffer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Roy Kim
@@ -37,20 +37,22 @@ import java.util.List;
 @Repository("sampledDirectBufferDaoV2")
 public class HbaseSampledDirectBufferDaoV2 implements SampledDirectBufferDao {
 
-    @Autowired
-    private DirectBufferDecoder directBufferDecoder;
+    private final HbaseAgentStatDaoOperationsV2 operations;
 
-    @Autowired
-    private DirectBufferSampler directBufferSampler;
+    private final DirectBufferDecoder directBufferDecoder;
+    private final DirectBufferSampler directBufferSampler;
 
-    @Autowired
-    private HbaseAgentStatDaoOperationsV2 operations;
+    public HbaseSampledDirectBufferDaoV2(HbaseAgentStatDaoOperationsV2 operations, DirectBufferDecoder directBufferDecoder, DirectBufferSampler directBufferSampler) {
+        this.operations = Objects.requireNonNull(operations, "operations");
+        this.directBufferDecoder = Objects.requireNonNull(directBufferDecoder, "directBufferDecoder");
+        this.directBufferSampler = Objects.requireNonNull(directBufferSampler, "directBufferSampler");
+    }
 
     @Override
     public List<SampledDirectBuffer> getSampledAgentStatList(String agentId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         AgentStatMapperV2<DirectBufferBo> mapper = operations.createRowMapper(directBufferDecoder, range);
         SampledAgentStatResultExtractor<DirectBufferBo, SampledDirectBuffer> resultExtractor = new SampledAgentStatResultExtractor<>(timeWindow, mapper, directBufferSampler);
         return operations.getSampledAgentStatList(AgentStatType.DIRECT_BUFFER, resultExtractor, agentId, range);

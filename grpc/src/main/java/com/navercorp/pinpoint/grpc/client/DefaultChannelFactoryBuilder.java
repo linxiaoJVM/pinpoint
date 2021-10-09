@@ -17,14 +17,18 @@
 package com.navercorp.pinpoint.grpc.client;
 
 import com.navercorp.pinpoint.common.util.Assert;
+import com.navercorp.pinpoint.grpc.client.config.ClientOption;
+import com.navercorp.pinpoint.grpc.client.config.SslOption;
+import com.navercorp.pinpoint.grpc.security.SslClientConfig;
+import com.navercorp.pinpoint.grpc.util.Resource;
+
 import io.grpc.ClientInterceptor;
 import io.grpc.NameResolverProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Woonduk Kang(emeroad)
@@ -39,12 +43,13 @@ public class DefaultChannelFactoryBuilder implements ChannelFactoryBuilder {
     private HeaderFactory headerFactory;
 
     private ClientOption clientOption;
+    private SslOption sslOption;
 
-    private final LinkedList<ClientInterceptor> clientInterceptorList = new LinkedList<ClientInterceptor>();
+    private final LinkedList<ClientInterceptor> clientInterceptorList = new LinkedList<>();
     private NameResolverProvider nameResolverProvider;
 
     public DefaultChannelFactoryBuilder(String factoryName) {
-        this.factoryName = Assert.requireNonNull(factoryName, "factoryName");
+        this.factoryName = Objects.requireNonNull(factoryName, "factoryName");
     }
 
     @Override
@@ -55,39 +60,52 @@ public class DefaultChannelFactoryBuilder implements ChannelFactoryBuilder {
 
     @Override
     public void setHeaderFactory(HeaderFactory headerFactory) {
-        this.headerFactory = Assert.requireNonNull(headerFactory, "headerFactory");
+        this.headerFactory = Objects.requireNonNull(headerFactory, "headerFactory");
     }
 
     @Override
     public void addFirstClientInterceptor(ClientInterceptor clientInterceptor) {
-        Assert.requireNonNull(clientInterceptor, "clientInterceptor");
+        Objects.requireNonNull(clientInterceptor, "clientInterceptor");
         this.clientInterceptorList.addFirst(clientInterceptor);
     }
 
     @Override
     public void addClientInterceptor(ClientInterceptor clientInterceptor) {
-        Assert.requireNonNull(clientInterceptor, "clientInterceptor");
+        Objects.requireNonNull(clientInterceptor, "clientInterceptor");
         this.clientInterceptorList.add(clientInterceptor);
     }
 
     @Override
     public void setClientOption(ClientOption clientOption) {
-        this.clientOption = Assert.requireNonNull(clientOption, "clientOption");
+        this.clientOption = Objects.requireNonNull(clientOption, "clientOption");
+    }
+
+    @Override
+    public void setSslOption(SslOption sslOption) {
+        // nullable
+        this.sslOption = sslOption;
     }
 
     @Override
     public void setNameResolverProvider(NameResolverProvider nameResolverProvider) {
-        this.nameResolverProvider = Assert.requireNonNull(nameResolverProvider, "nameResolverProvider");
+        this.nameResolverProvider = Objects.requireNonNull(nameResolverProvider, "nameResolverProvider");
     }
 
     @Override
     public ChannelFactory build() {
         logger.info("build ChannelFactory:{}", factoryName);
-        Assert.requireNonNull(headerFactory, "headerFactory");
-        Assert.requireNonNull(clientOption, "clientOption");
+        Objects.requireNonNull(headerFactory, "headerFactory");
+        Objects.requireNonNull(clientOption, "clientOption");
+
+        SslClientConfig sslClientConfig = SslClientConfig.DISABLED_CONFIG;
+        if (sslOption != null && sslOption.isEnable()) {
+            String providerType = sslOption.getProviderType();
+            Resource trustCertResource = sslOption.getTrustCertResource();
+            sslClientConfig = new SslClientConfig(true, providerType, trustCertResource);
+        }
 
         return new DefaultChannelFactory(factoryName, executorQueueSize,
                 headerFactory, nameResolverProvider,
-                clientOption, clientInterceptorList);
+                clientOption, sslClientConfig, clientInterceptorList);
     }
 }

@@ -17,21 +17,24 @@
 package com.navercorp.pinpoint.collector.dao.hbase.stat;
 
 import com.navercorp.pinpoint.collector.dao.AgentStatDaoV2;
+import com.navercorp.pinpoint.collector.util.CollectorUtils;
 import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
 import com.navercorp.pinpoint.common.hbase.HbaseTable;
 import com.navercorp.pinpoint.common.hbase.TableNameProvider;
 import com.navercorp.pinpoint.common.server.bo.serializer.stat.AgentStatHbaseOperationFactory;
 import com.navercorp.pinpoint.common.server.bo.serializer.stat.FileDescriptorSerializer;
+import com.navercorp.pinpoint.common.server.bo.stat.AgentStatBo;
 import com.navercorp.pinpoint.common.server.bo.stat.AgentStatType;
 import com.navercorp.pinpoint.common.server.bo.stat.FileDescriptorBo;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Put;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Roy Kim
@@ -39,33 +42,42 @@ import java.util.List;
 @Repository
 public class HbaseFileDescriptorDao implements AgentStatDaoV2<FileDescriptorBo> {
 
-    @Autowired
-    private HbaseOperations2 hbaseTemplate;
+    private final HbaseOperations2 hbaseTemplate;
 
-    @Autowired
-    private TableNameProvider tableNameProvider;
+    private final TableNameProvider tableNameProvider;
 
-    @Autowired
-    private AgentStatHbaseOperationFactory agentStatHbaseOperationFactory;
+    private final AgentStatHbaseOperationFactory agentStatHbaseOperationFactory;
 
-    @Autowired
-    private FileDescriptorSerializer fileDescriptorSerializer;
+    private final FileDescriptorSerializer fileDescriptorSerializer;
+
+    public HbaseFileDescriptorDao(@Qualifier("asyncPutHbaseTemplate") HbaseOperations2 hbaseTemplate,
+                                  TableNameProvider tableNameProvider,
+                                  AgentStatHbaseOperationFactory agentStatHbaseOperationFactory,
+                                  FileDescriptorSerializer fileDescriptorSerializer) {
+        this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
+        this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
+        this.agentStatHbaseOperationFactory = Objects.requireNonNull(agentStatHbaseOperationFactory, "agentStatHbaseOperationFactory");
+        this.fileDescriptorSerializer = Objects.requireNonNull(fileDescriptorSerializer, "fileDescriptorSerializer");
+    }
 
     @Override
     public void insert(String agentId, List<FileDescriptorBo> fileDescriptorBos) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        // Assert agentId
+        CollectorUtils.checkAgentId(agentId);
+
         if (CollectionUtils.isEmpty(fileDescriptorBos)) {
             return;
         }
         List<Put> fileDescriptorPuts = this.agentStatHbaseOperationFactory.createPuts(agentId, AgentStatType.FILE_DESCRIPTOR, fileDescriptorBos, this.fileDescriptorSerializer);
         if (!fileDescriptorPuts.isEmpty()) {
             TableName agentStatTableName = tableNameProvider.getTableName(HbaseTable.AGENT_STAT_VER2);
-            List<Put> rejectedPuts = this.hbaseTemplate.asyncPut(agentStatTableName, fileDescriptorPuts);
-            if (CollectionUtils.isNotEmpty(rejectedPuts)) {
-                this.hbaseTemplate.put(agentStatTableName, rejectedPuts);
-            }
+            this.hbaseTemplate.asyncPut(agentStatTableName, fileDescriptorPuts);
         }
+    }
+
+    @Override
+    public void dispatch(AgentStatBo agentStatBo) {
+        insert(agentStatBo.getAgentId(), agentStatBo.getFileDescriptorBos());
     }
 }

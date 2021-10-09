@@ -6,9 +6,11 @@ import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifier;
 import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifierHolder;
 import com.navercorp.pinpoint.pluginit.utils.AgentPath;
 import com.navercorp.pinpoint.test.plugin.Dependency;
+import com.navercorp.pinpoint.test.plugin.JvmVersion;
 import com.navercorp.pinpoint.test.plugin.PinpointAgent;
 import com.navercorp.pinpoint.test.plugin.PinpointConfig;
 import com.navercorp.pinpoint.test.plugin.PinpointPluginTestSuite;
+import com.navercorp.pinpoint.test.plugin.ImportPlugin;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -22,7 +24,9 @@ import static com.navercorp.pinpoint.bootstrap.plugin.test.Expectations.event;
 
 @RunWith(PinpointPluginTestSuite.class)
 @PinpointAgent(AgentPath.PATH)
-@Dependency({"com.alibaba:druid:[1.0.0][1.0.31],[1.1.0,)", "com.h2database:h2:1.4.191"})
+@Dependency({"com.alibaba:druid:[1.0.0][1.0.31],[1.1.0,1.1.20]", "com.h2database:h2:1.4.191"})
+@JvmVersion(7)
+@ImportPlugin("com.navercorp.pinpoint:pinpoint-druid-plugin")
 @PinpointConfig("druid/pinpoint-druid-test.config")
 public class DruidIT {
     private static final String serviceType = "DRUID";
@@ -33,14 +37,12 @@ public class DruidIT {
 
     @BeforeClass
     public static void setUp() throws NoSuchMethodException {
-
         getConnectionMethod = DruidDataSource.class.getDeclaredMethod("getConnection");
         closeConnectionMethod = DruidPooledConnection.class.getDeclaredMethod("close");
     }
 
     @Test
     public void test() throws InterruptedException, SQLException {
-
         DruidDataSource dataSource = new DruidDataSource();
 
         dataSource.setUrl(JDBC_URL);
@@ -53,11 +55,7 @@ public class DruidIT {
             Connection connection = dataSource.getConnection();
             Assert.assertNotNull(connection);
 
-            Thread.sleep(500);
-
             connection.close();
-
-            Thread.sleep(500);
 
             PluginTestVerifier verifier = PluginTestVerifierHolder.getInstance();
             verifier.printCache();

@@ -36,7 +36,7 @@ import java.util.List;
  * @author minwoo.jung
  */
 public class StatisticsDao extends RichOutputFormat<Tuple3<String, JoinStatBo, Long>> {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final transient Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private static final long serialVersionUID = 1L;
     private transient CpuLoadDao cpuLoadDao;
@@ -47,6 +47,8 @@ public class StatisticsDao extends RichOutputFormat<Tuple3<String, JoinStatBo, L
     private transient DataSourceDao dataSourceDao;
     private transient FileDescriptorDao fileDescriptorDao;
     private transient DirectBufferDao directBufferDao;
+    private transient TotalThreadCountDao totalThreadCountDao;
+    private transient LoadedClassDao loadedClassDao;
     private transient StatisticsDaoInterceptor statisticsDaoInterceptor;
 
     @Override
@@ -61,6 +63,8 @@ public class StatisticsDao extends RichOutputFormat<Tuple3<String, JoinStatBo, L
         dataSourceDao = bootstrap.getDataSourceDao();
         fileDescriptorDao = bootstrap.getFileDescriptorDao();
         directBufferDao = bootstrap.getDirectBufferDao();
+        totalThreadCountDao = bootstrap.getTotalThreadCountDao();
+        loadedClassDao = bootstrap.getLoadedClassDao();
         statisticsDaoInterceptor = bootstrap.getStatisticsDaoInterceptor();
     }
 
@@ -97,6 +101,8 @@ public class StatisticsDao extends RichOutputFormat<Tuple3<String, JoinStatBo, L
         List<JoinStatBo> joinDataSourceBoList = castJoinStatBoList(joinApplicationStatBo.getJoinDataSourceListBoList());
         List<JoinStatBo> joinFileDescriptorBoList = castJoinStatBoList(joinApplicationStatBo.getJoinFileDescriptorBoList());
         List<JoinStatBo> joinDirectBufferBoList = castJoinStatBoList(joinApplicationStatBo.getJoinDirectBufferBoList());
+        List<JoinStatBo> joinTotalThreadCountBoList = castJoinStatBoList(joinApplicationStatBo.getJoinTotalThreadCountBoList());
+        List<JoinStatBo> joinLoadedClassBoList = castJoinStatBoList(joinApplicationStatBo.getJoinLoadedClassBoList());
 
         if (joinApplicationStatBo.getStatType() == StatType.APP_STST_AGGRE) {
 //            logger.info("insert application aggre : " + new Date(joinApplicationStatBo.getTimestamp()) + " ("+ joinApplicationStatBo.getApplicationId() + " )");
@@ -111,6 +117,8 @@ public class StatisticsDao extends RichOutputFormat<Tuple3<String, JoinStatBo, L
             dataSourceDao.insert(id, timestamp, joinDataSourceBoList, StatType.APP_DATA_SOURCE);
             fileDescriptorDao.insert(id, timestamp, joinFileDescriptorBoList, StatType.APP_FILE_DESCRIPTOR);
             directBufferDao.insert(id, timestamp, joinDirectBufferBoList, StatType.APP_DIRECT_BUFFER);
+            totalThreadCountDao.insert(id, timestamp, joinTotalThreadCountBoList, StatType.APP_TOTAL_THREAD_COUNT);
+            loadedClassDao.insert(id, timestamp, joinLoadedClassBoList, StatType.APP_LOADED_CLASS);
         }
     }
 

@@ -24,7 +24,6 @@ import com.navercorp.pinpoint.web.dao.stat.DeadlockDao;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.timeline.inspector.AgentState;
 import com.navercorp.pinpoint.web.vo.timeline.inspector.AgentStatusTimelineSegment;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +33,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -43,9 +43,11 @@ public class AgentWarningStatServiceImpl implements AgentWarningStatService {
 
     private static final long LIMIT_TIME = 60000;
 
-    @Autowired
-    @Qualifier("deadlockDaoV2")
-    private DeadlockDao deadlockDao;
+    private final DeadlockDao deadlockDao;
+
+    public AgentWarningStatServiceImpl(@Qualifier("deadlockDaoV2") DeadlockDao deadlockDao) {
+        this.deadlockDao = Objects.requireNonNull(deadlockDao, "deadlockDao");
+    }
 
     @Override
     public List<AgentStatusTimelineSegment> select(String agentId, Range range) {
@@ -93,14 +95,7 @@ public class AgentWarningStatServiceImpl implements AgentWarningStatService {
     }
 
     private List<AgentStatusTimelineSegment> createTimelineSegment(List<AgentWarningStatDataPoint> agentWarningStatDataPointList) {
-        agentWarningStatDataPointList.sort(new Comparator<AgentWarningStatDataPoint>() {
-            @Override
-            public int compare(AgentWarningStatDataPoint o1, AgentWarningStatDataPoint o2) {
-                int eventTimestampComparison = Long.compare(o1.getTimestamp(), o2.getTimestamp());
-                return eventTimestampComparison;
-            }
-        });
-
+        agentWarningStatDataPointList.sort(Comparator.comparingLong(AgentWarningStatDataPoint::getTimestamp));
         return createTimelineSegment0(agentWarningStatDataPointList);
     }
 

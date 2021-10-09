@@ -19,11 +19,11 @@ package com.navercorp.pinpoint.web.service.stat;
 import com.navercorp.pinpoint.common.server.bo.stat.JvmGcBo;
 import com.navercorp.pinpoint.web.dao.stat.JvmGcDao;
 import com.navercorp.pinpoint.web.vo.Range;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -33,19 +33,15 @@ public class JvmGcService implements AgentStatService<JvmGcBo> {
 
     private final JvmGcDao jvmGcDao;
 
-    @Autowired
     public JvmGcService(@Qualifier("jvmGcDaoFactory") JvmGcDao jvmGcDao) {
-        this.jvmGcDao = jvmGcDao;
+        this.jvmGcDao = Objects.requireNonNull(jvmGcDao, "jvmGcDao");
     }
 
     @Override
     public List<JvmGcBo> selectAgentStatList(String agentId, Range range) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
-        if (range == null) {
-            throw new NullPointerException("range");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(range, "range");
+
         return this.jvmGcDao.getAgentStatList(agentId, range);
     }
 }

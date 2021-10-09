@@ -26,10 +26,10 @@ import com.navercorp.pinpoint.web.mapper.stat.SampledAgentStatResultExtractor;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.SampledCpuLoad;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -37,20 +37,22 @@ import java.util.List;
 @Repository("sampledCpuLoadDaoV2")
 public class HbaseSampledCpuLoadDaoV2 implements SampledCpuLoadDao {
 
-    @Autowired
-    private CpuLoadDecoder cpuLoadDecoder;
+    private final HbaseAgentStatDaoOperationsV2 operations;
 
-    @Autowired
-    private CpuLoadSampler cpuLoadSampler;
+    private final CpuLoadDecoder cpuLoadDecoder;
+    private final CpuLoadSampler cpuLoadSampler;
 
-    @Autowired
-    private HbaseAgentStatDaoOperationsV2 operations;
+    public HbaseSampledCpuLoadDaoV2(HbaseAgentStatDaoOperationsV2 operations, CpuLoadDecoder cpuLoadDecoder, CpuLoadSampler cpuLoadSampler) {
+        this.operations = Objects.requireNonNull(operations, "operations");
+        this.cpuLoadDecoder = Objects.requireNonNull(cpuLoadDecoder, "cpuLoadDecoder");
+        this.cpuLoadSampler = Objects.requireNonNull(cpuLoadSampler, "cpuLoadSampler");
+    }
 
     @Override
     public List<SampledCpuLoad> getSampledAgentStatList(String agentId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         AgentStatMapperV2<CpuLoadBo> mapper = operations.createRowMapper(cpuLoadDecoder, range);
         SampledAgentStatResultExtractor<CpuLoadBo, SampledCpuLoad> resultExtractor = new SampledAgentStatResultExtractor<>(timeWindow, mapper, cpuLoadSampler);
         return operations.getSampledAgentStatList(AgentStatType.CPU_LOAD, resultExtractor, agentId, range);

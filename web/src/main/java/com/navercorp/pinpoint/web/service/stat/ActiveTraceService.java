@@ -19,11 +19,11 @@ package com.navercorp.pinpoint.web.service.stat;
 import com.navercorp.pinpoint.common.server.bo.stat.ActiveTraceBo;
 import com.navercorp.pinpoint.web.dao.stat.ActiveTraceDao;
 import com.navercorp.pinpoint.web.vo.Range;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -33,19 +33,15 @@ public class ActiveTraceService implements AgentStatService<ActiveTraceBo> {
 
     private final ActiveTraceDao activeTraceDao;
 
-    @Autowired
     public ActiveTraceService(@Qualifier("activeTraceDaoFactory") ActiveTraceDao activeTraceDao) {
-        this.activeTraceDao = activeTraceDao;
+        this.activeTraceDao = Objects.requireNonNull(activeTraceDao, "activeTraceDao");
     }
 
     @Override
     public List<ActiveTraceBo> selectAgentStatList(String agentId, Range range) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
-        if (range == null) {
-            throw new NullPointerException("range");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(range, "range");
+        
         return this.activeTraceDao.getAgentStatList(agentId, range);
     }
 }

@@ -20,6 +20,7 @@ import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.common.util.IntStringValue;
 import com.navercorp.pinpoint.profiler.context.Annotation;
+import com.navercorp.pinpoint.profiler.context.annotation.Annotations;
 import com.navercorp.pinpoint.profiler.context.DefaultAsyncId;
 import com.navercorp.pinpoint.profiler.context.DefaultSpanChunk;
 import com.navercorp.pinpoint.profiler.context.Span;
@@ -31,11 +32,11 @@ import com.navercorp.pinpoint.profiler.context.id.DefaultTraceRoot;
 import com.navercorp.pinpoint.profiler.context.id.Shared;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
 import com.navercorp.pinpoint.profiler.context.id.TransactionIdEncoder;
+import com.navercorp.pinpoint.profiler.util.RandomExUtils;
 import com.navercorp.pinpoint.thrift.dto.TAnnotation;
 import com.navercorp.pinpoint.thrift.dto.TSpan;
 import com.navercorp.pinpoint.thrift.dto.TSpanChunk;
 import com.navercorp.pinpoint.thrift.dto.TSpanEvent;
-import org.apache.commons.lang3.RandomUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -78,24 +79,24 @@ public class SpanThriftMessageConverterTest {
         final Span span = newSpan();
 
         span.setStartTime(System.currentTimeMillis());
-        span.setElapsedTime(RandomUtils.nextInt(0, 100));
+        span.setElapsedTime(RandomExUtils.nextInt(0, 100));
         span.setAcceptorHost("acceptorHost");
-        span.setExceptionInfo(new IntStringValue(RandomUtils.nextInt(0, 100), "error"));
-        span.setApiId(RandomUtils.nextInt(0, 100));
-        span.setServiceType((short) RandomUtils.nextInt(0, 100));
+        span.setExceptionInfo(new IntStringValue(RandomExUtils.nextInt(0, 100), "error"));
+        span.setApiId(RandomExUtils.nextInt(0, 100));
+        span.setServiceType((short) RandomExUtils.nextInt(0, 100));
         span.setRemoteAddr("remoteAddr");
         span.setParentApplicationName("pApp");
-        span.setParentApplicationType((short) RandomUtils.nextInt(0, 100));
+        span.setParentApplicationType((short) RandomExUtils.nextInt(0, 100));
 
         final TraceRoot traceRoot = span.getTraceRoot();
         Shared shared = traceRoot.getShared();
         shared.setEndPoint("endPoint");
         shared.setRpcName("rpcName");
-        shared.setLoggingInfo((byte) RandomUtils.nextInt(0, 10));
-        shared.maskErrorCode(RandomUtils.nextInt(0, 100));
-        shared.setStatusCode(RandomUtils.nextInt(0, 100));
+        shared.setLoggingInfo((byte) RandomExUtils.nextInt(0, 10));
+        shared.maskErrorCode(RandomExUtils.nextInt(0, 100));
+        shared.setStatusCode(RandomExUtils.nextInt(0, 100));
 
-        span.addAnnotation(new Annotation(1));
+        span.addAnnotation(Annotations.of(1));
         span.setSpanEventList(Collections.singletonList(new SpanEvent()));
 
         final TSpan tSpan = messageConverter.buildTSpan(span);
@@ -124,6 +125,7 @@ public class SpanThriftMessageConverterTest {
         Assert.assertEquals(span.getSpanEventList().size(), tSpan.getSpanEventList().size());
     }
 
+
     private SpanChunk newSpanChunk() {
         final TraceId traceId = new DefaultTraceId(AGENT_ID, AGENT_START_TIME, 1L);
         final TraceRoot traceRoot = new DefaultTraceRoot(traceId, AGENT_ID, AGENT_START_TIME, 100L);
@@ -148,17 +150,17 @@ public class SpanThriftMessageConverterTest {
         final long startTime = System.currentTimeMillis() - 100;
 
         SpanEvent spanEvent = new SpanEvent();
-        spanEvent.setDepth(RandomUtils.nextInt(0, 100));
-        spanEvent.setStartTime(startTime + RandomUtils.nextInt(0, 100));
-        spanEvent.setAfterTime(spanEvent.getStartTime() + RandomUtils.nextInt(5, 100));
+        spanEvent.setDepth(RandomExUtils.nextInt(0, 100));
+        spanEvent.setStartTime(startTime + RandomExUtils.nextInt(0, 100));
+        spanEvent.setAfterTime(spanEvent.getStartTime() + RandomExUtils.nextInt(5, 100));
         spanEvent.setDestinationId("destinationId");
-        spanEvent.setSequence((short) RandomUtils.nextInt(0, 100));
-        spanEvent.setNextSpanId(RandomUtils.nextInt(0, 100));
+        spanEvent.setSequence((short) RandomExUtils.nextInt(0, 100));
+        spanEvent.setNextSpanId(RandomExUtils.nextInt(0, 100));
 
-        spanEvent.setAsyncIdObject(new DefaultAsyncId(RandomUtils.nextInt(0, 100)));
+        spanEvent.setAsyncIdObject(new DefaultAsyncId(RandomExUtils.nextInt(0, 100)));
 
 
-        spanEvent.addAnnotation(new Annotation(1));
+        spanEvent.addAnnotation(Annotations.of(1));
 
         TSpanEvent tSpanEvent = messageConverter.buildTSpanEvent(spanEvent);
         spanPostProcessor.postEventProcess(Collections.singletonList(spanEvent), Collections.singletonList(tSpanEvent), startTime);
@@ -178,12 +180,12 @@ public class SpanThriftMessageConverterTest {
 
     @Test
     public void buildTAnnotation() {
-        Annotation annotation = new Annotation(RandomUtils.nextInt(0, 100), "value");
-        List<Annotation> annotations = Collections.singletonList(annotation);
+        Annotation<?> annotation = Annotations.of(RandomExUtils.nextInt(0, 100), "value");
+        List<? extends Annotation<?>> annotations = Collections.singletonList(annotation);
         List<TAnnotation> tAnnotations = messageConverter.buildTAnnotation(annotations);
 
         TAnnotation tAnnotation = tAnnotations.get(0);
-        Assert.assertEquals(annotation.getAnnotationKey(), tAnnotation.getKey());
+        Assert.assertEquals(annotation.getKey(), tAnnotation.getKey());
         Assert.assertEquals(annotation.getValue(), tAnnotation.getValue().getStringValue());
     }
 

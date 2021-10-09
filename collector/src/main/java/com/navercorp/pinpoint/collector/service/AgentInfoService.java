@@ -19,24 +19,33 @@ package com.navercorp.pinpoint.collector.service;
 import com.navercorp.pinpoint.collector.dao.AgentInfoDao;
 import com.navercorp.pinpoint.collector.dao.ApplicationIndexDao;
 import com.navercorp.pinpoint.common.server.bo.AgentInfoBo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Objects;
 
 /**
  * @author emeroad
  * @author koo.taejin
+ * @author jaehong.kim
  */
 @Service
 public class AgentInfoService {
 
-    @Autowired
-    private AgentInfoDao agentInfoDao;
+    private final AgentInfoDao agentInfoDao;
 
-    @Autowired
-    private ApplicationIndexDao applicationIndexDao;
+    private final ApplicationIndexDao applicationIndexDao;
+
+    public AgentInfoService(AgentInfoDao agentInfoDao, ApplicationIndexDao applicationIndexDao) {
+        this.agentInfoDao = Objects.requireNonNull(agentInfoDao, "agentInfoDao");
+        this.applicationIndexDao = Objects.requireNonNull(applicationIndexDao, "applicationIndexDao");
+    }
 
     public void insert(final AgentInfoBo agentInfoBo) {
         agentInfoDao.insert(agentInfoBo);
         applicationIndexDao.insert(agentInfoBo);
+    }
+
+    public AgentInfoBo getAgentInfo(final String agentId, final long timestamp) {
+        return agentInfoDao.getAgentInfo(agentId, timestamp);
     }
 }

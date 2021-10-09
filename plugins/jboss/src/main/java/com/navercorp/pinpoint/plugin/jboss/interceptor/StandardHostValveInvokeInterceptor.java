@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.plugin.jboss.interceptor;
 
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
@@ -23,17 +24,25 @@ import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.RequestRecorderFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.request.RequestAdaptor;
-import com.navercorp.pinpoint.bootstrap.plugin.request.ServletRequestListenerInterceptorHelper;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServerCookieRecorder;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServerHeaderRecorder;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServletRequestListener;
+import com.navercorp.pinpoint.bootstrap.plugin.request.ServletRequestListenerBuilder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
-import com.navercorp.pinpoint.bootstrap.plugin.request.util.RemoteAddressResolverFactory;
+import com.navercorp.pinpoint.bootstrap.plugin.response.ServletResponseListener;
+import com.navercorp.pinpoint.bootstrap.plugin.response.ServletResponseListenerBuilder;
 import com.navercorp.pinpoint.plugin.common.servlet.util.ArgumentValidator;
 import com.navercorp.pinpoint.plugin.common.servlet.util.HttpServletRequestAdaptor;
+import com.navercorp.pinpoint.plugin.common.servlet.util.HttpServletResponseAdaptor;
 import com.navercorp.pinpoint.plugin.common.servlet.util.ParameterRecorderFactory;
 import com.navercorp.pinpoint.plugin.common.servlet.util.ServletArgumentValidator;
 import com.navercorp.pinpoint.plugin.jboss.JbossConfig;
 import com.navercorp.pinpoint.plugin.jboss.JbossConstants;
+import com.navercorp.pinpoint.plugin.jboss.util.Servlet2ApiHelper;
+import com.navercorp.pinpoint.plugin.jboss.util.Servlet3ApiHelper;
+import com.navercorp.pinpoint.plugin.jboss.util.ServletApiHelper;
 
-import javax.servlet.DispatcherType;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -51,7 +60,9 @@ public class StandardHostValveInvokeInterceptor implements AroundInterceptor {
 
     private final MethodDescriptor methodDescriptor;
     private final ArgumentValidator argumentValidator;
-    private final ServletRequestListenerInterceptorHelper<HttpServletRequest> servletRequestListenerInterceptorHelper;
+    private final ServletRequestListener<HttpServletRequest> servletRequestListener;
+    private final ServletResponseListener<HttpServletResponse> servletResponseListener;
+    private final ServletApiHelper servletApiHelper;
 
     /**
      * Instantiates a new standard host valve invoke interceptor.
@@ -64,9 +75,34 @@ public class StandardHostValveInvokeInterceptor implements AroundInterceptor {
         this.argumentValidator = new ServletArgumentValidator(logger, 0, HttpServletRequest.class, 1, HttpServletResponse.class);
         final JbossConfig config = new JbossConfig(traceContext.getProfilerConfig());
         RequestAdaptor<HttpServletRequest> requestAdaptor = new HttpServletRequestAdaptor();
-        requestAdaptor = RemoteAddressResolverFactory.wrapRealIpSupport(requestAdaptor, config.getRealIpHeader(), config.getRealIpEmptyValue());
         ParameterRecorder<HttpServletRequest> parameterRecorder = ParameterRecorderFactory.newParameterRecorderFactory(config.getExcludeProfileMethodFilter(), config.isTraceRequestParam());
-        this.servletRequestListenerInterceptorHelper = new ServletRequestListenerInterceptorHelper<HttpServletRequest>(JbossConstants.JBOSS, traceContext, requestAdaptor, config.getExcludeUrlFilter(), parameterRecorder, requestRecorderFactory);
+
+        ServletRequestListenerBuilder<HttpServletRequest> reqBuilder = new ServletRequestListenerBuilder<>(JbossConstants.JBOSS, traceContext, requestAdaptor);
+        reqBuilder.setExcludeURLFilter(config.getExcludeUrlFilter());
+        reqBuilder.setParameterRecorder(parameterRecorder);
+        reqBuilder.setRequestRecorderFactory(requestRecorderFactory);
+
+        final ProfilerConfig profilerConfig = traceContext.getProfilerConfig();
+        reqBuilder.setRealIpSupport(config.getRealIpHeader(), config.getRealIpEmptyValue());
+        reqBuilder.setHttpStatusCodeRecorder(profilerConfig.getHttpStatusCodeErrors());
+        reqBuilder.setServerHeaderRecorder(profilerConfig.readList(ServerHeaderRecorder.CONFIG_KEY_RECORD_REQ_HEADERS));
+        reqBuilder.setServerCookieRecorder(profilerConfig.readList(ServerCookieRecorder.CONFIG_KEY_RECORD_REQ_COOKIES));
+        reqBuilder.setRecordStatusCode(false);
+
+        this.servletRequestListener = reqBuilder.build();
+
+        this.servletResponseListener = new ServletResponseListenerBuilder(traceContext, new HttpServletResponseAdaptor()).build();
+
+        this.servletApiHelper = newServletApi();
+    }
+
+    private ServletApiHelper newServletApi() {
+        try {
+            ServletRequest.class.getMethod("isAsyncStarted");
+        } catch (NoSuchMethodException e) {
+            return new Servlet2ApiHelper();
+        }
+        return new Servlet3ApiHelper();
     }
 
     @Override
@@ -81,13 +117,15 @@ public class StandardHostValveInvokeInterceptor implements AroundInterceptor {
 
         try {
             final HttpServletRequest request = (HttpServletRequest) args[0];
-            if (request.isAsyncStarted() || request.getDispatcherType() == DispatcherType.ASYNC) {
+            if (servletApiHelper.isAsyncDispatcherBefore(request)) {
                 if (isDebug) {
                     logger.debug("Skip async servlet request event. isAsyncStarted={}, dispatcherType={}", request.isAsyncStarted(), request.getDispatcherType());
                 }
                 return;
             }
-            this.servletRequestListenerInterceptorHelper.initialized(request, JbossConstants.JBOSS_METHOD, this.methodDescriptor);
+            this.servletRequestListener.initialized(request, JbossConstants.JBOSS_METHOD, this.methodDescriptor);
+            final HttpServletResponse response = (HttpServletResponse) args[1];
+            this.servletResponseListener.initialized(response, JbossConstants.JBOSS_METHOD, this.methodDescriptor); //must after request listener due to trace block begin
         } catch (Throwable t) {
             if (isInfo) {
                 logger.info("Failed to servlet request event handle.", t);
@@ -108,14 +146,16 @@ public class StandardHostValveInvokeInterceptor implements AroundInterceptor {
         try {
             final HttpServletRequest request = (HttpServletRequest) args[0];
             final HttpServletResponse response = (HttpServletResponse) args[1];
-            if (request.getDispatcherType() == DispatcherType.ASYNC) {
+
+            if (servletApiHelper.isAsyncDispatcherAfter(request)) {
                 if (isDebug) {
                     logger.debug("Skip async servlet request event. isAsyncStarted={}, dispatcherType={}", request.isAsyncStarted(), request.getDispatcherType());
                 }
                 return;
             }
-            final int statusCode = getStatusCode(response);
-            this.servletRequestListenerInterceptorHelper.destroyed(request, throwable, statusCode);
+            final int statusCode = servletApiHelper.getStatus(response);
+            this.servletResponseListener.destroyed(response, throwable, statusCode); //must before request listener due to trace block ending
+            this.servletRequestListener.destroyed(request, throwable, statusCode);
         } catch (Throwable t) {
             if (isInfo) {
                 logger.info("Failed to servlet request event handle.", t);
@@ -123,11 +163,4 @@ public class StandardHostValveInvokeInterceptor implements AroundInterceptor {
         }
     }
 
-    private int getStatusCode(final HttpServletResponse response) {
-        try {
-            return response.getStatus();
-        } catch (Exception ignored) {
-        }
-        return 0;
-    }
 }

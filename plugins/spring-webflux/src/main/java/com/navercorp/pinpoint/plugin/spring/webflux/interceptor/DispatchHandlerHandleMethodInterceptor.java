@@ -22,6 +22,7 @@ import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.SpanEventSimpleAroundInterceptorForPlugin;
+import com.navercorp.pinpoint.common.util.ArrayUtils;
 import com.navercorp.pinpoint.plugin.spring.webflux.SpringWebFluxConstants;
 
 /**
@@ -40,13 +41,13 @@ public class DispatchHandlerHandleMethodInterceptor extends SpanEventSimpleAroun
             final AsyncContext asyncContext = recorder.recordNextAsyncContext();
             ((AsyncContextAccessor) args[0])._$PINPOINT$_setAsyncContext(asyncContext);
             if (isDebug) {
-                logger.debug("Set closeable-AsyncContext {}", asyncContext);
+                logger.debug("Set AsyncContext {}", asyncContext);
             }
         }
     }
 
     private boolean isAsync(Object[] args) {
-        if (args == null || args.length < 1) {
+        if (ArrayUtils.isEmpty(args)) {
             return false;
         }
         if (!(args[0] instanceof AsyncContextAccessor)) {

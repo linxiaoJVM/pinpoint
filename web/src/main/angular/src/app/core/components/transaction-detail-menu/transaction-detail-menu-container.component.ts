@@ -1,19 +1,17 @@
 import { Component, OnInit, OnDestroy, ComponentFactoryResolver, Injector, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
-import { filter, takeUntil } from 'rxjs/operators';
 
 import {
     StoreHelperService,
     UrlRouteManagerService,
-    TransactionDetailDataService,
-    ITransactionDetailPartInfo,
     AnalyticsService,
     TRACKED_EVENT_LIST,
     DynamicPopupService,
+    NewUrlStateNotificationService,
 } from 'app/shared/services';
-import { UrlPath } from 'app/shared/models';
+import { UrlPath, UrlQuery } from 'app/shared/models';
 import { MessagePopupContainerComponent } from 'app/core/components/message-popup/message-popup-container.component';
-import { Actions } from 'app/shared/store';
+import { Actions } from 'app/shared/store/reducers';
 import { parseURL } from 'app/core/utils/url-utils';
 
 @Component({
@@ -24,15 +22,14 @@ import { parseURL } from 'app/core/utils/url-utils';
 })
 export class TransactionDetailMenuContainerComponent implements OnInit, OnDestroy {
     private unsubscribe = new Subject<void>();
-    private transactionInfo: ITransactionMetaData;
 
     activeTabKey: string;
-    partInfo: ITransactionDetailPartInfo;
+    transactionDetailInfo: ITransactionDetailData;
 
     constructor(
+        private newUrlStateNotificationService: NewUrlStateNotificationService,
         private storeHelperService: StoreHelperService,
         private urlRouteManagerService: UrlRouteManagerService,
-        private transactionDetailDataService: TransactionDetailDataService,
         private analyticsService: AnalyticsService,
         private dynamicPopupService: DynamicPopupService,
         private componentFactoryResolver: ComponentFactoryResolver,
@@ -41,18 +38,6 @@ export class TransactionDetailMenuContainerComponent implements OnInit, OnDestro
     ) {}
 
     ngOnInit() {
-        this.storeHelperService.getTransactionViewType(this.unsubscribe).subscribe((viewType: string) => {
-            this.activeTabKey = viewType;
-            this.cd.detectChanges();
-        });
-
-        this.transactionDetailDataService.partInfo$.pipe(
-            takeUntil(this.unsubscribe)
-        ).subscribe((partInfo: ITransactionDetailPartInfo) => {
-            this.partInfo = partInfo;
-            this.cd.detectChanges();
-        });
-
         this.connectStore();
     }
 
@@ -62,41 +47,46 @@ export class TransactionDetailMenuContainerComponent implements OnInit, OnDestro
     }
 
     private connectStore(): void {
-        this.storeHelperService.getTransactionData(this.unsubscribe).pipe(
-            filter((data: ITransactionMetaData) => !!data),
-            filter(({application, agentId, traceId}: ITransactionMetaData) => !!application && !!agentId && !!traceId)
-        ).subscribe((transactionInfo: ITransactionMetaData) => {
-            this.transactionInfo = transactionInfo;
+        this.storeHelperService.getTransactionViewType(this.unsubscribe).subscribe((viewType: string) => {
+            this.activeTabKey = viewType;
+            this.cd.detectChanges();
+        });
+
+        this.storeHelperService.getTransactionDetailData(this.unsubscribe).subscribe((transactionDetailInfo: ITransactionDetailData) => {
+            this.transactionDetailInfo = transactionDetailInfo;
             this.cd.detectChanges();
         });
     }
 
     onSelectViewType(viewType: string): void {
-        this.analyticsService.trackEvent((TRACKED_EVENT_LIST as any)[`CLICK_${viewType}`]);
+        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.SWITCH_TRANSACTION_VIEW_TYPE_THROUGH_TAB, `${viewType}`);
         this.storeHelperService.dispatch(new Actions.ChangeTransactionViewType(viewType));
     }
 
     onOpenDetailView(): void {
-        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_TRANSACTION_VIEW);
+        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_TRANSACTION_VIEW_PAGE_THROUGH_TAB);
+        const {agentId, spanId, traceId, collectorAcceptTime} = JSON.parse(this.newUrlStateNotificationService.getQueryValue(UrlQuery.TRANSACTION_INFO));
+
         this.urlRouteManagerService.openPage({
             path: [
-                UrlPath.TRANSACTION_VIEW,
-                this.transactionInfo.agentId,
-                this.transactionInfo.traceId,
-                this.transactionInfo.collectorAcceptTime + '',
-                this.transactionInfo.spanId,
-            ]
+                UrlPath.TRANSACTION_VIEW
+            ],
+            queryParams: {
+                [UrlQuery.TRANSACTION_INFO]: {agentId, spanId, traceId, collectorAcceptTime}
+            }
         });
     }
 
     onOpenExtraView(param: any): void {
         if (param.open) {
+            this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_LOG_PAGE_THROUGH_TAB);
             this.urlRouteManagerService.openPage(parseURL(param.url));
         } else {
             this.dynamicPopupService.openPopup({
                 data: {
                     title: 'Notice',
-                    contents: this.partInfo.disableButtonMessage
+                    contents: this.transactionDetailInfo.disableButtonMessage,
+                    type: 'html'
                 },
                 component: MessagePopupContainerComponent
             }, {

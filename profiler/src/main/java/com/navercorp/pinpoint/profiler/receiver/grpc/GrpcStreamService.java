@@ -16,6 +16,8 @@
 
 package com.navercorp.pinpoint.profiler.receiver.grpc;
 
+import java.util.Objects;
+
 import com.navercorp.pinpoint.common.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,22 +40,22 @@ public class GrpcStreamService {
 
     private final Object lock = new Object();
 
-    private final AtomicReference<TimerTask> currentTaskReference = new AtomicReference<TimerTask>();
+    private final AtomicReference<TimerTask> currentTaskReference = new AtomicReference<>();
 
-    private final List<GrpcProfilerStreamSocket> grpcProfilerStreamSocketList = new CopyOnWriteArrayList<GrpcProfilerStreamSocket>();
+    private final List<GrpcProfilerStreamSocket<?>> grpcProfilerStreamSocketList = new CopyOnWriteArrayList<>();
 
     public GrpcStreamService(String name, long flushDelay) {
-        Assert.requireNonNull(name, "name");
+        Objects.requireNonNull(name, "name");
         Assert.isTrue(flushDelay > 0, "flushDelay must be >= 0");
         this.timer = new Timer("Pinpoint-Grpc-" + name + "-Timer", true);
         this.flushDelay = flushDelay;
     }
 
-    public GrpcProfilerStreamSocket[] getStreamSocketList() {
+    public GrpcProfilerStreamSocket<?>[] getStreamSocketList() {
         return grpcProfilerStreamSocketList.toArray(new GrpcProfilerStreamSocket[0]);
     }
 
-    public boolean register(GrpcProfilerStreamSocket streamSocket, TimerTask timerTask) {
+    public boolean register(GrpcProfilerStreamSocket<?> streamSocket, TimerTask timerTask) {
         synchronized (lock) {
             grpcProfilerStreamSocketList.add(streamSocket);
             boolean turnOn = currentTaskReference.compareAndSet(null, timerTask);
@@ -66,7 +68,7 @@ public class GrpcStreamService {
         return false;
     }
 
-    public boolean unregister(GrpcProfilerStreamSocket streamSocket) {
+    public boolean unregister(GrpcProfilerStreamSocket<?> streamSocket) {
         synchronized (lock) {
             grpcProfilerStreamSocketList.remove(streamSocket);
             // turnoff
@@ -90,8 +92,8 @@ public class GrpcStreamService {
                 timer.cancel();
             }
 
-            GrpcProfilerStreamSocket[] streamSockets = grpcProfilerStreamSocketList.toArray(new GrpcProfilerStreamSocket[0]);
-            for (GrpcProfilerStreamSocket streamSocket : streamSockets) {
+            GrpcProfilerStreamSocket<?>[] streamSockets = grpcProfilerStreamSocketList.toArray(new GrpcProfilerStreamSocket[0]);
+            for (GrpcProfilerStreamSocket<?> streamSocket : streamSockets) {
                 if (streamSocket != null) {
                     streamSocket.close();
                 }

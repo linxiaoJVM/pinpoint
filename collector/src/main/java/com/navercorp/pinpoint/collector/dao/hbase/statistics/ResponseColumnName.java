@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.collector.dao.hbase.statistics;
 
-import com.navercorp.pinpoint.common.profiler.util.ApplicationMapStatisticsUtils;
+import com.navercorp.pinpoint.common.server.util.ApplicationMapStatisticsUtils;
 
 import java.util.Objects;
 
@@ -25,8 +25,8 @@ import java.util.Objects;
  */
 public class ResponseColumnName implements ColumnName {
 
-    private String agentId;
-    private short columnSlotNumber;
+    private final String agentId;
+    private final short columnSlotNumber;
 
  // WARNING - cached hash value should not be included for equals/hashCode
     private int hash;

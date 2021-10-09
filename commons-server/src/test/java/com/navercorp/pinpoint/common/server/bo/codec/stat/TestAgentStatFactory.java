@@ -19,9 +19,12 @@ package com.navercorp.pinpoint.common.server.bo.codec.stat;
 import com.navercorp.pinpoint.common.server.bo.JvmGcType;
 import com.navercorp.pinpoint.common.server.bo.stat.*;
 import com.navercorp.pinpoint.common.trace.ServiceType;
+import com.navercorp.pinpoint.common.trace.UriStatHistogramBucket;
+
 import org.apache.commons.lang3.RandomUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -408,6 +411,144 @@ public class TestAgentStatFactory {
         }
         return directBufferBos;
     }
+
+    public static List<TotalThreadCountBo> createTotalThreadCountBos(String agentId, long startTimestamp, long initialTimestamp) {
+        final int numValues = RandomUtils.nextInt(1, MAX_NUM_TEST_VALUES);
+        return createTotalThreadCountBos(agentId, startTimestamp, initialTimestamp, numValues);
+    }
+
+    public static List<TotalThreadCountBo> createTotalThreadCountBos(String agentId, long startTimestamp, long initialTimestamp, int numValues) {
+        List<TotalThreadCountBo> totalThreadCountBos = new ArrayList<TotalThreadCountBo>(numValues);
+        List<Long> startTimestamps = createStartTimestamps(startTimestamp, numValues);
+        List<Long> timestamps = createTimestamps(initialTimestamp, numValues);
+
+        List<Integer> totalThreadCounts = TestAgentStatDataPointFactory.INTEGER.createRandomValues(0, 1000, numValues);
+        for (int i = 0; i < numValues; i++) {
+            TotalThreadCountBo totalThreadCountBo = new TotalThreadCountBo();
+            totalThreadCountBo.setAgentId(agentId);
+            totalThreadCountBo.setStartTimestamp(startTimestamps.get(i));
+            totalThreadCountBo.setTimestamp(timestamps.get(i));
+            totalThreadCountBo.setTotalThreadCount(totalThreadCounts.get(i));
+
+            totalThreadCountBos.add(totalThreadCountBo);
+        }
+        return totalThreadCountBos;
+    }
+
+    public static List<LoadedClassBo> createLoadedClassBos(String agentId, long startTimestamp, long initialTimestamp) {
+        final int numValues = RandomUtils.nextInt(1, MAX_NUM_TEST_VALUES);
+        return createLoadedClassBos(agentId, startTimestamp, initialTimestamp, numValues);
+    }
+
+    public static List<LoadedClassBo> createLoadedClassBos(String agentId, long startTimestamp, long initialTimestamp, int numValues) {
+        List<LoadedClassBo> loadedClassBos = new ArrayList<LoadedClassBo>(numValues);
+        List<Long> startTimestamps = createStartTimestamps(startTimestamp, numValues);
+        List<Long> timestamps = createTimestamps(initialTimestamp, numValues);
+
+        List<Integer> loadedClassCounts = TestAgentStatDataPointFactory.INTEGER.createRandomValues(0, 1000, numValues);
+        List<Integer> unloadedClassCounts = TestAgentStatDataPointFactory.INTEGER.createRandomValues(0, 1000, numValues);
+        for (int i = 0; i < numValues; i++) {
+            LoadedClassBo loadedClassBo = new LoadedClassBo();
+            loadedClassBo.setAgentId(agentId);
+            loadedClassBo.setStartTimestamp(startTimestamps.get(i));
+            loadedClassBo.setTimestamp(timestamps.get(i));
+            loadedClassBo.setLoadedClassCount(loadedClassCounts.get(i));
+            loadedClassBo.setUnloadedClassCount(unloadedClassCounts.get(i));
+
+            loadedClassBos.add(loadedClassBo);
+        }
+        return loadedClassBos;
+    }
+
+    public static List<AgentUriStatBo> createAgentUriStatBo(String agentId, long startTimestamp, long initialTimestamp) {
+        final int numValues = RandomUtils.nextInt(1, MAX_NUM_TEST_VALUES);
+        return createAgentUriStatBo(agentId, startTimestamp, initialTimestamp, numValues);
+    }
+
+    private static List<AgentUriStatBo> createAgentUriStatBo(String agentId, long startTimestamp, long initialTimestamp, int numValues) {
+        AgentUriStatBo agentUriStatBo = new AgentUriStatBo();
+        agentUriStatBo.setAgentId(agentId);
+        agentUriStatBo.setStartTimestamp(startTimestamp);
+        agentUriStatBo.setTimestamp(initialTimestamp);
+        agentUriStatBo.setBucketVersion(UriStatHistogramBucket.getBucketVersion());
+
+        List<EachUriStatBo> eachUriStatBoList = createEachUriStatBoList(numValues);
+        agentUriStatBo.setEachUriStatBoList(eachUriStatBoList);
+
+        return Arrays.asList(agentUriStatBo);
+    }
+
+    private static List<EachUriStatBo> createEachUriStatBoList(int numValues) {
+        List<EachUriStatBo> result = new ArrayList<>();
+
+        for (int i = 0; i < numValues; i++) {
+            final int requestCount = RandomUtils.nextInt(1, MAX_NUM_TEST_VALUES);
+
+            boolean includeFail = RandomUtils.nextBoolean();
+            EachUriStatBo eachUriStatBo = createEachUriStatBo("/index" + i + ".html", requestCount, includeFail);
+            result.add(eachUriStatBo);
+        }
+
+        return result;
+    }
+
+    private static EachUriStatBo createEachUriStatBo(String uri, int requestCount, boolean includeFail) {
+        int[] elapsedTimes = new int[requestCount];
+        for (int i = 0; i < requestCount; i++) {
+            final int elapsedTime = RandomUtils.nextInt(1, 10000);
+            elapsedTimes[i] = elapsedTime;
+        }
+
+        EachUriStatBo eachUriStatBo = new EachUriStatBo();
+        eachUriStatBo.setUri(uri);
+
+        UriStatHistogram total = createHistogram(elapsedTimes, 1);
+        eachUriStatBo.setTotalHistogram(total);
+
+        if (includeFail) {
+            UriStatHistogram fail = createHistogram(elapsedTimes, 3);
+            eachUriStatBo.setFailedHistogram(fail);
+        }
+
+        return eachUriStatBo;
+    }
+
+    private static UriStatHistogram createHistogram(int[] elapsedTimes, int sample) {
+        UriStatHistogram uriStatHistogram = new UriStatHistogram();
+
+        int count = 0;
+        long totalElapsed = 0;
+        long max = 0;
+        int histogramSize = UriStatHistogramBucket.values().length;
+        int[] histogramBucket = new int[histogramSize];
+        for (int i = 0; i < elapsedTimes.length; i++) {
+            if (RandomUtils.nextInt(0, sample) != 0) {
+                continue;
+            }
+
+            long elapsedTime = elapsedTimes[i];
+
+            totalElapsed += elapsedTime;
+            max = Math.max(max, elapsedTime);
+            count++;
+
+            UriStatHistogramBucket value = UriStatHistogramBucket.getValue(elapsedTime);
+            histogramBucket[value.getIndex()] += 1;
+        }
+
+        if (count == 0) {
+            return null;
+        }
+
+        uriStatHistogram.setCount(count);
+        uriStatHistogram.setAvg(totalElapsed / count);
+        uriStatHistogram.setMax(max);
+
+        uriStatHistogram.setTimestampHistogram(histogramBucket);
+
+        return uriStatHistogram;
+    }
+
     private static List<Long> createStartTimestamps(long startTimestamp, int numValues) {
         return TestAgentStatDataPointFactory.LONG.createConstantValues(startTimestamp, startTimestamp, numValues);
     }

@@ -16,15 +16,23 @@
 
 package com.navercorp.pinpoint.plugin.jdbc;
 
-import ch.vorburger.exec.ManagedProcessException;
-import ch.vorburger.mariadb4j.DB;
 import com.navercorp.pinpoint.pluginit.jdbc.DriverManagerUtils;
 import com.navercorp.pinpoint.pluginit.jdbc.DriverProperties;
 import com.navercorp.pinpoint.pluginit.jdbc.JDBCDriverClass;
+import com.navercorp.pinpoint.test.plugin.shared.AfterSharedClass;
+import com.navercorp.pinpoint.test.plugin.shared.BeforeSharedClass;
+
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.MariaDBContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import java.sql.CallableStatement;
 import java.sql.Connection;
@@ -43,12 +51,9 @@ import static org.junit.Assert.fail;
  * @author HyunGil Jeong
  */
 public abstract class MariaDB_IT_Base {
+    public static Logger LOGGER = LoggerFactory.getLogger(MariaDB_IT_Base.class);
 
-    private static final int PORT = 13306;
-    protected static final String URL = "127.0.0.1:" + PORT;
     protected static final String DATABASE_NAME = "test";
-
-    protected static final String JDBC_URL = "jdbc:mariadb://" + URL + "/" + DATABASE_NAME;
 
     // for Statement
     protected static final String STATEMENT_QUERY = "SELECT count(1) FROM playground";
@@ -63,29 +68,60 @@ public abstract class MariaDB_IT_Base {
     protected static final String CALLABLE_STATEMENT_INPUT_PARAM = "TWO";
     protected static final int CALLABLE_STATMENT_OUTPUT_PARAM_TYPE = Types.INTEGER;
 
-    private static DB TEST_DATABASE;
     protected static DriverProperties driverProperties;
+//    @Rule
+    public static MariaDBContainer mariaDB = new MariaDBContainer();
 
-
-    private static final String EMBEDDED_DB_PORT_KEY = "maria.embedded-db.port";
+    protected static final String USERNAME = "root";
+    protected static final String PASSWORD = "";
 
     protected static final String DB_TYPE = "MARIADB";
     protected static final String DB_EXECUTE_QUERY = "MARIADB_EXECUTE_QUERY";
 
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-        driverProperties = DriverProperties.load("database/maria.properties", "maria");
-        int embeddedDBPort = Integer.parseInt(driverProperties.getProperty(EMBEDDED_DB_PORT_KEY));
-        TEST_DATABASE = DB.newEmbeddedDB(embeddedDBPort);
-        TEST_DATABASE.start();
-        TEST_DATABASE.createDB("test");
-        TEST_DATABASE.source("jdbc/mariadb/init.sql");
+    // ---------- For @BeforeSharedClass, @AfterSharedClass   //
+    // for shared test'
+    protected static String JDBC_URL;
+    protected static String URL;
+
+    public static String getJdbcUrl() {
+        return JDBC_URL;
     }
 
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-        TEST_DATABASE = testDBStop();
+    public static void setJdbcUrl(String jdbcUrl) {
+        JDBC_URL = jdbcUrl;
+    }
 
+    public static String getURL() {
+        return URL;
+    }
+
+    public static void setURL(String URL) {
+        MariaDB_IT_Base.URL = URL;
+    }
+    // ---------- //
+
+    @BeforeSharedClass
+    public static void sharedSetUp() throws Exception {
+        Assume.assumeTrue("Docker not enabled", DockerClientFactory.instance().isDockerAvailable());
+
+        mariaDB.withLogConsumer(new Slf4jLogConsumer(LOGGER));
+        mariaDB.withDatabaseName(DATABASE_NAME);
+        mariaDB.withUsername(USERNAME);
+        mariaDB.withPassword(PASSWORD);
+        mariaDB.withInitScript("jdbc/mariadb/init.sql");
+//        mariaDB.withUrlParam("noAccessToProcedureBodies", "true");
+        mariaDB.start();
+
+        setJdbcUrl(mariaDB.getJdbcUrl());
+        int port = mariaDB.getMappedPort(3306);
+        setURL(mariaDB.getHost() + ":" + port);
+    }
+
+    @AfterSharedClass
+    public static void sharedTearDown() throws Exception {
+        if (mariaDB != null) {
+            mariaDB.stop();
+        }
     }
 
     abstract JDBCDriverClass getJDBCDriverClass();
@@ -102,20 +138,13 @@ public abstract class MariaDB_IT_Base {
         DriverManagerUtils.deregisterDriver();
     }
 
-    private static DB testDBStop() throws ManagedProcessException {
-        if (TEST_DATABASE != null) {
-            TEST_DATABASE.stop();
-        }
-        return null;
-    }
-
     protected final void executeStatement() throws Exception {
         final int expectedResultSize = 1;
         Connection connection = null;
         Statement statement = null;
         ResultSet rs = null;
         try {
-            connection = DriverManager.getConnection(JDBC_URL, "root", null);
+            connection = getConnection();
             statement = connection.createStatement();
             rs = statement.executeQuery(STATEMENT_QUERY);
             int resultCount = 0;
@@ -134,6 +163,10 @@ public abstract class MariaDB_IT_Base {
         }
     }
 
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
+    }
+
     protected final void executePreparedStatement() throws Exception {
         final int expectedResultSize = 1;
 
@@ -141,7 +174,7 @@ public abstract class MariaDB_IT_Base {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            connection = DriverManager.getConnection(JDBC_URL, "root", null);
+            connection = getConnection();
             ps = connection.prepareStatement(PREPARED_STATEMENT_QUERY);
             ps.setInt(1, 3);
             rs = ps.executeQuery();
@@ -172,7 +205,7 @@ public abstract class MariaDB_IT_Base {
         CallableStatement cs = null;
         ResultSet rs = null;
         try {
-            conn = DriverManager.getConnection(JDBC_URL, "root", null);
+            conn = getConnection();
 
             cs = conn.prepareCall(CALLABLE_STATEMENT_QUERY);
             cs.setString(1, CALLABLE_STATEMENT_INPUT_PARAM);
@@ -200,7 +233,7 @@ public abstract class MariaDB_IT_Base {
         }
     }
 
-    private void closeConnection(Connection conn) throws SQLException {
+    private void closeConnection(Connection conn) {
         if (conn != null) {
             try {
                 conn.close();
@@ -210,7 +243,7 @@ public abstract class MariaDB_IT_Base {
         }
     }
 
-    private void closeResultSet(ResultSet rs) throws SQLException {
+    private void closeResultSet(ResultSet rs) {
         if (rs != null) {
             try {
                 rs.close();
@@ -220,7 +253,7 @@ public abstract class MariaDB_IT_Base {
         }
     }
 
-    private void closeStatement(Statement statement) throws SQLException {
+    private void closeStatement(Statement statement) {
         if (statement != null) {
             try {
                 statement.close();
@@ -229,6 +262,5 @@ public abstract class MariaDB_IT_Base {
             }
         }
     }
-
 
 }

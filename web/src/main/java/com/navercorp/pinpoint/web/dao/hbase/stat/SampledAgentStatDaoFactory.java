@@ -19,6 +19,7 @@ package com.navercorp.pinpoint.web.dao.hbase.stat;
 import com.navercorp.pinpoint.web.dao.SampledAgentStatDao;
 
 import com.navercorp.pinpoint.web.dao.stat.SampledActiveTraceDao;
+import com.navercorp.pinpoint.web.dao.stat.SampledAgentUriStatDao;
 import com.navercorp.pinpoint.web.dao.stat.SampledCpuLoadDao;
 import com.navercorp.pinpoint.web.dao.stat.SampledDataSourceDao;
 import com.navercorp.pinpoint.web.dao.stat.SampledDeadlockDao;
@@ -28,8 +29,11 @@ import com.navercorp.pinpoint.web.dao.stat.SampledJvmGcDao;
 import com.navercorp.pinpoint.web.dao.stat.SampledJvmGcDetailedDao;
 import com.navercorp.pinpoint.web.dao.stat.SampledResponseTimeDao;
 import com.navercorp.pinpoint.web.dao.stat.SampledTransactionDao;
+import com.navercorp.pinpoint.web.dao.stat.SampledTotalThreadCountDao;
+import com.navercorp.pinpoint.web.dao.stat.SampledLoadedClassCountDao;
 import com.navercorp.pinpoint.web.vo.stat.SampledActiveTrace;
 import com.navercorp.pinpoint.web.vo.stat.SampledAgentStatDataPoint;
+import com.navercorp.pinpoint.web.vo.stat.SampledAgentUriStat;
 import com.navercorp.pinpoint.web.vo.stat.SampledCpuLoad;
 import com.navercorp.pinpoint.web.vo.stat.SampledDataSourceList;
 import com.navercorp.pinpoint.web.vo.stat.SampledDeadlock;
@@ -39,6 +43,8 @@ import com.navercorp.pinpoint.web.vo.stat.SampledJvmGc;
 import com.navercorp.pinpoint.web.vo.stat.SampledJvmGcDetailed;
 import com.navercorp.pinpoint.web.vo.stat.SampledResponseTime;
 import com.navercorp.pinpoint.web.vo.stat.SampledTransaction;
+import com.navercorp.pinpoint.web.vo.stat.SampledTotalThreadCount;
+import com.navercorp.pinpoint.web.vo.stat.SampledLoadedClassCount;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -294,4 +300,65 @@ abstract class SampledAgentStatDaoFactory<S extends SampledAgentStatDataPoint, D
             return true;
         }
     }
+
+    @Repository("sampledTotalThreadCountDaoFactory")
+    public static class SampledTotalThreadCountDaoFactory
+            extends SampledAgentStatDaoFactory<SampledTotalThreadCount, SampledTotalThreadCountDao>
+            implements FactoryBean<SampledTotalThreadCountDao> {
+
+        @Autowired
+        public void setV2(@Qualifier("sampledTotalThreadCountDaoV2") SampledTotalThreadCountDao v2) { this.v2 = v2; }
+
+        @Override
+        public SampledTotalThreadCountDao getObject() throws Exception {
+            return super.getDao();
+        }
+
+        @Override
+        public Class<?> getObjectType() { return SampledTotalThreadCountDao.class; }
+
+        @Override
+        public boolean isSingleton() { return true; }
+    }
+
+    @Repository("sampledLoadedClassCountDaoFactory")
+    public static class SampledLoadedClassDaoFactory
+            extends SampledAgentStatDaoFactory<SampledLoadedClassCount, SampledLoadedClassCountDao>
+            implements FactoryBean<SampledLoadedClassCountDao> {
+
+        @Autowired
+        public void setV2(@Qualifier("sampledLoadedClassDaoV2") SampledLoadedClassCountDao v2) { this.v2 = v2; }
+
+        @Override
+        public SampledLoadedClassCountDao getObject() throws Exception {
+            return super.getDao();
+        }
+
+        @Override
+        public Class<?> getObjectType() { return SampledLoadedClassCountDao.class; }
+
+        @Override
+        public boolean isSingleton() { return true; }
+    }
+
+    @Repository("sampledAgentUriStatDaoFactory")
+    public static class SampledAgentUriStatDaoFactory
+            extends SampledAgentStatDaoFactory<SampledAgentUriStat, SampledAgentUriStatDao>
+            implements FactoryBean<SampledAgentUriStatDao> {
+
+        @Autowired
+        public void setV2(@Qualifier("sampledAgentUriStatDaoV2") SampledAgentUriStatDao v2) { this.v2 = v2; }
+
+        @Override
+        public SampledAgentUriStatDao getObject() throws Exception {
+            return super.getDao();
+        }
+
+        @Override
+        public Class<?> getObjectType() { return SampledAgentUriStatDao.class; }
+
+        @Override
+        public boolean isSingleton() { return true; }
+    }
+
 }

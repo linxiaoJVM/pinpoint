@@ -29,6 +29,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.RequestTraceWriter;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieExtractor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorderFactory;
+import com.navercorp.pinpoint.common.util.ArrayUtils;
 import com.navercorp.pinpoint.plugin.vertx.HttpRequestClientHeaderAdaptor;
 import com.navercorp.pinpoint.plugin.vertx.VertxConstants;
 import com.navercorp.pinpoint.plugin.vertx.VertxCookieExtractor;
@@ -56,13 +57,13 @@ public class HttpClientStreamInterceptor implements AroundInterceptor {
 
         final VertxHttpClientConfig config = new VertxHttpClientConfig(traceContext.getProfilerConfig());
         ClientRequestAdaptor<ClientRequestWrapper> clientRequestAdaptor = ClientRequestWrapperAdaptor.INSTANCE;
-        this.clientRequestRecorder = new ClientRequestRecorder<ClientRequestWrapper>(config.isParam(), clientRequestAdaptor);
+        this.clientRequestRecorder = new ClientRequestRecorder<>(config.isParam(), clientRequestAdaptor);
 
         CookieExtractor<HttpRequest> cookieExtractor = new VertxCookieExtractor();
         this.cookieRecorder = CookieRecorderFactory.newCookieRecorder(config.getHttpDumpConfig(), cookieExtractor);
 
         ClientHeaderAdaptor<HttpRequest> clientHeaderAdaptor = new HttpRequestClientHeaderAdaptor();
-        this.requestTraceWriter = new DefaultRequestTraceWriter<HttpRequest>(clientHeaderAdaptor, traceContext);
+        this.requestTraceWriter = new DefaultRequestTraceWriter<>(clientHeaderAdaptor, traceContext);
     }
 
     @Override
@@ -102,7 +103,7 @@ public class HttpClientStreamInterceptor implements AroundInterceptor {
     }
 
     private boolean validate(final Object[] args) {
-        if (args == null || args.length < 2) {
+        if (ArrayUtils.getLength(args) < 2) {
             logger.debug("Invalid args object. args={}.", args);
             return false;
         }

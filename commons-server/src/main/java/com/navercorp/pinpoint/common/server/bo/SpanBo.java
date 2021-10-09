@@ -31,6 +31,7 @@ public class SpanBo implements Event, BasicSpan {
 
 //  private AgentKeyBo agentKeyBo;
     private String agentId;
+    private String agentName;
     private String applicationId;
     private long agentStartTime;
 
@@ -54,7 +55,7 @@ public class SpanBo implements Event, BasicSpan {
     private short flag; // optional
     private int errCode;
 
-    private List<SpanEventBo> spanEventBoList = new ArrayList<>();
+    private final List<SpanEventBo> spanEventBoList = new ArrayList<>();
     private List<SpanChunkBo> spanChunkBoList;
 
     private long collectorAcceptTime;
@@ -113,6 +114,16 @@ public class SpanBo implements Event, BasicSpan {
     @Override
     public void setAgentId(String agentId) {
         this.agentId = agentId;
+    }
+
+    @Override
+    public String getAgentName() {
+        return agentName;
+    }
+
+    @Override
+    public void setAgentName(String agentName) {
+        this.agentName = agentName;
     }
 
     @Override
@@ -369,6 +380,7 @@ public class SpanBo implements Event, BasicSpan {
         final StringBuilder sb = new StringBuilder("SpanBo{");
         sb.append("version=").append(version);
         sb.append(", agentId='").append(agentId).append('\'');
+        sb.append(", agentName='").append(agentName).append('\'');
         sb.append(", applicationId='").append(applicationId).append('\'');
         sb.append(", agentStartTime=").append(agentStartTime);
         sb.append(", transactionId=").append(transactionId);

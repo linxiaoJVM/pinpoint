@@ -50,18 +50,16 @@ public class LinkDataMap {
     }
 
     public void addLinkDataMap(LinkDataMap linkDataMap) {
-        if (linkDataMap == null) {
-            throw new NullPointerException("linkDataMap");
-        }
+        Objects.requireNonNull(linkDataMap, "linkDataMap");
+
         for (LinkData copyLinkData : linkDataMap.linkDataMap.values()) {
             addLinkData(copyLinkData);
         }
     }
 
     public void addLinkData(LinkData copyLinkData) {
-        if (copyLinkData == null) {
-            throw new NullPointerException("copyLinkData");
-        }
+        Objects.requireNonNull(copyLinkData, "copyLinkData");
+
         Application fromApplication = copyLinkData.getFromApplication();
         Application toApplication = copyLinkData.getToApplication();
         LinkData linkData = getLinkData(fromApplication, toApplication);
@@ -88,9 +86,8 @@ public class LinkDataMap {
     }
 
     public LinkData getLinkData(LinkKey findLinkKey) {
-        if (findLinkKey == null) {
-            throw new NullPointerException("findLinkKey");
-        }
+        Objects.requireNonNull(findLinkKey, "findLinkKey");
+
         return this.linkDataMap.get(findLinkKey);
     }
 

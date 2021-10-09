@@ -22,33 +22,33 @@ import com.navercorp.pinpoint.web.service.UserService;
 import com.navercorp.pinpoint.web.vo.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
  */
-@Controller
+@RestController
 public class ConfigController {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final static String SSO_USER = "SSO_USER";
 
-    @Autowired
-    private ConfigProperties webProperties;
+    private final ConfigProperties webProperties;
     
-    @Autowired
-    private UserService userService;
-    
-    @RequestMapping(value="/configuration", method=RequestMethod.GET)
-    @ResponseBody
+    private final UserService userService;
+
+    public ConfigController(ConfigProperties webProperties, UserService userService) {
+        this.webProperties = Objects.requireNonNull(webProperties, "webProperties");
+        this.userService = Objects.requireNonNull(userService, "userService");
+    }
+
+    @GetMapping(value="/configuration")
     public Map<String, Object> getProperties() {
         Map<String, Object> result = new HashMap<>();
 
@@ -60,10 +60,11 @@ public class ConfigController {
         result.put("showApplicationStat", webProperties.isShowApplicationStat());
         result.put("showStackTraceOnError", webProperties.isShowStackTraceOnError());
         result.put("openSource", webProperties.isOpenSource());
+        result.put("webhookEnable", webProperties.isWebhookEnable());
         result.put("version", Version.VERSION);
 
         String userId = userService.getUserIdFromSecurity();
-        if (!StringUtils.isEmpty(userId)) {
+        if (StringUtils.hasLength(userId)) {
             User user = userService.selectUserByUserId(userId);
 
             if (user == null) {
@@ -75,7 +76,7 @@ public class ConfigController {
             }
         }
         
-        if (!StringUtils.isEmpty(webProperties.getSecurityGuideUrl())) {
+        if (StringUtils.hasLength(webProperties.getSecurityGuideUrl())) {
             result.put("securityGuideUrl", webProperties.getSecurityGuideUrl());
         }
         

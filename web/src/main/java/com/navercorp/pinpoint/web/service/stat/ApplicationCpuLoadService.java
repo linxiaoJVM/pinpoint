@@ -20,10 +20,10 @@ import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.stat.AggreJoinCpuLoadBo;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import com.navercorp.pinpoint.web.vo.stat.chart.application.ApplicationCpuLoadChart;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author minwoo.jung
@@ -31,18 +31,18 @@ import java.util.List;
 @Service
 public class ApplicationCpuLoadService implements ApplicationStatChartService {
 
-    @Autowired
-    private ApplicationCpuLoadDao applicationCpuLoadDao;
+    private final ApplicationCpuLoadDao applicationCpuLoadDao;
+
+    public ApplicationCpuLoadService(ApplicationCpuLoadDao applicationCpuLoadDao) {
+        this.applicationCpuLoadDao = Objects.requireNonNull(applicationCpuLoadDao, "applicationCpuLoadDao");
+    }
 
 
     @Override
     public StatChart selectApplicationChart(String applicationId, TimeWindow timeWindow) {
-        if (applicationId == null) {
-            throw new NullPointerException("applicationId");
-        }
-        if (timeWindow == null) {
-            throw new NullPointerException("timeWindow");
-        }
+        Objects.requireNonNull(applicationId, "applicationId");
+        Objects.requireNonNull(timeWindow, "timeWindow");
+
         List<AggreJoinCpuLoadBo> aggreJoinCpuLoadBoList = this.applicationCpuLoadDao.getApplicationStatList(applicationId, timeWindow);
         return new ApplicationCpuLoadChart(timeWindow, aggreJoinCpuLoadBoList);
     }

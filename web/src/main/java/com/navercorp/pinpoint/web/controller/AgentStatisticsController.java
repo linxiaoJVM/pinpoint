@@ -16,40 +16,39 @@
 
 package com.navercorp.pinpoint.web.controller;
 
-import com.navercorp.pinpoint.common.util.DateUtils;
 import com.navercorp.pinpoint.web.service.AgentStatisticsService;
+import com.navercorp.pinpoint.web.util.DateTimeUtils;
 import com.navercorp.pinpoint.web.vo.AgentCountStatistics;
 import com.navercorp.pinpoint.web.vo.Range;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
  */
-@Controller
+@RestController
 public class AgentStatisticsController {
 
-    @Autowired
-    AgentStatisticsService agentStatisticsService;
+    private final AgentStatisticsService agentStatisticsService;
 
-    @RequestMapping(value = "/insertAgentCount", method = RequestMethod.GET, params = {"agentCount"})
-    @ResponseBody
+    public AgentStatisticsController(AgentStatisticsService agentStatisticsService) {
+        this.agentStatisticsService = Objects.requireNonNull(agentStatisticsService, "agentStatisticsService");
+    }
+
+    @GetMapping(value = "/insertAgentCount", params = {"agentCount"})
     public Map<String, String> insertAgentCount(@RequestParam("agentCount") int agentCount) {
         return insertAgentCount(agentCount, new Date().getTime());
     }
 
-    @RequestMapping(value = "/insertAgentCount", method = RequestMethod.GET, params = {"agentCount", "timestamp"})
-    @ResponseBody
+    @GetMapping(value = "/insertAgentCount", params = {"agentCount", "timestamp"})
     public Map<String, String> insertAgentCount(@RequestParam("agentCount") int agentCount, @RequestParam("timestamp") long timestamp) {
         if (timestamp < 0) {
             Map<String, String> result = new HashMap<>();
@@ -58,7 +57,7 @@ public class AgentStatisticsController {
             return result;
         }
 
-        AgentCountStatistics agentCountStatistics = new AgentCountStatistics(agentCount, DateUtils.timestampToMidNight(timestamp));
+        AgentCountStatistics agentCountStatistics = new AgentCountStatistics(agentCount, DateTimeUtils.timestampToStartOfDay(timestamp));
         boolean success = agentStatisticsService.insertAgentCount(agentCountStatistics);
 
         if (success) {
@@ -73,36 +72,25 @@ public class AgentStatisticsController {
         }
     }
 
-    @RequestMapping(value = "/selectAgentCount", method = RequestMethod.GET)
-    @ResponseBody
+    @GetMapping(value = "/selectAgentCount")
     public List<AgentCountStatistics> selectAgentCount() {
         return selectAgentCount(0L, System.currentTimeMillis());
     }
 
-    @RequestMapping(value = "/selectAgentCount", method = RequestMethod.GET, params = {"to"})
-    @ResponseBody
+    @GetMapping(value = "/selectAgentCount", params = {"to"})
     public List<AgentCountStatistics> selectAgentCount(@RequestParam("to") long to) {
         return selectAgentCount(0L, to);
     }
 
-    @RequestMapping(value = "/selectAgentCount", method = RequestMethod.GET, params = {"from", "to"})
-    @ResponseBody
+    @GetMapping(value = "/selectAgentCount", params = {"from", "to"})
     public List<AgentCountStatistics> selectAgentCount(@RequestParam("from") long from, @RequestParam("to") long to) {
-        Range range = new Range(DateUtils.timestampToMidNight(from), DateUtils.timestampToMidNight(to), true);
+        Range range = Range.newRange(DateTimeUtils.timestampToStartOfDay(from), DateTimeUtils.timestampToStartOfDay(to));
         List<AgentCountStatistics> agentCountStatisticsList = agentStatisticsService.selectAgentCount(range);
 
-        agentCountStatisticsList.sort(new Comparator<AgentCountStatistics>() {
-            @Override
-            public int compare(AgentCountStatistics o1, AgentCountStatistics o2) {
-                if (o1.getTimestamp() > o2.getTimestamp()) {
-                    return -1;
-                } else {
-                    return 1;
-                }
-            }
-        });
+        agentCountStatisticsList.sort(Comparator.comparingLong(AgentCountStatistics::getTimestamp).reversed());
 
         return agentCountStatisticsList;
     }
+
 
 }

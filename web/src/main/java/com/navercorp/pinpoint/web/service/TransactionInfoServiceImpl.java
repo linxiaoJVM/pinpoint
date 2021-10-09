@@ -16,14 +16,12 @@
 
 package com.navercorp.pinpoint.web.service;
 
+import com.navercorp.pinpoint.common.profiler.util.TransactionId;
 import com.navercorp.pinpoint.common.server.bo.AnnotationBo;
 import com.navercorp.pinpoint.common.server.bo.Event;
 import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.common.trace.AnnotationKeyMatcher;
 import com.navercorp.pinpoint.common.trace.LoggingInfo;
-import com.navercorp.pinpoint.common.profiler.util.TransactionId;
-import com.navercorp.pinpoint.loader.service.AnnotationKeyRegistryService;
-import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
 import com.navercorp.pinpoint.web.calltree.span.Align;
 import com.navercorp.pinpoint.web.calltree.span.CallTreeIterator;
 import com.navercorp.pinpoint.web.calltree.span.CallTreeNode;
@@ -37,20 +35,19 @@ import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.callstacks.Record;
 import com.navercorp.pinpoint.web.vo.callstacks.RecordFactory;
 import com.navercorp.pinpoint.web.vo.callstacks.RecordSet;
-
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
- *
  * @author jaehong.kim
  */
 @Service
@@ -58,24 +55,23 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    @Qualifier("hbaseTraceDaoFactory")
-    private TraceDao traceDao;
+    private final TraceDao traceDao;
 
-    @Autowired
-    private AnnotationKeyMatcherService annotationKeyMatcherService;
+    private final AnnotationKeyMatcherService annotationKeyMatcherService;
 
-    @Autowired
-    private ServiceTypeRegistryService registry;
+    private final MetaDataFilter metaDataFilter;
 
-    @Autowired
-    private AnnotationKeyRegistryService annotationKeyRegistryService;
+    private final RecorderFactoryProvider recordFactoryProvider;
 
-    @Autowired(required=false)
-    private MetaDataFilter metaDataFilter;
-
-    @Autowired
-    private ProxyRequestTypeRegistryService proxyRequestTypeRegistryService;
+    public TransactionInfoServiceImpl(TraceDao traceDao,
+                                      AnnotationKeyMatcherService annotationKeyMatcherService,
+                                      Optional<MetaDataFilter> metaDataFilter,
+                                      RecorderFactoryProvider recordFactoryProvider) {
+        this.traceDao = Objects.requireNonNull(traceDao, "traceDao");
+        this.annotationKeyMatcherService = Objects.requireNonNull(annotationKeyMatcherService, "annotationKeyMatcherService");
+        this.metaDataFilter = Objects.requireNonNull(metaDataFilter, "metaDataFilter").orElse(null);
+        this.recordFactoryProvider = Objects.requireNonNull(recordFactoryProvider, "recordFactoryProvider");
+    }
 
     // Temporarily disabled Because We need to solve authentication problem inter system.
     // @Value("${log.enable:false}")
@@ -88,29 +84,22 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
     // private String logPageUrl;
 
     @Override
-    public BusinessTransactions selectBusinessTransactions(List<TransactionId> transactionIdList, String applicationName, Range range, Filter filter) {
-        if (transactionIdList == null) {
-            throw new NullPointerException("transactionIdList");
-        }
-        if (applicationName == null) {
-            throw new NullPointerException("applicationName");
-        }
-        if (filter == null) {
-            throw new NullPointerException("filter");
-        }
-        if (range == null) {
-            // TODO range is not used - check the logic again
-            throw new NullPointerException("range");
-        }
+    public BusinessTransactions selectBusinessTransactions(List<TransactionId> transactionIdList, String applicationName,
+                                                           Range range, Filter<List<SpanBo>> filter) {
+        Objects.requireNonNull(transactionIdList, "transactionIdList");
+        Objects.requireNonNull(applicationName, "applicationName");
+        Objects.requireNonNull(filter, "filter");
+        // TODO range is not used - check the logic again
+        Objects.requireNonNull(range, "range");
 
         List<List<SpanBo>> traceList;
 
-        if (filter == Filter.acceptAllFilter()) {
-            List<GetTraceInfo> getTraceInfoList = new ArrayList<>(transactionIdList.size());
-            for (TransactionId transactionId : transactionIdList) {
-                getTraceInfoList.add(new GetTraceInfo(transactionId));
-            }
-            traceList = this.traceDao.selectSpans(getTraceInfoList);
+        if (filter == Filter.<List<SpanBo>>acceptAllFilter()) {
+            List<GetTraceInfo> queryList = transactionIdList.stream()
+                    .map(GetTraceInfo::new)
+                    .collect(Collectors.toList());
+
+            traceList = this.traceDao.selectSpans(queryList);
         } else {
             traceList = this.traceDao.selectAllSpans(transactionIdList);
         }
@@ -133,10 +122,9 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
     }
 
     @Override
-    public RecordSet createRecordSet(CallTreeIterator callTreeIterator, long focusTimestamp, String agentId, long spanId) {
-        if (callTreeIterator == null) {
-            throw new NullPointerException("callTreeIterator");
-        }
+    public RecordSet createRecordSet(CallTreeIterator callTreeIterator, Predicate<SpanBo> viewPointFilter) {
+        Objects.requireNonNull(callTreeIterator, "callTreeIterator");
+        Objects.requireNonNull(viewPointFilter, "viewPointFilter");
 
         RecordSet recordSet = new RecordSet();
         final List<Align> alignList = callTreeIterator.values();
@@ -145,10 +133,11 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
         // focusTimestamp is needed to determine which span to use as reference when there are more than 2 spans making up a transaction.
         // for cases where focus cannot be found due to an error, a separate marker is needed.
         // TODO potential error - because server time is used, there may be more than 2 focusTime due to differences in server times.
-        Align viewPointAlign = findViewPoint(alignList, focusTimestamp, agentId, spanId);
+        Align viewPointAlign = findViewPoint(alignList, viewPointFilter);
         // FIXME patched temporarily for cases where focusTimeSpanBo is not found. Need a more complete solution.
         if (viewPointAlign != null) {
             recordSet.setAgentId(viewPointAlign.getAgentId());
+            recordSet.setAgentName(viewPointAlign.getAgentName());
             recordSet.setApplicationId(viewPointAlign.getApplicationId());
 
             final String applicationName = getRpcArgument(viewPointAlign);
@@ -161,7 +150,20 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
 
         // find the endTime to use as reference
         long endTime = getEndTime(alignList);
-        recordSet.setEndTime(endTime);
+
+        /*
+         * Workaround codes to prevent issues occurred
+         * when endTime is too far away from startTime
+         */
+        long rootEndTime = getRootEndTime(alignList);
+
+        if (rootEndTime - startTime <= 0) {
+            recordSet.setEndTime(endTime);
+        } else if ((double)(rootEndTime - startTime) / (endTime-startTime) < 0.1) {
+            recordSet.setEndTime(rootEndTime);
+        } else {
+            recordSet.setEndTime(endTime);
+        }
 
         recordSet.setLoggingTransactionInfo(findIsLoggingTransactionInfo(alignList));
 
@@ -197,12 +199,12 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
         for (Record record : recordList) {
             if (viewPointTimeAlign.getSpanId() == record.getSpanId() && record.getBegin() == viewPointTimeAlign.getStartTime()) {
                 if (agentId == null) {
-                    if (record.getAgent() == null) {
+                    if (record.getAgentId() == null) {
                         record.setFocused(true);
                         break;
                     }
                 } else {
-                    if (record.getAgent() != null && agentId.equals(record.getAgent())) {
+                    if (record.getAgentId() != null && agentId.equals(record.getAgentId())) {
                         record.setFocused(true);
                         break;
                     }
@@ -239,23 +241,39 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
         if (CollectionUtils.isEmpty(alignList)) {
             return 0;
         }
-        Align align = alignList.get(0);
-        return align.getStartTime();
+
+        long min = Long.MAX_VALUE;
+        for (Align align : alignList) {
+            min = Math.min(min, align.getStartTime());
+        }
+        return min;
+    }
+
+    private long getRootEndTime(List<Align> alignList) {
+        if (CollectionUtils.isEmpty(alignList)) {
+            return 0;
+        }
+
+        return alignList.get(0).getEndTime();
     }
 
     private long getEndTime(List<Align> alignList) {
         if (CollectionUtils.isEmpty(alignList)) {
             return 0;
         }
-        Align align = alignList.get(0);
-        return align.getEndTime();
+        long max = Long.MIN_VALUE;
+        for (Align align : alignList) {
+            max = Math.max(max, align.getEndTime());
+        }
+        return max;
     }
 
-    private Align findViewPoint(List<Align> alignList, long focusTimestamp, String agentId, long spanId) {
+    private Align findViewPoint(List<Align> alignList, Predicate<SpanBo> viewPointFilter) {
         Align firstSpan = null;
         for (Align align : alignList) {
             if (align.isSpan()) {
-                if (isViewPoint(align, focusTimestamp, agentId, spanId)) {
+                final SpanBo spanBo = align.getSpanBo();
+                if (isViewPoint(spanBo, viewPointFilter)) {
                     return align;
                 }
                 if (firstSpan == null) {
@@ -267,36 +285,15 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
         return firstSpan;
     }
 
-    private boolean isViewPoint(final Align align, long focusTimestamp, String agentId, long spanId) {
-        if (align.getCollectorAcceptTime() != focusTimestamp) {
-            return false;
-        }
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("Matched focusTimestamp of view point. focusTimestamp={}, spanAlign={focusTimestamp={}, agentId={}, spanId={}}", focusTimestamp, align.getCollectorAcceptTime(), align.getAgentId(), align.getSpanId());
-        }
-
-        // agentId
-        if (agentId != null) {
-            if (align.getAgentId() == null || !align.getAgentId().equals(agentId)) {
-                return false;
-            }
+    private boolean isViewPoint(final SpanBo spanBo, Predicate<SpanBo> viewPointFilter) {
+        if (viewPointFilter.test(spanBo)) {
             if (logger.isDebugEnabled()) {
-                logger.debug("Matched agentId of view point. agentId={}, spanAlign={focusTimestamp={}, agentId={}, spanId={}}", agentId, align.getCollectorAcceptTime(), align.getAgentId(), align.getSpanId());
+                logger.debug("Matched view point. viewPointFilter={}, spanAlign={focusTimestamp={}, agentId={}, spanId={}}",
+                        viewPointFilter, spanBo.getCollectorAcceptTime(), spanBo.getAgentId(), spanBo.getSpanId());
             }
+            return true;
         }
-
-        // spanId
-        if (spanId != -1) {
-            if (align.getSpanId() != spanId) {
-                return false;
-            }
-            if (logger.isDebugEnabled()) {
-                logger.debug("Matched spanId of view point. spanId={}, spanAlign={focusTimestamp={}, agentId={}, spanId={}}", spanId, align.getCollectorAcceptTime(), align.getAgentId(), align.getSpanId());
-            }
-        }
-
-        return true;
+        return false;
     }
 
     private String getRpcArgument(Align align) {
@@ -340,18 +337,16 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
 
     private class SpanAlignPopulate {
         private List<Record> populateSpanRecord(CallTreeIterator callTreeIterator) {
-            if (callTreeIterator == null) {
-                throw new NullPointerException("callTreeIterator");
-            }
+            Objects.requireNonNull(callTreeIterator, "callTreeIterator");
 
             final List<Record> recordList = new ArrayList<>(callTreeIterator.size() * 2);
-            final RecordFactory factory = new RecordFactory(annotationKeyMatcherService, registry, annotationKeyRegistryService, proxyRequestTypeRegistryService);
+            final RecordFactory factory = recordFactoryProvider.getRecordFactory();
 
             // annotation id has nothing to do with spanAlign's seq and thus may be incremented as long as they don't overlap.
             while (callTreeIterator.hasNext()) {
                 final CallTreeNode node = callTreeIterator.next();
                 if (node == null) {
-                    logger.warn("Corrupt CallTree found : {}", callTreeIterator.toString());
+                    logger.warn("Corrupt CallTree found : {}", callTreeIterator);
                     throw new IllegalStateException("CallTree corrupted");
                 }
                 final Align align = node.getAlign();
@@ -374,7 +369,7 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
                 // add exception record.
                 if (align.hasException()) {
                     final Record exceptionRecord = factory.getException(record.getTab() + 1, record.getId(), align);
-                    if(exceptionRecord != null) {
+                    if (exceptionRecord != null) {
                         recordList.add(exceptionRecord);
                     }
                 }
@@ -389,6 +384,16 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
                 if (align.getRemoteAddr() != null) {
                     final Record remoteAddressRecord = factory.getParameter(record.getTab() + 1, record.getId(), "REMOTE_ADDRESS", align.getRemoteAddr());
                     recordList.add(remoteAddressRecord);
+                }
+
+                // add endPoint.(span only)
+                if (align.isSpan()) {
+                    final SpanBo spanBo = align.getSpanBo();
+                    final String endPoint = spanBo.getEndPoint();
+                    if (endPoint != null) {
+                        final Record endPointRecord = factory.getParameter(record.getTab() + 1, record.getId(), "ENDPOINT", endPoint);
+                        recordList.add(endPointRecord);
+                    }
                 }
             }
 

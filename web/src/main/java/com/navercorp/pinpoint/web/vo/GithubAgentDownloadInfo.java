@@ -21,10 +21,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import org.apache.commons.lang3.StringUtils;
+import com.navercorp.pinpoint.common.util.StringUtils;
+
 
 import java.io.IOException;
 
@@ -43,12 +43,12 @@ public class GithubAgentDownloadInfo extends AgentDownloadInfo {
     }
 
     public static class Deserializer extends JsonDeserializer<GithubAgentDownloadInfo> {
+        private static final String VERSION_PREFIX = "v";
 
         @Override
         public GithubAgentDownloadInfo deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
 
-            ObjectMapper mapper = (ObjectMapper) jp.getCodec();
-            JsonNode jsonNode = mapper.readTree(jp);
+            JsonNode jsonNode = jp.readValueAsTree();
 
             if (!jsonNode.isObject()) {
                 return null;
@@ -74,9 +74,19 @@ public class GithubAgentDownloadInfo extends AgentDownloadInfo {
             if (StringUtils.isEmpty(downloadUrl)) {
                 return null;
             }
-
-
+            tagName = cleanupVersionPrefix(tagName);
             return new GithubAgentDownloadInfo(tagName, downloadUrl);
+        }
+
+        private String cleanupVersionPrefix(String version) {
+            if (version == null) {
+                return null;
+            }
+            final boolean prefix = version.startsWith(VERSION_PREFIX);
+            if (prefix) {
+                return version.substring(VERSION_PREFIX.length());
+            }
+            return version;
         }
 
 
@@ -104,7 +114,7 @@ public class GithubAgentDownloadInfo extends AgentDownloadInfo {
                 }
 
                 String download = downloadNode.asText();
-                if (!StringUtils.isEmpty(download)) {
+                if (StringUtils.hasLength(download)) {
                     return download;
                 }
             }

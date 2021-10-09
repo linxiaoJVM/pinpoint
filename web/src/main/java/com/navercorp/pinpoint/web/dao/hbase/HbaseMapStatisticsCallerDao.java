@@ -21,7 +21,7 @@ import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
 import com.navercorp.pinpoint.common.hbase.ResultsExtractor;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
 import com.navercorp.pinpoint.common.hbase.TableDescriptor;
-import com.navercorp.pinpoint.common.profiler.util.ApplicationMapStatisticsUtils;
+import com.navercorp.pinpoint.common.server.util.ApplicationMapStatisticsUtils;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMap;
 import com.navercorp.pinpoint.web.dao.MapStatisticsCallerDao;
 import com.navercorp.pinpoint.web.mapper.MapStatisticsTimeWindowReducer;
@@ -37,7 +37,6 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Scan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
@@ -64,15 +63,13 @@ public class HbaseMapStatisticsCallerDao implements MapStatisticsCallerDao {
 
     private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
 
-    private TableDescriptor<HbaseColumnFamily.CalleeStatMap> descriptor;
+    private final TableDescriptor<HbaseColumnFamily.CalleeStatMap> descriptor;
 
-    @Autowired
     public HbaseMapStatisticsCallerDao(
             HbaseOperations2 hbaseTemplate,
-            @Qualifier("mapStatisticsCallerMapper") RowMapper<LinkDataMap> mapStatisticsCallerMapper,
+            TableDescriptor<HbaseColumnFamily.CalleeStatMap> descriptor, @Qualifier("mapStatisticsCallerMapper") RowMapper<LinkDataMap> mapStatisticsCallerMapper,
             RangeFactory rangeFactory,
-            @Qualifier("statisticsCallerRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix,
-            TableDescriptor<HbaseColumnFamily.CalleeStatMap> descriptor) {
+            @Qualifier("statisticsCallerRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix) {
         this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
         this.mapStatisticsCallerMapper = Objects.requireNonNull(mapStatisticsCallerMapper, "mapStatisticsCallerMapper");
         this.rangeFactory = Objects.requireNonNull(rangeFactory, "rangeFactory");
@@ -82,12 +79,8 @@ public class HbaseMapStatisticsCallerDao implements MapStatisticsCallerDao {
 
     @Override
     public LinkDataMap selectCaller(Application callerApplication, Range range) {
-        if (callerApplication == null) {
-            throw new NullPointerException("callerApplication");
-        }
-        if (range == null) {
-            throw new NullPointerException("range");
-        }
+        Objects.requireNonNull(callerApplication, "callerApplication");
+        Objects.requireNonNull(range, "range");
 
         final TimeWindow timeWindow = new TimeWindow(range, TimeWindowDownSampler.SAMPLER);
         // find distributed key.
@@ -96,7 +89,7 @@ public class HbaseMapStatisticsCallerDao implements MapStatisticsCallerDao {
 
         TableName mapStatisticsCalleeTableName = descriptor.getTableName();
         LinkDataMap linkDataMap = this.hbaseTemplate.findParallel(mapStatisticsCalleeTableName, scan, rowKeyDistributorByHashPrefix, resultExtractor, MAP_STATISTICS_CALLEE_VER2_NUM_PARTITIONS);
-        logger.debug("Caller data. {}, {}", linkDataMap, range);
+        logger.debug("tableInfo({}). Caller data. {}, {} : ", mapStatisticsCalleeTableName.getNameAsString(), linkDataMap, range );
         if (linkDataMap != null && linkDataMap.size() > 0) {
             return linkDataMap;
         }
@@ -118,9 +111,9 @@ public class HbaseMapStatisticsCallerDao implements MapStatisticsCallerDao {
 
         Scan scan = new Scan();
         scan.setCaching(SCAN_CACHE_SIZE);
-        scan.setStartRow(startKey);
-        scan.setStopRow(endKey);
-        for(byte[] family : familyArgs) {
+        scan.withStartRow(startKey);
+        scan.withStopRow(endKey);
+        for (byte[] family : familyArgs) {
             scan.addFamily(family);
         }
         scan.setId("ApplicationStatisticsScan");

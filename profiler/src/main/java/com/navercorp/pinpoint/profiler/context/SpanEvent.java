@@ -41,7 +41,7 @@ public class SpanEvent extends DefaultFrameAttachment {
     private short serviceType; // required
     private String endPoint; // optional
 
-    private List<Annotation> annotations; // optional
+    private List<Annotation<?>> annotations; // optional
     private int depth = -1; // optional
 
     private long nextSpanId = -1; // optional
@@ -55,16 +55,15 @@ public class SpanEvent extends DefaultFrameAttachment {
     public SpanEvent() {
     }
 
-    public void addAnnotation(Annotation annotation) {
+    public void addAnnotation(Annotation<?> annotation) {
         if (this.annotations == null) {
-            this.annotations = new ArrayList<Annotation>();
+            this.annotations = new ArrayList<>();
         }
         this.annotations.add(annotation);
     }
 
     public void setExceptionInfo(int exceptionClassId, String exceptionMessage) {
-        final IntStringValue exceptionInfo = new IntStringValue(exceptionClassId, exceptionMessage);
-        this.exceptionInfo = exceptionInfo;
+        this.exceptionInfo = new IntStringValue(exceptionClassId, exceptionMessage);
     }
 
     public void markStartTime() {
@@ -149,11 +148,11 @@ public class SpanEvent extends DefaultFrameAttachment {
         this.endPoint = endPoint;
     }
 
-    public List<Annotation> getAnnotations() {
+    public List<Annotation<?>> getAnnotations() {
         return annotations;
     }
 
-    public void setAnnotations(List<Annotation> annotations) {
+    public void setAnnotations(List<Annotation<?>> annotations) {
         this.annotations = annotations;
     }
 
@@ -196,12 +195,6 @@ public class SpanEvent extends DefaultFrameAttachment {
     public void setExceptionInfo(IntStringValue exceptionInfo) {
         this.exceptionInfo = exceptionInfo;
     }
-
-    @Deprecated
-    public LocalAsyncId getLocalAsyncId() {
-        return null;
-    }
-
 
     public void setAsyncIdObject(AsyncId asyncIdObject) {
         this.asyncIdObject = asyncIdObject;

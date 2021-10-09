@@ -17,10 +17,10 @@
 package com.navercorp.pinpoint.web.dao;
 
 import com.navercorp.pinpoint.common.profiler.util.TransactionId;
-import com.navercorp.pinpoint.web.scatter.ScatterData;
+import com.navercorp.pinpoint.web.scatter.DragArea;
+import com.navercorp.pinpoint.web.scatter.DragAreaQuery;
 import com.navercorp.pinpoint.web.vo.LimitedScanResult;
 import com.navercorp.pinpoint.web.vo.Range;
-import com.navercorp.pinpoint.web.vo.SelectedScatterArea;
 import com.navercorp.pinpoint.web.vo.scatter.Dot;
 
 import java.util.List;
@@ -33,21 +33,12 @@ public interface ApplicationTraceIndexDao {
 
     LimitedScanResult<List<TransactionId>> scanTraceIndex(String applicationName, Range range, int limit, boolean backwardDirection);
 
-    LimitedScanResult<List<TransactionId>> scanTraceIndex(String applicationName, SelectedScatterArea range, int limit);
+    LimitedScanResult<List<Dot>> scanTraceScatterData(String applicationName, Range range, int limit, boolean scanBackward);
 
-    /**
-     *
-     * select transactions in a selection range(box) in the scatter chart.
-     *
-     * @param applicationName
-     * @param area
-     * @param offsetTransactionId
-     * @param offsetTransactionElapsed
-     * @param limit
-     * @return
-     */
-    List<Dot> scanTraceScatter(String applicationName, SelectedScatterArea area, TransactionId offsetTransactionId, int offsetTransactionElapsed, int limit);
 
-    ScatterData scanTraceScatterData(String applicationName, Range range, int xGroupUnit, int yGroupUnit, int limit, boolean scanBackward);
+    LimitedScanResult<List<TransactionId>> scanTraceIndex(String applicationName, DragArea dragArea, int limit);
+
+    LimitedScanResult<List<Dot>> scanScatterData(String applicationName, DragAreaQuery dragAreaQuery, int limit);
+
 
 }

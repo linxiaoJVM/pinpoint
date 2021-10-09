@@ -25,6 +25,7 @@ import com.navercorp.pinpoint.web.applicationmap.histogram.NodeHistogram;
 import com.navercorp.pinpoint.web.service.AgentInfoService;
 import com.navercorp.pinpoint.web.vo.AgentInfo;
 import com.navercorp.pinpoint.web.vo.AgentStatus;
+import com.navercorp.pinpoint.web.vo.AgentStatusQuery;
 import com.navercorp.pinpoint.web.vo.Application;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -47,16 +50,11 @@ public class AgentInfoServerInstanceListDataSource implements ServerInstanceList
     private final AgentInfoService agentInfoService;
 
     public AgentInfoServerInstanceListDataSource(AgentInfoService agentInfoService) {
-        if (agentInfoService == null) {
-            throw new NullPointerException("agentInfoService");
-        }
-        this.agentInfoService = agentInfoService;
+        this.agentInfoService = Objects.requireNonNull(agentInfoService, "agentInfoService");
     }
 
     public ServerInstanceList createServerInstanceList(Node node, long timestamp) {
-        if (node == null) {
-            throw new NullPointerException("node");
-        }
+        Objects.requireNonNull(node, "node");
         if (timestamp < 0) {
             return new ServerInstanceList();
         }
@@ -79,14 +77,10 @@ public class AgentInfoServerInstanceListDataSource implements ServerInstanceList
 
     // TODO Change to list of filters?
     private Set<AgentInfo> filterAgentInfos(Set<AgentInfo> agentInfos, long timestamp, Node node) {
+
+        final Map<String, Histogram> agentHistogramMap = getAgentHistogramMap(node);
+
         Set<AgentInfo> filteredAgentInfos = new HashSet<>();
-
-        Map<String, Histogram> agentHistogramMap = Collections.emptyMap();
-        NodeHistogram nodeHistogram = node.getNodeHistogram();
-        if (nodeHistogram != null) {
-            agentHistogramMap = nodeHistogram.getAgentHistogramMap();
-        }
-
         List<AgentInfo> agentsToCheckStatus = new ArrayList<>();
         for (AgentInfo agentInfo : agentInfos) {
             String agentId = agentInfo.getAgentId();
@@ -96,18 +90,28 @@ public class AgentInfoServerInstanceListDataSource implements ServerInstanceList
                 agentsToCheckStatus.add(agentInfo);
             }
         }
+        AgentStatusQuery query = AgentStatusQuery.buildQuery(agentInfos, timestamp);
 
-        // TODO this could be called asynchronously using hbase client 2.x
-        agentInfoService.populateAgentStatuses(agentsToCheckStatus, timestamp);
+        List<Optional<AgentStatus>> agentStatusList = agentInfoService.getAgentStatus(query);
+
+        int idx = 0;
         for (AgentInfo agentInfo : agentsToCheckStatus) {
-            AgentStatus agentStatus = agentInfo.getStatus();
-            if (agentStatus != null) {
-                if (agentStatus.getState() == AgentLifeCycleState.RUNNING) {
+            Optional<AgentStatus> agentStatus = agentStatusList.get(idx++);
+            if (agentStatus.isPresent()) {
+                if (agentStatus.get().getState() == AgentLifeCycleState.RUNNING) {
                     filteredAgentInfos.add(agentInfo);
                 }
             }
         }
 
         return filteredAgentInfos;
+    }
+
+    private Map<String, Histogram> getAgentHistogramMap(Node node) {
+        NodeHistogram nodeHistogram = node.getNodeHistogram();
+        if (nodeHistogram != null) {
+            return nodeHistogram.getAgentHistogramMap();
+        }
+        return Collections.emptyMap();
     }
 }

@@ -57,7 +57,7 @@ import com.navercorp.pinpoint.web.vo.UserGroupMember;
 @Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @WebAppConfiguration
-@ContextConfiguration(locations = {"classpath:servlet-context.xml", "classpath:applicationContext-web.xml"})
+@ContextConfiguration(locations = {"classpath:servlet-context-web.xml", "classpath:applicationContext-web.xml"})
 public class UserGroupControllerTest {
     
     private final static String TEST_USER_GROUP_ID = "testUserGroup";
@@ -82,7 +82,7 @@ public class UserGroupControllerTest {
     
     private MockMvc mockMvc;
     
-    private User user = new User(TEST_USER_GROUP_MEMBER_ID, "userName", "pinpoint_team", "0101234", "pinpoint_team@navercorp.com");
+    private final User user = new User(TEST_USER_GROUP_MEMBER_ID, "userName", "pinpoint_team", 82, "0101234", "pinpoint_team@navercorp.com");
     @Before
     public void setup() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();

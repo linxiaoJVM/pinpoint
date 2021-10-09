@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.profiler.context;
 
 import com.google.inject.Provider;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.exception.PinpointException;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
 import org.slf4j.Logger;
@@ -34,12 +34,12 @@ public class DefaultAsyncTraceContext implements AsyncTraceContext {
 
     private static final Reference<Trace> EMPTY = DefaultReference.emptyReference();
 
-    private Provider<BaseTraceFactory> baseTraceFactoryProvider;
+    private final Provider<BaseTraceFactory> baseTraceFactoryProvider;
     private final Binder<Trace> binder;
 
     public DefaultAsyncTraceContext(Provider<BaseTraceFactory> baseTraceFactoryProvider, Binder<Trace> binder) {
-        this.baseTraceFactoryProvider = Assert.requireNonNull(baseTraceFactoryProvider, "baseTraceFactoryProvider");
-        this.binder = Assert.requireNonNull(binder, "binder");
+        this.baseTraceFactoryProvider = Objects.requireNonNull(baseTraceFactoryProvider, "baseTraceFactoryProvider");
+        this.binder = Objects.requireNonNull(binder, "binder");
     }
 
     @Override

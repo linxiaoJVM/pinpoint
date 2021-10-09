@@ -20,6 +20,7 @@ import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.plugin.RequestRecorderFactory;
 
+import com.navercorp.pinpoint.common.util.ArrayUtils;
 import reactor.netty.ConnectionObserver;
 import reactor.netty.http.server.HttpServerRequest;
 import reactor.netty.http.server.HttpServerState;
@@ -34,18 +35,36 @@ public class HttpServerHandleHttpServerStateInterceptor extends AbstractHttpServ
     }
 
     public boolean validate(Object[] args) {
-        if (args == null || args.length < 2) {
+        if (ArrayUtils.getLength(args) < 2) {
             return false;
         }
 
         if (!(args[1] instanceof ConnectionObserver.State)) {
             return false;
         }
+
+        return true;
+    }
+
+    public boolean isReceived(Object[] args) {
+        if (!validate(args)) {
+            return false;
+        }
         ConnectionObserver.State state = (ConnectionObserver.State) args[1];
         if (state != HttpServerState.REQUEST_RECEIVED) {
             return false;
         }
+        return true;
+    }
 
+    public boolean isDisconnecting(Object[] args) {
+        if (!validate(args)) {
+            return false;
+        }
+        ConnectionObserver.State state = (ConnectionObserver.State) args[1];
+        if (state != HttpServerState.DISCONNECTING) {
+            return false;
+        }
         return true;
     }
 }

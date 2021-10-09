@@ -53,7 +53,7 @@ public class RequestBuilderBuildMethodInterceptor implements AroundInterceptor {
         this.interceptorScope = interceptorScope;
 
         ClientHeaderAdaptor<Request.Builder> clientHeaderAdaptor = new RequestBuilder3ClientHeaderAdaptor();
-        this.requestTraceWriter = new DefaultRequestTraceWriter<Request.Builder>(clientHeaderAdaptor, traceContext);
+        this.requestTraceWriter = new DefaultRequestTraceWriter<>(clientHeaderAdaptor, traceContext);
     }
 
     @Override
@@ -73,9 +73,7 @@ public class RequestBuilderBuildMethodInterceptor implements AroundInterceptor {
             }
             final Request.Builder builder = ((Request.Builder) target);
             if (!trace.canSampled()) {
-                if (builder != null) {
-                    this.requestTraceWriter.write(builder);
-                }
+                this.requestTraceWriter.write(builder);
                 return;
             }
 

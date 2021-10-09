@@ -22,31 +22,36 @@ import com.navercorp.pinpoint.common.server.bo.SpanChunkBo;
 
 import com.navercorp.pinpoint.common.server.bo.thrift.SpanFactory;
 import com.navercorp.pinpoint.io.request.ServerRequest;
+import org.apache.thrift.TBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import com.navercorp.pinpoint.thrift.dto.TSpanChunk;
 
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 /**
  * @author emeroad
  */
 @Service
-public class ThriftSpanChunkHandler implements SimpleHandler {
+public class ThriftSpanChunkHandler implements SimpleHandler<TBase<?, ?>> {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    @Autowired
-    private TraceService traceService;
+    private final TraceService traceService;
 
-    @Autowired
-    private SpanFactory spanFactory;
+    private final SpanFactory spanFactory;
+
+    public ThriftSpanChunkHandler(TraceService traceService, SpanFactory spanFactory) {
+        this.traceService = Objects.requireNonNull(traceService, "traceService");
+        this.spanFactory = Objects.requireNonNull(spanFactory, "spanFactory");
+    }
 
     @Override
-    public void handleSimple(ServerRequest serverRequest) {
-        final Object data = serverRequest.getData();
+    public void handleSimple(ServerRequest<TBase<?, ?>> serverRequest) {
+        final TBase<?, ?> data = serverRequest.getData();
         if (logger.isDebugEnabled()) {
             logger.debug("Handle simple data={}", data);
         }

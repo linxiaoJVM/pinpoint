@@ -22,19 +22,22 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.navercorp.pinpoint.common.server.bo.SpanBo;
+
+import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.loader.service.AnnotationKeyRegistryService;
 import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
-import org.apache.commons.lang3.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 /**
  *
@@ -42,21 +45,29 @@ import org.springframework.stereotype.Component;
  * @author emeroad
  */
 @Component
-public class DefaultFilterBuilder implements FilterBuilder<SpanBo> {
+public class DefaultFilterBuilder implements FilterBuilder<List<SpanBo>> {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private ObjectMapper mapper;
+    private final ObjectReader filterHintReader;
+    private final ObjectReader filterDescriptorReader;
 
-    @Autowired
-    private ServiceTypeRegistryService serviceTypeRegistryService;
+    private final ServiceTypeRegistryService serviceTypeRegistryService;
 
-    @Autowired
-    private AnnotationKeyRegistryService annotationKeyRegistryService;
+    private final AnnotationKeyRegistryService annotationKeyRegistryService;
+
+    public DefaultFilterBuilder(ObjectMapper mapper, ServiceTypeRegistryService serviceTypeRegistryService, AnnotationKeyRegistryService annotationKeyRegistryService) {
+        Objects.requireNonNull(mapper, "mapper");
+        this.filterHintReader = mapper.readerFor(FilterHint.class);
+        this.filterDescriptorReader = mapper.readerFor(new TypeReference<List<FilterDescriptor>>() {});
+
+        this.serviceTypeRegistryService = Objects.requireNonNull(serviceTypeRegistryService, "serviceTypeRegistryService");
+        this.annotationKeyRegistryService = Objects.requireNonNull(annotationKeyRegistryService, "annotationKeyRegistryService");
+    }
+
 
     @Override
-    public Filter<SpanBo> build(String filterText) {
+    public Filter<List<SpanBo>> build(String filterText) {
         if (StringUtils.isEmpty(filterText)) {
             return Filter.acceptAllFilter();
         }
@@ -69,7 +80,7 @@ public class DefaultFilterBuilder implements FilterBuilder<SpanBo> {
 
 
     @Override
-    public Filter<SpanBo> build(String filterText, String filterHint) {
+    public Filter<List<SpanBo>> build(String filterText, String filterHint) {
         if (StringUtils.isEmpty(filterText)) {
             return Filter.acceptAllFilter();
         }
@@ -78,7 +89,7 @@ public class DefaultFilterBuilder implements FilterBuilder<SpanBo> {
         logger.debug("build filter from string. {}", filterText);
 
 
-        if (!StringUtils.isEmpty(filterHint)) {
+        if (StringUtils.hasLength(filterHint)) {
             filterHint = decode(filterHint);
         } else {
             filterHint = FilterHint.EMPTY_JSON;
@@ -89,7 +100,7 @@ public class DefaultFilterBuilder implements FilterBuilder<SpanBo> {
     }
 
     private String decode(String value) {
-        if (value ==null) {
+        if (value == null) {
             return null;
         }
         try {
@@ -99,43 +110,46 @@ public class DefaultFilterBuilder implements FilterBuilder<SpanBo> {
         }
     }
 
-    private Filter<SpanBo> makeFilterFromJson(String jsonFilterText) {
+    private Filter<List<SpanBo>> makeFilterFromJson(String jsonFilterText) {
         return makeFilterFromJson(jsonFilterText, FilterHint.EMPTY_JSON);
     }
 
-    private Filter<SpanBo> makeFilterFromJson(String jsonFilterText, String jsonFilterHint) {
-        if (StringUtils.isEmpty(jsonFilterText)) {
-            throw new IllegalArgumentException("json string is empty");
-        }
-
+    private Filter<List<SpanBo>> makeFilterFromJson(String jsonFilterText, String jsonFilterHint) {
+        Assert.hasLength(jsonFilterText, "jsonFilterText");
 
         final List<FilterDescriptor> filterDescriptorList = readFilterDescriptor(jsonFilterText);
         final FilterHint hint = readFilterHint(jsonFilterHint);
         logger.debug("filterHint:{}", hint);
 
-        List<Filter<SpanBo>> linkFilter = createLinkFilter(jsonFilterText, filterDescriptorList, hint);
-        final Filter<SpanBo> filterChain = new FilterChain<>(linkFilter);
+        List<Filter<List<SpanBo>>> linkFilter = createLinkFilter(jsonFilterText, filterDescriptorList, hint);
+        final Filter<List<SpanBo>> filterChain = new FilterChain<>(linkFilter);
 
         return filterChain;
     }
 
-    private List<Filter<SpanBo>> createLinkFilter(String jsonFilterText, List<FilterDescriptor> filterDescriptorList, FilterHint hint) {
-        final List<Filter<SpanBo>> result = new ArrayList<>();
+    private List<Filter<List<SpanBo>>> createLinkFilter(String jsonFilterText, List<FilterDescriptor> filterDescriptorList, FilterHint hint) {
+        final List<Filter<List<SpanBo>>> result = new ArrayList<>();
         for (FilterDescriptor descriptor : filterDescriptorList) {
             if (!descriptor.isValid()) {
                 throw new IllegalArgumentException("invalid json " + jsonFilterText);
             }
 
             logger.debug("FilterDescriptor={}", descriptor);
-            final Filter<SpanBo> linkFilter = new LinkFilter(descriptor, hint, serviceTypeRegistryService, annotationKeyRegistryService);
-            result.add(linkFilter);
+            Filter<List<SpanBo>> filter;
+            if (descriptor.getSelfNode().isValid()) {
+                filter = new ApplicationFilter(descriptor, serviceTypeRegistryService);
+            } else {
+                filter = new LinkFilter(descriptor, hint, serviceTypeRegistryService, annotationKeyRegistryService);
+
+            }
+            result.add(filter);
         }
         return result;
     }
 
     private FilterHint readFilterHint(String jsonFilterHint) {
         try {
-            return mapper.readValue(jsonFilterHint, FilterHint.class);
+            return filterHintReader.readValue(jsonFilterHint);
         } catch (IOException e) {
             throw new RuntimeException("FilterHint read fail. error:" + e.getMessage(), e);
         }
@@ -143,7 +157,7 @@ public class DefaultFilterBuilder implements FilterBuilder<SpanBo> {
 
     private List<FilterDescriptor> readFilterDescriptor(String jsonFilterText)  {
         try {
-            return mapper.readValue(jsonFilterText, new TypeReference<List<FilterDescriptor>>() {});
+            return filterDescriptorReader.readValue(jsonFilterText);
         } catch (IOException e) {
             throw new RuntimeException("FilterDescriptor read fail. error:" + e.getMessage(), e);
         }

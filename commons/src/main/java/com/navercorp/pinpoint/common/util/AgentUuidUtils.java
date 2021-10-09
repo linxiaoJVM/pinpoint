@@ -16,10 +16,10 @@
 
 package com.navercorp.pinpoint.common.util;
 
-import com.navercorp.pinpoint.common.Charsets;
-
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -74,9 +74,8 @@ public class AgentUuidUtils {
      * @throws IllegalArgumentException if {@code uuidString} is not a valid string representation of uuid
      */
     public static String encode(String uuidString) {
-        if (uuidString == null) {
-            throw new NullPointerException("uuidString");
-        }
+        Objects.requireNonNull(uuidString, "uuidString");
+
         UUID uuid = UUID.fromString(uuidString);
         return encode(uuid);
     }
@@ -93,15 +92,13 @@ public class AgentUuidUtils {
      * @throws IllegalArgumentException if {@code uuid} is not a valid uuid
      */
     public static String encode(UUID uuid) {
-        if (uuid == null) {
-            throw new NullPointerException("uuid");
-        }
+        Objects.requireNonNull(uuid, "uuid");
+
         ByteBuffer byteBuffer = ByteBuffer.allocate(16);
         byteBuffer.putLong(uuid.getMostSignificantBits());
         byteBuffer.putLong(uuid.getLeastSignificantBits());
         byte[] encoded = encodeUuidBytes(byteBuffer.array());
-        System.out.println(BytesUtils.toString(encoded));
-        return new String(encoded, Charsets.US_ASCII);
+        return new String(encoded, StandardCharsets.US_ASCII);
     }
 
     private static byte[] encodeUuidBytes(byte[] src) {
@@ -150,11 +147,9 @@ public class AgentUuidUtils {
      *                                  trailing pad characters
      */
     public static UUID decode(String src) {
-        if (src == null) {
-            throw new NullPointerException("src");
-        }
+        Objects.requireNonNull(src, "src");
 
-        byte[] decoded = decodeToUuidBytes(src.getBytes(Charsets.US_ASCII));
+        byte[] decoded = decodeToUuidBytes(src.getBytes(StandardCharsets.US_ASCII));
         ByteBuffer byteBuffer = ByteBuffer.wrap(decoded);
         long mostSignificantBits = byteBuffer.getLong();
         long leastSignificanBits = byteBuffer.getLong();

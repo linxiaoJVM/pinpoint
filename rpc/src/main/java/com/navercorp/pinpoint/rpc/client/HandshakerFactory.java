@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.rpc.client;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.rpc.cluster.ClusterOption;
 import com.navercorp.pinpoint.rpc.packet.ControlHandshakeResponsePacket;
 import org.jboss.netty.util.Timer;
@@ -34,7 +34,7 @@ public class HandshakerFactory {
 
     private static final int DEFAULT_ENABLE_WORKER_PACKET_RETRY_COUNT = Integer.MAX_VALUE;
 
-    private int maxHandshakeCount = DEFAULT_ENABLE_WORKER_PACKET_RETRY_COUNT;
+    private final int maxHandshakeCount = DEFAULT_ENABLE_WORKER_PACKET_RETRY_COUNT;
 
 
     private final SocketIdFactory socketIdFactory;
@@ -44,11 +44,11 @@ public class HandshakerFactory {
     private final ClientOption clientOption;
 
     public HandshakerFactory(SocketIdFactory socketIdFactory, Map<String, Object> properties, ClientOption clientOption, ClusterOption clusterOption) {
-        this.socketIdFactory = Assert.requireNonNull(socketIdFactory, "socketId");
+        this.socketIdFactory = Objects.requireNonNull(socketIdFactory, "socketId");
 
-        this.clusterOption = Assert.requireNonNull(clusterOption, "clusterOption");
-        this.clientOption = Assert.requireNonNull(clientOption, "clientOption");
-        this.properties = Assert.requireNonNull(properties, "properties");
+        this.clusterOption = Objects.requireNonNull(clusterOption, "clusterOption");
+        this.clientOption = Objects.requireNonNull(clientOption, "clientOption");
+        this.properties = Objects.requireNonNull(properties, "properties");
     }
 
     public PinpointClientHandshaker newHandShaker(Timer channelTimer) {
@@ -59,7 +59,7 @@ public class HandshakerFactory {
 
     private Map<String, Object> createHandShakeData() {
 
-        Map<String, Object> handshakeData = new HashMap<String, Object>(this.properties);
+        Map<String, Object> handshakeData = new HashMap<>(this.properties);
 
         final int socketId = this.socketIdFactory.nextSocketId();
         handshakeData.put(SOCKET_ID, socketId);

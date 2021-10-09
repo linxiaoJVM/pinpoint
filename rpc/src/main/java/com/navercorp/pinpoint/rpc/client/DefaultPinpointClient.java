@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.rpc.client;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.rpc.DefaultFuture;
 import com.navercorp.pinpoint.rpc.Future;
 import com.navercorp.pinpoint.rpc.PinpointSocketException;
@@ -43,16 +43,16 @@ public class DefaultPinpointClient implements PinpointClient {
 
     private volatile boolean closed;
 
-    private List<PinpointClientReconnectEventListener> reconnectEventListeners = new CopyOnWriteArrayList<PinpointClientReconnectEventListener>();
+    private final List<PinpointClientReconnectEventListener> reconnectEventListeners = new CopyOnWriteArrayList<>();
 
      public DefaultPinpointClient(PinpointClientHandler pinpointClientHandler) {
-        this.pinpointClientHandler = Assert.requireNonNull(pinpointClientHandler, "pinpointClientHandler");
+        this.pinpointClientHandler = Objects.requireNonNull(pinpointClientHandler, "pinpointClientHandler");
         pinpointClientHandler.setPinpointClient(this);
     }
 
     @Override
     public void reconnectSocketHandler(PinpointClientHandler pinpointClientHandler) {
-        Assert.requireNonNull(pinpointClientHandler, "pinpointClientHandler");
+        Objects.requireNonNull(pinpointClientHandler, "pinpointClientHandler");
 
         if (closed) {
             logger.warn("reconnectClientHandler(). pinpointClientHandler force close.");
@@ -102,7 +102,7 @@ public class DefaultPinpointClient implements PinpointClient {
     }
 
     @Override
-    public Future sendAsync(byte[] bytes) {
+    public Future<?> sendAsync(byte[] bytes) {
         ensureOpen();
         return pinpointClientHandler.sendAsync(bytes);
     }
@@ -137,6 +137,14 @@ public class DefaultPinpointClient implements PinpointClient {
     }
 
     @Override
+    public ClientStreamChannel openStreamAndAwait(byte[] payload, ClientStreamChannelEventHandler streamChannelEventHandler, long timeout) throws StreamException {
+        // StreamChannel must be changed into interface in order to throw the StreamChannel that returns failure.
+        // fow now throw just exception
+        ensureOpen();
+        return pinpointClientHandler.openStreamAndAwait(payload, streamChannelEventHandler, timeout);
+    }
+
+    @Override
     public SocketAddress getRemoteAddress() {
         return pinpointClientHandler.getRemoteAddress();
     }
@@ -152,7 +160,7 @@ public class DefaultPinpointClient implements PinpointClient {
     }
 
     private Future<ResponseMessage> returnFailureFuture() {
-        DefaultFuture<ResponseMessage> future = new DefaultFuture<ResponseMessage>();
+        DefaultFuture<ResponseMessage> future = new DefaultFuture<>();
         future.setFailure(new PinpointSocketException("pinpointClientHandler is null"));
         return future;
     }

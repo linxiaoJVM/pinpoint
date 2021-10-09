@@ -16,7 +16,9 @@
 
 package com.navercorp.pinpoint.web.vo;
 
-import com.navercorp.pinpoint.common.util.DateUtils;
+import com.navercorp.pinpoint.common.server.util.DateTimeFormatUtils;
+import com.navercorp.pinpoint.common.util.Assert;
+
 
 import java.util.concurrent.TimeUnit;
 
@@ -26,27 +28,31 @@ import java.util.concurrent.TimeUnit;
  */
 public final class Range {
 
-    private static final String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
-
     private final long from;
     private final long to;
 
-    public Range(long from, long to) {
+    private Range(long from, long to) {
         this.from = from;
         this.to = to;
-        validate();
     }
 
-    public Range(long from, long to, boolean check) {
-        this.from = from;
-        this.to = to;
-        if (check) {
-            validate();
-        }
+    public static Range newRange(long from, long to) {
+        final Range range = new Range(from, to);
+        validate(range);
+        return range;
     }
 
-    public static Range createUncheckedRange(long from, long to) {
-        return new Range(from, to, false);
+    public static Range newRange(TimeUnit timeUnit, long duration, long toTimestamp) {
+        Assert.isTrue(duration > 0, "duration must be '> 0'");
+        Assert.isTrue(toTimestamp > 0, "toTimestamp must be '> 0'");
+
+        final long durationMillis = timeUnit.toMillis(duration);
+
+        return Range.newRange(toTimestamp - durationMillis, toTimestamp);
+    }
+
+    public static Range newUncheckedRange(long from, long to) {
+        return new Range(from, to);
     }
 
     public long getFrom() {
@@ -54,7 +60,7 @@ public final class Range {
     }
 
     public String getFromDateTime() {
-        return DateUtils.longToDateStr(from, DATE_TIME_FORMAT);
+        return DateTimeFormatUtils.formatSimple(from);
     }
 
     public long getTo() {
@@ -62,16 +68,16 @@ public final class Range {
     }
 
     public String getToDateTime() {
-        return DateUtils.longToDateStr(to, DATE_TIME_FORMAT);
+        return DateTimeFormatUtils.formatSimple(from);
     }
 
     public long getRange() {
         return to - from;
     }
 
-    public void validate() {
-        if (this.to < this.from) {
-            throw new IllegalArgumentException("invalid range:" + this);
+    public static void validate(Range range) {
+        if (range.to < range.from) {
+            throw new IllegalArgumentException("invalid range:" + range);
         }
     }
 
@@ -99,10 +105,23 @@ public final class Range {
     public String toString() {
         final StringBuilder sb = new StringBuilder("Range{");
         sb.append("from=").append(from);
-        sb.append(", to=").append(to);
+        sb.append(' ');
+        sb.append(getSign(from, to));
+        sb.append(" to=").append(to);
         sb.append(", range=").append(getRange());
         sb.append('}');
         return sb.toString();
+    }
+
+    static char getSign(long long1, long long2 ) {
+        if (long1 < long2) {
+            return '<';
+        }
+        if (long1 == long2) {
+            return '=';
+        } else {
+            return '>';
+        }
     }
 
     public String prettyToString() {

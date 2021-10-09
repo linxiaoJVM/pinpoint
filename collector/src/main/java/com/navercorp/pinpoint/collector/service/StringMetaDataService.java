@@ -18,13 +18,17 @@ package com.navercorp.pinpoint.collector.service;
 
 import com.navercorp.pinpoint.collector.dao.StringMetaDataDao;
 import com.navercorp.pinpoint.common.server.bo.StringMetaDataBo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Objects;
 
 @Service
 public class StringMetaDataService {
-    @Autowired
-    private StringMetaDataDao stringMetaDataDao;
+    private final StringMetaDataDao stringMetaDataDao;
+
+    public StringMetaDataService(StringMetaDataDao stringMetaDataDao) {
+        this.stringMetaDataDao = Objects.requireNonNull(stringMetaDataDao, "stringMetaDataDao");
+    }
 
     public void insert(final StringMetaDataBo stringMetaDataBo) {
         this.stringMetaDataDao.insert(stringMetaDataBo);

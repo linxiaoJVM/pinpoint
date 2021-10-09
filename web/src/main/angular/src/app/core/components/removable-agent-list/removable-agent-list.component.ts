@@ -9,7 +9,7 @@ import { GridOptions } from 'ag-grid-community';
 })
 export class RemovableAgentListComponent implements OnInit {
     @Input() rowData: any[];
-    @Output() outSelectAgent = new EventEmitter<{[key: string]: string}>();
+    @Output() outSelectAgent = new EventEmitter<string>();
 
     gridOptions: GridOptions;
 
@@ -62,6 +62,12 @@ export class RemovableAgentListComponent implements OnInit {
                         cellStyle: this.alignCenterCellStyle
                     },
                     {
+                        headerName: 'Agent Name',
+                        field: 'agentNameText',
+                        width: 250,
+                        cellStyle: this.alignCenterCellStyle
+                    },
+                    {
                         headerName: 'Agent Version',
                         field: 'agentVersion',
                         width: 160,
@@ -96,10 +102,7 @@ export class RemovableAgentListComponent implements OnInit {
             return;
         }
 
-        this.outSelectAgent.next({
-            appName: row.data.applicationName,
-            agentId: row.data.agentId
-        });
+        this.outSelectAgent.emit(row.data.agentId);
     }
 
     onGridReady(params: any): void {

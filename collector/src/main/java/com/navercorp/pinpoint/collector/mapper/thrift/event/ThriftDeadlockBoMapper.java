@@ -21,11 +21,11 @@ import com.navercorp.pinpoint.common.server.bo.event.DeadlockBo;
 import com.navercorp.pinpoint.common.server.bo.event.ThreadDumpBo;
 import com.navercorp.pinpoint.thrift.dto.TDeadlock;
 import com.navercorp.pinpoint.thrift.dto.command.TThreadDump;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author jaehong.kim
@@ -33,8 +33,11 @@ import java.util.List;
 @Component
 public class ThriftDeadlockBoMapper implements ThriftBoMapper<DeadlockBo, TDeadlock> {
 
-    @Autowired
-    private ThriftThreadDumpBoMapper threadDumpBoMapper;
+    private final ThriftThreadDumpBoMapper threadDumpBoMapper;
+
+    public ThriftDeadlockBoMapper(ThriftThreadDumpBoMapper threadDumpBoMapper) {
+        this.threadDumpBoMapper = Objects.requireNonNull(threadDumpBoMapper, "threadDumpBoMapper");
+    }
 
     public DeadlockBo map(final TDeadlock tDeadlock) {
         final DeadlockBo deadlockBo = new DeadlockBo();

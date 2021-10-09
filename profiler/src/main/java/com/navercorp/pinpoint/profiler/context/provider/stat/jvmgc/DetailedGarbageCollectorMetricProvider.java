@@ -48,8 +48,8 @@ public class DetailedGarbageCollectorMetricProvider implements Provider<Detailed
         DetailedGarbageCollectorMetric detailedGarbageCollectorMetric = null;
         Map<String, GarbageCollectorMXBean> garbageCollectorMap = createGarbageCollectorMap();
         for (GarbageCollectorType garbageCollectorType : GarbageCollectorType.values()) {
-            if (garbageCollectorMap.containsKey(garbageCollectorType.oldGenName())) {
-                GarbageCollectorMXBean garbageCollectorMXBean = garbageCollectorMap.get(garbageCollectorType.oldGenName());
+            if (garbageCollectorMap.containsKey(garbageCollectorType.newGenName())) {
+                GarbageCollectorMXBean garbageCollectorMXBean = garbageCollectorMap.get(garbageCollectorType.newGenName());
                 detailedGarbageCollectorMetric = new DefaultDetailedGarbageCollectorMetric(garbageCollectorType, garbageCollectorMXBean);
                 break;
             }
@@ -62,7 +62,7 @@ public class DetailedGarbageCollectorMetricProvider implements Provider<Detailed
     }
 
     private Map<String, GarbageCollectorMXBean> createGarbageCollectorMap() {
-        Map<String, GarbageCollectorMXBean> garbageCollectorMap = new HashMap<String, GarbageCollectorMXBean>();
+        Map<String, GarbageCollectorMXBean> garbageCollectorMap = new HashMap<>();
         List<GarbageCollectorMXBean> garbageCollectorMXBeans = ManagementFactory.getGarbageCollectorMXBeans();
         for (GarbageCollectorMXBean garbageCollectorMXBean : garbageCollectorMXBeans) {
             garbageCollectorMap.put(garbageCollectorMXBean.getName(), garbageCollectorMXBean);

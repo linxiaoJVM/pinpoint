@@ -17,15 +17,14 @@
 package com.navercorp.pinpoint.plugin.grpc.interceptor.server;
 
 import com.navercorp.pinpoint.bootstrap.context.AsyncContext;
-import com.navercorp.pinpoint.bootstrap.context.AsyncState;
-import com.navercorp.pinpoint.bootstrap.context.AsyncStateSupport;
 import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.context.scope.TraceScope;
 import com.navercorp.pinpoint.bootstrap.interceptor.AsyncContextSpanEventSimpleAroundInterceptor;
-import com.navercorp.pinpoint.common.util.Assert;
+
+import java.util.Objects;
 
 /**
  * @author jaehong.kim
@@ -36,7 +35,7 @@ public abstract class GrpcAsyncContextSpanEventEndPointInterceptor extends Async
 
     public GrpcAsyncContextSpanEventEndPointInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor) {
         super(traceContext, methodDescriptor);
-        this.traceContext = Assert.requireNonNull(traceContext, "traceContext");
+        this.traceContext = Objects.requireNonNull(traceContext, "traceContext");
     }
 
     @Override
@@ -45,7 +44,7 @@ public abstract class GrpcAsyncContextSpanEventEndPointInterceptor extends Async
             logger.afterInterceptor(target, args, result, throwable);
         }
 
-        final AsyncContext asyncContext = getAsyncContext(target);
+        final AsyncContext asyncContext = getAsyncContext(target, args, result, throwable);
         if (asyncContext == null) {
             logger.debug("Not found asynchronous invocation metadata");
             return;
@@ -120,15 +119,7 @@ public abstract class GrpcAsyncContextSpanEventEndPointInterceptor extends Async
         return scope != null && !scope.isActive();
     }
 
-    private void finishAsyncState(final AsyncContext asyncContext) {
-        if (asyncContext instanceof AsyncStateSupport) {
-            final AsyncStateSupport asyncStateSupport = (AsyncStateSupport) asyncContext;
-            AsyncState asyncState = asyncStateSupport.getAsyncState();
-            asyncState.finish();
-            if (isDebug) {
-                logger.debug("finished asyncState. asyncTraceId={}", asyncContext);
-            }
-        }
+    protected void finishAsyncState(final AsyncContext asyncContext) {
     }
 
 }

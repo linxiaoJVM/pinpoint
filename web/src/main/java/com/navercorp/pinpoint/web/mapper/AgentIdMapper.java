@@ -16,10 +16,9 @@
 
 package com.navercorp.pinpoint.web.mapper;
 
+import com.navercorp.pinpoint.common.hbase.util.CellUtils;
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.springframework.stereotype.Component;
 
 import com.navercorp.pinpoint.common.hbase.RowMapper;
@@ -43,7 +42,7 @@ public class AgentIdMapper implements RowMapper<List<String>> {
         final List<String> agentIdList = new ArrayList<>(rawCells.length);
 
         for (Cell cell : rawCells) {
-            final String agentId = Bytes.toString(CellUtil.cloneQualifier(cell));
+            final String agentId = CellUtils.qualifierToString(cell);
             agentIdList.add(agentId);
         }
 

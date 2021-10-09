@@ -31,7 +31,7 @@ public class JoinResponseTimeBoTest {
     @Test
     public void joinResponseTimeBoListTest() {
         long time = 1496988667231L;
-        List<JoinResponseTimeBo> joinResponseTimeBoList = new ArrayList<JoinResponseTimeBo>();
+        List<JoinResponseTimeBo> joinResponseTimeBoList = new ArrayList<>();
         JoinResponseTimeBo joinResponseTimeBo1 = new JoinResponseTimeBo("agent1", time, 3000, 2, "agent1", 6000, "agent1");
         JoinResponseTimeBo joinResponseTimeBo2 = new JoinResponseTimeBo("agent2", time, 4000, 200, "agent2", 9000, "agent2");
         JoinResponseTimeBo joinResponseTimeBo3 = new JoinResponseTimeBo("agent3", time, 2000, 20, "agent3", 7000, "agent3");
@@ -46,16 +46,12 @@ public class JoinResponseTimeBoTest {
         JoinResponseTimeBo joinResponseTimeBo = JoinResponseTimeBo.joinResponseTimeBoList(joinResponseTimeBoList, time);
         assertEquals("agent1", joinResponseTimeBo.getId());
         assertEquals(time, joinResponseTimeBo.getTimestamp());
-        assertEquals(3000, joinResponseTimeBo.getAvg());
-        assertEquals(2, joinResponseTimeBo.getMinAvg());
-        assertEquals("agent1", joinResponseTimeBo.getMinAvgAgentId());
-        assertEquals(9000, joinResponseTimeBo.getMaxAvg());
-        assertEquals("agent2", joinResponseTimeBo.getMaxAvgAgentId());
+        assertEquals(new JoinLongFieldBo(3000L, 2L, "agent1", 9000L, "agent2"), joinResponseTimeBo.getResponseTimeJoinValue());
     }
 
     @Test
     public void joinResponseTimeBoList2Test() {
-        List<JoinResponseTimeBo> joinResponseTimeBoList = new ArrayList<JoinResponseTimeBo>();
+        List<JoinResponseTimeBo> joinResponseTimeBoList = new ArrayList<>();
         JoinResponseTimeBo joinResponseTimeBo = JoinResponseTimeBo.joinResponseTimeBoList(joinResponseTimeBoList, 1496988667231L);
         assertEquals(joinResponseTimeBo, JoinResponseTimeBo.EMPTY_JOIN_RESPONSE_TIME_BO);
     }

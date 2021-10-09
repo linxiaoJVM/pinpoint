@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.rpc.client;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.rpc.ChannelWriteCompleteListenableFuture;
 import com.navercorp.pinpoint.rpc.ChannelWriteFailListenableFuture;
 import com.navercorp.pinpoint.rpc.DefaultFuture;
@@ -119,31 +119,30 @@ public class DefaultPinpointClientHandler extends SimpleChannelHandler implement
                                         ServerStreamChannelMessageHandler serverStreamChannelMessageHandler,
                                         List<StateChangeEventListener> stateChangeEventListeners) {
 
-        this.connectionFactory = Assert.requireNonNull(connectionFactory, "clientFactory");
-        this.socketAddressProvider = Assert.requireNonNull(socketAddressProvider, "socketAddressProvider");
+        this.connectionFactory = Objects.requireNonNull(connectionFactory, "clientFactory");
+        this.socketAddressProvider = Objects.requireNonNull(socketAddressProvider, "socketAddressProvider");
 
-        this.channelTimer = Assert.requireNonNull(channelTimer, "channelTimer");
+        this.channelTimer = Objects.requireNonNull(channelTimer, "channelTimer");
         this.requestManager = new RequestManager(channelTimer, clientOption.getRequestTimeoutMillis());
-        this.clientOption = Assert.requireNonNull(clientOption, "clientOption");
+        this.clientOption = Objects.requireNonNull(clientOption, "clientOption");
 
 
-        this.messageListener = Assert.requireNonNull(messageListener, "messageListener");
-        this.serverStreamChannelMessageHandler = Assert.requireNonNull(serverStreamChannelMessageHandler, "serverStreamChannelMessageHandler");
+        this.messageListener = Objects.requireNonNull(messageListener, "messageListener");
+        this.serverStreamChannelMessageHandler = Objects.requireNonNull(serverStreamChannelMessageHandler, "serverStreamChannelMessageHandler");
 
         this.objectUniqName = ClassUtils.simpleClassNameAndHashCodeString(this);
-        this.handshaker = Assert.requireNonNull(handshaker, "handshaker");
+        this.handshaker = Objects.requireNonNull(handshaker, "handshaker");
 
         this.pingIdGenerator = new AtomicInteger(0);
         this.state = new PinpointClientHandlerState(this.objectUniqName, this, stateChangeEventListeners);
 
-        this.localClusterOption = Assert.requireNonNull(localClusterOption, "clusterOption");
+        this.localClusterOption = Objects.requireNonNull(localClusterOption, "clusterOption");
 
     }
 
     public void setPinpointClient(PinpointClient pinpointClient) {
-        if (pinpointClient == null) {
-            throw new NullPointerException("pinpointClient");
-        }
+        Objects.requireNonNull(pinpointClient, "pinpointClient");
+
         this.pinpointClient = pinpointClient;
     }
 
@@ -281,9 +280,7 @@ public class DefaultPinpointClientHandler extends SimpleChannelHandler implement
 
     @Override
     public void response(int requestId, byte[] payload) {
-        if (payload == null) {
-            throw new NullPointerException("bytes");
-        }
+        Objects.requireNonNull(payload, "payload");
 
         ensureOpen();
         ResponsePacket response = new ResponsePacket(requestId, payload);
@@ -332,9 +329,7 @@ public class DefaultPinpointClientHandler extends SimpleChannelHandler implement
     }
 
     private ChannelFuture send0(byte[] bytes) {
-        if (bytes == null) {
-            throw new NullPointerException("bytes");
-        }
+        Objects.requireNonNull(bytes, "bytes");
 
         ensureOpen();
         SendPacket send = new SendPacket(bytes);
@@ -343,13 +338,11 @@ public class DefaultPinpointClientHandler extends SimpleChannelHandler implement
     }
 
     public Future<ResponseMessage> request(byte[] bytes) {
-        if (bytes == null) {
-            throw new NullPointerException("bytes");
-        }
+        Objects.requireNonNull(bytes, "bytes");
 
         final boolean isEnable = state.isEnableCommunication();
         if (!isEnable) {
-            DefaultFuture<ResponseMessage> closedException = new DefaultFuture<ResponseMessage>();
+            DefaultFuture<ResponseMessage> closedException = new DefaultFuture<>();
             closedException.setFailure(new PinpointSocketException("invalid state:" + state.getCurrentStateCode() + " channel:" + channel));
             return closedException;
         }
@@ -364,9 +357,15 @@ public class DefaultPinpointClientHandler extends SimpleChannelHandler implement
     @Override
     public ClientStreamChannel openStream(byte[] payload, ClientStreamChannelEventHandler streamChannelEventHandler) throws StreamException {
         ensureOpen();
-
         PinpointClientHandlerContext context = getChannelContext(channel);
         return context.openStream(payload, streamChannelEventHandler);
+    }
+
+    @Override
+    public ClientStreamChannel openStreamAndAwait(byte[] payload, ClientStreamChannelEventHandler streamChannelEventHandler, long timeout) throws StreamException {
+        ensureOpen();
+        PinpointClientHandlerContext context = getChannelContext(channel);
+        return context.openStreamAndAwait(payload, streamChannelEventHandler, timeout);
     }
 
     @Override
@@ -587,9 +586,8 @@ public class DefaultPinpointClientHandler extends SimpleChannelHandler implement
     }
 
     private ChannelFuture write0(Object message, ChannelFutureListener futureListener) {
-        if (futureListener == null) {
-            throw new NullPointerException("futureListener");
-        }
+        Objects.requireNonNull(futureListener, "futureListener");
+
         ChannelFuture future = write0(message);
         future.addListener(futureListener);
         return future;
@@ -614,9 +612,7 @@ public class DefaultPinpointClientHandler extends SimpleChannelHandler implement
     }
 
     private PinpointClientHandlerContext getChannelContext(Channel channel) {
-        if (channel == null) {
-            throw new NullPointerException("channel");
-        }
+        Objects.requireNonNull(channel, "channel");
         return (PinpointClientHandlerContext) channel.getAttachment();
     }
 

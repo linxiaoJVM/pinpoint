@@ -20,8 +20,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.pinpoint.common.trace.ServiceType;
-import com.navercorp.pinpoint.web.applicationmap.histogram.AgentTimeHistogram;
-import com.navercorp.pinpoint.web.applicationmap.histogram.AgentTimeHistogramBuilder;
 import com.navercorp.pinpoint.web.view.AgentResponseTimeViewModel;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.navercorp.pinpoint.web.vo.Range;
@@ -49,11 +47,11 @@ public class AgentTimeHistogramTest {
     public void testViewModel() throws IOException {
 
         Application app = new Application("test", ServiceType.STAND_ALONE);
-        AgentTimeHistogramBuilder builder = new AgentTimeHistogramBuilder(app, new Range(0, 1000*60));
+        AgentTimeHistogramBuilder builder = new AgentTimeHistogramBuilder(app, Range.newRange(0, 1000*60));
         List<ResponseTime> responseHistogramList = createResponseTime(app, "test1", "test2");
         AgentTimeHistogram histogram = builder.build(responseHistogramList);
 
-        List<AgentResponseTimeViewModel> viewModel = histogram.createViewModel();
+        List<AgentResponseTimeViewModel> viewModel = histogram.createViewModel(TimeHistogramFormat.V1);
         logger.debug("{}", viewModel);
 
         JsonFactory jsonFactory = mapper.getFactory();

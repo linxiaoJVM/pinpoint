@@ -16,8 +16,6 @@
 
 package com.navercorp.pinpoint.web.filter;
 
-import java.util.List;
-
 /**
  *
  * @author netspider
@@ -27,18 +25,18 @@ public interface Filter<T> {
     boolean ACCEPT = true;
     boolean REJECT = false;
 
+    @SuppressWarnings("rawtypes")
     Filter NONE = new Filter() {
         @Override
-        public boolean include(List transaction) {
+        public boolean include(Object t) {
             return ACCEPT;
         }
     };
 
+    @SuppressWarnings("unchecked")
     static <T> Filter<T> acceptAllFilter() {
-        @SuppressWarnings("unchecked")
-        final Filter<T> none = NONE;
-        return none;
+        return NONE;
     }
 
-    boolean include(List<T> transaction);
+    boolean include(T transaction);
 }

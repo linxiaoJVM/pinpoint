@@ -34,6 +34,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.util.RemoteAddressResolve
 import com.navercorp.pinpoint.bootstrap.plugin.request.RequestAdaptor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.RequestTraceReader;
 import com.navercorp.pinpoint.bootstrap.plugin.request.ServerRequestRecorder;
+import com.navercorp.pinpoint.common.util.ArrayUtils;
 import com.navercorp.pinpoint.plugin.vertx.ParameterRecorderFactory;
 import com.navercorp.pinpoint.plugin.vertx.VertxConstants;
 import com.navercorp.pinpoint.plugin.vertx.VertxHttpHeaderFilter;
@@ -74,10 +75,10 @@ public class ServerConnectionHandleRequestInterceptor implements AroundIntercept
         RequestAdaptor<HttpServerRequest> requestAdaptor = new HttpServerRequestAdaptor();
         requestAdaptor = RemoteAddressResolverFactory.wrapRealIpSupport(requestAdaptor, config.getRealIpHeader(), config.getRealIpEmptyValue());
         this.parameterRecorder = ParameterRecorderFactory.newParameterRecorderFactory(config.getExcludeProfileMethodFilter(), config.isTraceRequestParam());
-        this.proxyRequestRecorder = requestRecorderFactory.getProxyRequestRecorder(traceContext.getProfilerConfig().isProxyHttpHeaderEnable(), requestAdaptor);
+        this.proxyRequestRecorder = requestRecorderFactory.getProxyRequestRecorder(requestAdaptor);
         this.httpHeaderFilter = new VertxHttpHeaderFilter(config.isHidePinpointHeader());
-        this.serverRequestRecorder = new ServerRequestRecorder<HttpServerRequest>(requestAdaptor);
-        this.requestTraceReader = new RequestTraceReader<HttpServerRequest>(traceContext, requestAdaptor, true);
+        this.serverRequestRecorder = new ServerRequestRecorder<>(requestAdaptor);
+        this.requestTraceReader = new RequestTraceReader<>(traceContext, requestAdaptor, true);
         traceContext.cacheApi(VERTX_HTTP_SERVER_METHOD_DESCRIPTOR);
     }
 
@@ -139,7 +140,7 @@ public class ServerConnectionHandleRequestInterceptor implements AroundIntercept
     }
 
     private boolean validate(final Object[] args) {
-        if (args == null || args.length < 1) {
+        if (ArrayUtils.isEmpty(args)) {
             if (isDebug) {
                 logger.debug("Invalid args object. args={}.", args);
             }

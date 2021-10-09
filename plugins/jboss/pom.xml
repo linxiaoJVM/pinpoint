@@ -21,7 +21,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint-plugins</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.3.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-jboss-plugin</artifactId>
@@ -64,17 +64,17 @@
         </dependency>
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-profiler-logging</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-profiler-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.navercorp.pinpoint</groupId>
-            <artifactId>pinpoint-commons-server</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -104,6 +104,11 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <artifactSet>
+                                <includes>
+                                    <include>com.navercorp.pinpoint:pinpoint-common-servlet</include>
+                                </includes>
+                            </artifactSet>
                             <relocations>
                                 <relocation>
                                     <pattern>com.navercorp.pinpoint.plugin.common.servlet</pattern>

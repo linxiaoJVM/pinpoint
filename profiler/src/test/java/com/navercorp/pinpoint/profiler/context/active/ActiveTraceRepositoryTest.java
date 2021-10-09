@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +37,8 @@ import com.navercorp.pinpoint.profiler.context.id.DefaultTransactionCounter;
 import com.navercorp.pinpoint.profiler.context.MockTraceContextFactory;
 import com.navercorp.pinpoint.profiler.context.id.IdGenerator;
 import com.navercorp.pinpoint.profiler.context.module.DefaultApplicationContext;
+import com.navercorp.pinpoint.profiler.context.provider.sampler.SamplerConfig;
+import com.navercorp.pinpoint.profiler.sampler.CountingSamplerFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -66,10 +69,9 @@ public class ActiveTraceRepositoryTest {
     public void setUp() {
 
         ProfilerConfig profilerConfig = Mockito.spy(new DefaultProfilerConfig());
-        Mockito.when(profilerConfig.isTraceAgentActiveThread()).thenReturn(true);
 
-        Mockito.when(profilerConfig.isSamplingEnable()).thenReturn(true);
-        Mockito.when(profilerConfig.getSamplingRate()).thenReturn(SAMPLING_RATE);
+        Mockito.when((profilerConfig.readInt(CountingSamplerFactory.LEGACY_SAMPLING_RATE_NAME, -1))).thenReturn(SAMPLING_RATE);
+        Mockito.when((profilerConfig.readBoolean(SamplerConfig.SAMPLER_ENABLE_NAME, true))).thenReturn(true);
 
         this.applicationContext = MockTraceContextFactory.newMockApplicationContext(profilerConfig);
         applicationContext.start();
@@ -167,7 +169,7 @@ public class ActiveTraceRepositoryTest {
                 }
             }
         };
-        return (ListenableFuture<TraceThreadTuple>) executorService.submit(task);
+        return executorService.submit(task);
     }
 
     private ListenableFuture<TraceThreadTuple> executeSampledContinuedTrace(ListeningExecutorService executorService, final CountDownLatch awaitLatch, final CountDownLatch executeLatch, final long id) {
@@ -209,9 +211,8 @@ public class ActiveTraceRepositoryTest {
         private final long threadId;
 
         private TraceThreadTuple(Trace trace, long threadId) {
-            if (trace == null) {
-                throw new NullPointerException("trace");
-            }
+            Objects.requireNonNull(trace, "trace");
+
             this.id = trace.getId();
             this.startTime = trace.getStartTime();
             this.threadId = threadId;

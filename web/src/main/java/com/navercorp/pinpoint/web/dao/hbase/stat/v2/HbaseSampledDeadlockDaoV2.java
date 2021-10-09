@@ -26,10 +26,10 @@ import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.DeadlockSampler;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.SampledDeadlock;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -37,20 +37,22 @@ import java.util.List;
 @Repository("sampledDeadlockDaoV2")
 public class HbaseSampledDeadlockDaoV2 implements SampledDeadlockDao {
 
-    @Autowired
-    private DeadlockDecoder deadlockDecoder;
+    private final HbaseAgentStatDaoOperationsV2 operations;
 
-    @Autowired
-    private DeadlockSampler deadlockSampler;
+    private final DeadlockDecoder deadlockDecoder;
+    private final DeadlockSampler deadlockSampler;
 
-    @Autowired
-    private HbaseAgentStatDaoOperationsV2 operations;
+    public HbaseSampledDeadlockDaoV2(HbaseAgentStatDaoOperationsV2 operations, DeadlockDecoder deadlockDecoder, DeadlockSampler deadlockSampler) {
+        this.operations = Objects.requireNonNull(operations, "operations");
+        this.deadlockDecoder = Objects.requireNonNull(deadlockDecoder, "deadlockDecoder");
+        this.deadlockSampler = Objects.requireNonNull(deadlockSampler, "deadlockSampler");
+    }
 
     @Override
     public List<SampledDeadlock> getSampledAgentStatList(String agentId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         AgentStatMapperV2<DeadlockThreadCountBo> mapper = operations.createRowMapper(deadlockDecoder, range);
 
         SampledAgentStatResultExtractor<DeadlockThreadCountBo, SampledDeadlock> resultExtractor = new SampledAgentStatResultExtractor<>(timeWindow, mapper, deadlockSampler);

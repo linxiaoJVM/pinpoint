@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.navercorp.pinpoint.pluginit.utils.AgentPath;
+import com.navercorp.pinpoint.test.plugin.ImportPlugin;
 import com.navercorp.pinpoint.test.plugin.PinpointAgent;
 import net.sf.json.JSONObject;
 
@@ -38,6 +39,7 @@ import com.navercorp.pinpoint.test.plugin.PinpointPluginTestSuite;
  */
 @RunWith(PinpointPluginTestSuite.class)
 @PinpointAgent(AgentPath.PATH)
+@ImportPlugin({"com.navercorp.pinpoint:pinpoint-json-lib-plugin"})
 @Dependency({"net.sf.json-lib:json-lib:jar:jdk15:(,)"})
 public class JsonLibJSONObjectIT {
 
@@ -66,7 +68,7 @@ public class JsonLibJSONObjectIT {
     
     @Test
     public void mapToJsonTest() throws Exception {
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         
         map.put("name", "pinpoint");
         map.put("lib", "json-lib");

@@ -20,6 +20,8 @@ import com.navercorp.pinpoint.bootstrap.config.DumpType;
 import com.navercorp.pinpoint.bootstrap.config.HttpDumpConfig;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 
+import java.util.Objects;
+
 /**
  * @author jaehong.kim
  */
@@ -27,14 +29,15 @@ public class SpringWebFluxPluginConfig {
     private final boolean enable;
     private final boolean param;
     private final HttpDumpConfig httpDumpConfig;
+    private final boolean clientEnable;
 
     public SpringWebFluxPluginConfig(ProfilerConfig config) {
-        if (config == null) {
-            throw new NullPointerException("config");
-        }
+        Objects.requireNonNull(config, "config");
 
         this.enable = config.readBoolean("profiler.spring.webflux.enable", true);
+
         // Client
+        this.clientEnable = config.readBoolean("profiler.spring.webflux.client.enable", false);
         this.param = config.readBoolean("profiler.spring.webflux.client.param", true);
         boolean cookie = config.readBoolean("profiler.spring.webflux.client.cookie", false);
         DumpType cookieDumpType = config.readDumpType("profiler.spring.webflux.client.cookie.dumptype", DumpType.EXCEPTION);
@@ -53,6 +56,10 @@ public class SpringWebFluxPluginConfig {
 
     public HttpDumpConfig getHttpDumpConfig() {
         return httpDumpConfig;
+    }
+
+    public boolean isClientEnable() {
+        return clientEnable;
     }
 
     @Override

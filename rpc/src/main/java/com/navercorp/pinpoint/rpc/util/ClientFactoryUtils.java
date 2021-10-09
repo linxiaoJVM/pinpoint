@@ -16,10 +16,12 @@
 
 package com.navercorp.pinpoint.rpc.util;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.rpc.PinpointSocketException;
 import com.navercorp.pinpoint.rpc.client.PinpointClient;
 import com.navercorp.pinpoint.rpc.client.PinpointClientFactory;
+import com.navercorp.pinpoint.rpc.client.SocketAddressProvider;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,9 +50,9 @@ public final class ClientFactoryUtils {
         private final int port;
 
         public DnsPinpointClientProvider(String host, int port, PinpointClientFactory clientFactory) {
-            this.host = Assert.requireNonNull(host, "host");
+            this.host = Objects.requireNonNull(host, "host");
             this.port = port;
-            this.clientFactory = Assert.requireNonNull(clientFactory, "clientFactory");
+            this.clientFactory = Objects.requireNonNull(clientFactory, "clientFactory");
         }
 
         @Override
@@ -82,5 +84,22 @@ public final class ClientFactoryUtils {
         return pinpointClient;
     }
 
+    public static PinpointClient createPinpointClient(SocketAddressProvider addressProvider, PinpointClientFactory clientFactory) {
+        PinpointClient pinpointClient = null;
+        for (int i = 0; i < 3; i++) {
+            try {
+                pinpointClient = clientFactory.connect(addressProvider);
+
+                LOGGER.info("tcp connect success. remote:{}", pinpointClient.getRemoteAddress());
+                return pinpointClient;
+            } catch (PinpointSocketException e) {
+                LOGGER.warn("tcp connect fail. remote:{} try reconnect, retryCount:{}", addressProvider, i);
+            }
+        }
+        LOGGER.warn("change background tcp connect mode remote:{} ", addressProvider);
+        pinpointClient = clientFactory.scheduledConnect(addressProvider);
+
+        return pinpointClient;
+    }
 
 }

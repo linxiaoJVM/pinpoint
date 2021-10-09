@@ -1,9 +1,9 @@
 import { Injectable, ComponentFactoryResolver, Injector } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Subject, Observable, throwError, of } from 'rxjs';
-import { map, retry, switchMap } from 'rxjs/operators';
+import { Subject, Observable, throwError, of, empty, merge, EMPTY } from 'rxjs';
+import { switchMap, expand, tap, finalize, takeUntil, catchError } from 'rxjs/operators';
 
-import { Actions } from 'app/shared/store';
+import { Actions } from 'app/shared/store/reducers';
 import { UrlQuery, UrlPathId, UrlPath } from 'app/shared/models';
 import { WebAppSettingDataService, NewUrlStateNotificationService, StoreHelperService, DynamicPopupService, UrlRouteManagerService } from 'app/shared/services';
 import { ServerErrorPopupContainerComponent } from 'app/core/components/server-error-popup/server-error-popup-container.component';
@@ -16,11 +16,16 @@ export class ServerMapForFilteredMapDataService {
     // 아래 두 값은 scatter-chart에서 사용되는 파라미터 값
     private X_GROUP_UNIT = 987;
     private Y_GROUP_UNIT = 57;
-    private requsting = false;
-    private flagLoadData = true;
     private nextTo: number;
     private serverMapData = new Subject<any>();
     onServerMapData$: Observable<any>;
+
+    private isPaused = false;
+
+    private startSrc = new Subject<number>();
+    private pauseSrc = new Subject<void>();
+    private resumeSrc = new Subject<number>();
+
     constructor(
         private http: HttpClient,
         private storeHelperService: StoreHelperService,
@@ -32,61 +37,81 @@ export class ServerMapForFilteredMapDataService {
         private injector: Injector
     ) {
         this.onServerMapData$ = this.serverMapData.asObservable();
+        this.bindStream();
     }
-    startDataLoad(to?: number): void {
-        this.loadData(to);
+
+    startDataLoad(): void {
+        this.startSrc.next(this.newUrlStateNotificationService.getEndTimeToNumber());
     }
+
     stopDataLoad(): void {
-        this.flagLoadData = false;
+        this.isPaused = true;
+        this.pauseSrc.next();
+        this.storeHelperService.dispatch(new Actions.UpdateServerMapLoadingState('pause'));
     }
+
     resumeDataLoad(): void {
-        if (this.requsting === false) {
-            this.flagLoadData = true;
-            this.startDataLoad(this.nextTo);
-        }
+        this.resumeSrc.next(this.nextTo);
     }
-    private loadData(to?: number): void {
-        this.requsting = true;
-        this.storeHelperService.dispatch(new Actions.UpdateServerMapLoadingState('loading'));
-        this.http.get(this.url, this.makeRequestOptionsArgs(to)).pipe(
-            retry(3),
-            map(res => res || {}),
-            switchMap((res: any) => isThatType(res, 'exception') ? throwError(res) : of(res))
+
+    private bindStream(): void {
+        const startObs$ = this.startSrc.asObservable();
+        const pauseObs$ = this.pauseSrc.asObservable();
+        const resumeObs$ = this.resumeSrc.asObservable();
+
+        const getHttp$ = (to: number) => this.http.get<any>(this.url, this.makeRequestOptionsArgs(to));
+
+        merge(startObs$, resumeObs$).pipe(
+            tap(() => this.isPaused = false),
+            tap(() => this.storeHelperService.dispatch(new Actions.UpdateServerMapLoadingState('loading'))),
+            switchMap((to: number) => {
+                return getHttp$(to).pipe(
+                    expand(({lastFetchedTimestamp, applicationMapData}) => {
+                        this.nextTo = lastFetchedTimestamp - 1;
+                        return lastFetchedTimestamp > applicationMapData.range.from ? getHttp$(this.nextTo) : empty();
+                    }),
+                    takeUntil(pauseObs$),
+                    finalize(() => {
+                        if (!this.isPaused) {
+                            // Should be triggered only when the http call is COMPLETED, not when the http request is CANCELED by the pause button.
+                            this.storeHelperService.dispatch(new Actions.UpdateServerMapLoadingState('completed'));
+                        }
+                    }),
+                    catchError((error: IServerErrorFormat) => {
+                        this.dynamicPopupService.openPopup({
+                            data: {
+                                title: 'Server Error',
+                                contents: error
+                            },
+                            component: ServerErrorPopupContainerComponent,
+                            onCloseCallback: () => {
+                                this.urlRouteManagerService.move({
+                                    url: [
+                                        UrlPath.MAIN
+                                    ],
+                                    needServerTimeRequest: false,
+                                    queryParams: {
+                                        filter: null,
+                                        hint: null,
+                                    },
+                                });
+                            }
+                        }, {
+                            resolver: this.componentFactoryResolver,
+                            injector: this.injector
+                        });
+
+                        return EMPTY;
+                    })
+                );
+            })
         ).subscribe((res: any) => {
-            if (res['lastFetchedTimestamp'] > res['applicationMapData']['range']['from']) {
-                this.nextTo = res['lastFetchedTimestamp'] - 1;
-                if (this.flagLoadData) {
-                    this.loadData(this.nextTo);
-                } else {
-                    this.storeHelperService.dispatch(new Actions.UpdateServerMapLoadingState('pause'));
-                }
-            } else {
-                this.storeHelperService.dispatch(new Actions.UpdateServerMapLoadingState('completed'));
-            }
             this.serverMapData.next(res);
-            this.requsting = false;
-        }, (error: IServerErrorFormat) => {
-            this.dynamicPopupService.openPopup({
-                data: {
-                    title: 'Server Error',
-                    contents: error
-                },
-                component: ServerErrorPopupContainerComponent,
-                onCloseCallback: () => {
-                    this.urlRouteManagerService.move({
-                        url: [
-                            UrlPath.MAIN
-                        ],
-                        needServerTimeRequest: false
-                    });
-                }
-            }, {
-                resolver: this.componentFactoryResolver,
-                injector: this.injector
-            });
         });
+
     }
-    private makeRequestOptionsArgs(to?: number): any {
+
+    private makeRequestOptionsArgs(to?: number): object {
         return {
             params: new HttpParams()
                 .set('applicationName', this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).applicationName)
@@ -102,6 +127,7 @@ export class ServerMapForFilteredMapDataService {
                 .set('limit', this.REQUEST_LIMIT + '')
                 .set('xGroupUnit', this.X_GROUP_UNIT + '') // for scatter-chart
                 .set('yGroupUnit', this.Y_GROUP_UNIT + '') // for scatter-chart
+                .set('useStatisticsAgentState', this.webAppSettingDataService.getExperimentalOption('statisticsAgentState').toString())
         };
     }
 }

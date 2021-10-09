@@ -22,7 +22,9 @@ import com.navercorp.pinpoint.common.util.TimeUtils;
 
 import org.springframework.stereotype.Component;
 
-import static com.navercorp.pinpoint.common.hbase.HbaseTableConstatns.AGENT_NAME_MAX_LEN;
+import java.util.Objects;
+
+import static com.navercorp.pinpoint.common.hbase.HbaseTableConstants.AGENT_ID_MAX_LEN;
 
 /**
  * @author HyunGil Jeong
@@ -32,16 +34,15 @@ public class AgentStatRowKeyEncoder implements RowKeyEncoder<AgentStatRowKeyComp
 
     @Override
     public byte[] encodeRowKey(AgentStatRowKeyComponent component) {
-        if (component == null) {
-            throw new NullPointerException("component");
-        }
+        Objects.requireNonNull(component, "component");
+
         byte[] bAgentId = BytesUtils.toBytes(component.getAgentId());
         byte[] bStatType = new byte[]{component.getAgentStatType().getRawTypeCode()};
-        byte[] rowKey = new byte[AGENT_NAME_MAX_LEN + bStatType.length + BytesUtils.LONG_BYTE_LENGTH];
+        byte[] rowKey = new byte[AGENT_ID_MAX_LEN + bStatType.length + BytesUtils.LONG_BYTE_LENGTH];
 
         BytesUtils.writeBytes(rowKey, 0, bAgentId);
-        BytesUtils.writeBytes(rowKey, AGENT_NAME_MAX_LEN, bStatType);
-        BytesUtils.writeLong(TimeUtils.reverseTimeMillis(component.getBaseTimestamp()), rowKey, AGENT_NAME_MAX_LEN + bStatType.length);
+        BytesUtils.writeBytes(rowKey, AGENT_ID_MAX_LEN, bStatType);
+        BytesUtils.writeLong(TimeUtils.reverseTimeMillis(component.getBaseTimestamp()), rowKey, AGENT_ID_MAX_LEN + bStatType.length);
 
         return rowKey;
     }

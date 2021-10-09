@@ -43,14 +43,8 @@ public class AgentTimeHistogramBuilder {
     private final TimeWindow window;
 
     public AgentTimeHistogramBuilder(Application application, Range range) {
-        if (application == null) {
-            throw new NullPointerException("application");
-        }
-        if (range == null) {
-            throw new NullPointerException("range");
-        }
-        this.application = application;
-        this.range = range;
+        this.application = Objects.requireNonNull(application, "application");
+        this.range = Objects.requireNonNull(range, "range");
         this.window = new TimeWindow(range, TimeWindowDownSampler.SAMPLER);
     }
 
@@ -61,16 +55,14 @@ public class AgentTimeHistogramBuilder {
     }
 
     public AgentTimeHistogram buildSource(LinkCallDataMap linkCallDataMap) {
-        if (linkCallDataMap == null) {
-            throw new NullPointerException("linkCallDataMap");
-        }
+        Objects.requireNonNull(linkCallDataMap, "linkCallDataMap");
+
         return build(linkCallDataMap.getSourceList());
     }
 
     public AgentTimeHistogram buildTarget(LinkCallDataMap linkCallDataMap) {
-        if (linkCallDataMap == null) {
-            throw new NullPointerException("linkCallDataMap");
-        }
+        Objects.requireNonNull(linkCallDataMap, "linkCallDataMap");
+
         return build(linkCallDataMap.getTargetList());
     }
 

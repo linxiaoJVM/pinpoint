@@ -20,7 +20,8 @@
     },
     "MAIN": {
         "FAVORITE_APP_LIST": "Favorite List",
-        "APP_LIST": "Application List"
+        "APP_LIST": "Application List",
+        "VISIBILITY_HIDDEN": "The page has been deactivated. <br>You may want to refresh to back on it."
     },
     "INSPECTOR": {
         "APPLICATION_INSPECTOR_USAGE_GUIDE_MESSAGE": "[TEXT]:{value=Application Inspector is not enabled.<br> To enable Application Inspector, please refer to}|[LINK]:{href=https://github.com/naver/pinpoint/blob/master/doc/application-inspector.md\\target=blank\\style=color:#428bca\\linkText=this link}",
@@ -46,7 +47,8 @@
     "CONFIGURATION": {
         "AGENT_MANAGEMENT": {
             "REMOVE_APPLICATION": "Remove selected application.",
-            "REMOVE_AGENT": "Remove selected agent."
+            "REMOVE_AGENT": "Remove selected agent.",
+            "PASSWORD_GUIDE": "Enter password if you have set one."
         },
         "AGENT_STATISTIC": {
             "ZOOM_GUIDE": "You can zoom in/out the chart through the mouse.",
@@ -73,8 +75,8 @@
             "USER_ID_VALIDATION": "You can enter only numbers, alphabets lowercase, and '-' ,'_' characters.(4~24)",
             "NAME_VALIDATION": "You can enter only numbers, alphabets, Hangeul, and '-', '_', '.' characters.(1~30)",
             "DEPARTMENT_VALIDATION": "You can enter only numbers, alphabets, Hangeul, and '-', '_', '.' characters.(3~40)",
-            "PHONE_VALIDATION": "You can enter only numbers.(3~24)",
-            "EMAIL_VALIDATION": "Enter your email."
+            "PHONE_VALIDATION": "Enter a valid number.",
+            "EMAIL_VALIDATION": "Enter a valid e-mail address."
         },
         "COMMON": {
             "NAME": "Name",
@@ -90,6 +92,9 @@
         },
         "ALARM": {
             "EMPTY": "No registered alarm."
+        },
+        "EXPERIMENTAL": {
+            "DESC": "* You may try the experimental features."
         }
     },
     "TRANSACTION": {
@@ -274,8 +279,8 @@
             }]
         }],
         "REAL_TIME": [{
-            "TITLE": "Realtime Active Thread Chart",
-            "DESC": "Shows the Active Thread count of each agent in realtime.",
+            "TITLE": "Active Request",
+            "DESC": "Shows the active request count of each agent in realtime.",
             "CATEGORY": [{
                 "TITLE": "Error Messages",
                 "ITEMS": [{
@@ -286,7 +291,7 @@
                     "DESC": "Option disabled by agent. (Please set profiler.pinpoint.activethread to true in profiler.config)"
                 }, {
                     "NAME": "TIMEOUT",
-                    "DESC": "Agent connection timed out receiving active thread count. Please contact the administrator if problem persists."
+                    "DESC": "Agent connection timed out receiving active request count. Please contact the administrator if problem persists."
                 }, {
                     "NAME": "NOT FOUND",
                     "DESC": "Agent not found. (If you get this message while the agent is running, please set profiler.tcpdatasender.command.accept.enable to true in profiler.config)"
@@ -298,7 +303,7 @@
                     "DESC": "Pinpoint internal error. Please contact the administrator."
                 }, {
                     "NAME": "No Active Thread",
-                    "DESC": "The agent has no threads that are currently active."
+                    "DESC": "The agent has no requests that are currently active."
                 }, {
                     "NAME": "No Response",
                     "DESC": "No response from Pinpoint Web. Please contact the administrator."
@@ -465,23 +470,23 @@
                         }]
                     }]
                 }],
-                "ACTIVE_THREAD": [{
-                    "TITLE": "Active Thread",
-                    "DESC": "Snapshots of the agent's active thread status, categorized by how long they have been active for serving a request.",
+                "ACTIVE_REQUEST": [{
+                    "TITLE": "Active Request",
+                    "DESC": "Snapshots of the agent's active request status, categorized by how long they have been active for serving a request.",
                     "CATEGORY": [{
                         "TITLE": "Legend",
                         "ITEMS": [{
                             "NAME": "Fast (1s)",
-                            "DESC": "Number of threads that have been active for less than or equal to 1s"
+                            "DESC": "Number of requests that have been active for less than or equal to 1s"
                         }, {
                             "NAME": "Normal (3s)",
-                            "DESC": "Number of threads that have been active for less than or equal to 3s but longer than 1s"
+                            "DESC": "Number of requests that have been active for less than or equal to 3s but longer than 1s"
                         }, {
                             "NAME": "Slow (5s)",
-                            "DESC": "Number of threads that have been active for less than or equal to 5s but longer than 3s"
+                            "DESC": "Number of requests that have been active for less than or equal to 5s but longer than 3s"
                         }, {
                             "NAME": "Very Slow (slow)",
-                            "DESC": "Number of threads that have been active for longer than 5s"
+                            "DESC": "Number of requests that have been active for longer than 5s"
                         }]
                     }]
                 }],
@@ -573,6 +578,39 @@
                             "DESC": "Currently used Mapped buffer memory"
                         }]
                     }]
+                }],
+                "TOTAL_THREAD": [{
+                    "TITLE": "Total Thread",
+                    "DESC": "Shows the agent's total thread count",
+                    "CATEGORY": [{
+                        "TITLE": "Legend",
+                        "ITEMS": [{
+                            "NAME": "Total Thread Count",
+                            "DESC": "Number of total thread"
+                        }]
+                    }]
+                }],
+                "LOADED_CLASS_COUNT": [{
+                    "TITLE": "Loaded Class Count",
+                    "DESC": "Shows the agent's loaded class count",
+                    "CATEGORY": [{
+                        "TITLE": "Legend",
+                        "ITEMS": [{
+                            "NAME": "Loaded Class Count",
+                            "DESC": "Number of loaded class"
+                        }]
+                    }]
+                }],
+                "UNLOADED_CLASS_COUNT": [{
+                    "TITLE": "Unloaded Class Count",
+                    "DESC": "Shows the agent's unloaded class count",
+                    "CATEGORY": [{
+                        "TITLE": "Legend",
+                        "ITEMS": [{
+                            "NAME": "Unloaded Class Count",
+                            "DESC": "Number of unloaded class"
+                        }]
+                    }]
                 }]
             },
             "APPLICATION_CHART": {
@@ -661,20 +699,20 @@
                         }]
                     }]
                 }],
-                "ACTIVE_THREAD": [{
-                    "TITLE": "Active Thread",
-                    "DESC": "Number of active threads serving user requests",
+                "ACTIVE_REQUEST": [{
+                    "TITLE": "Active Request",
+                    "DESC": "Number of active requests serving user requests",
                     "CATEGORY": [{
                         "TITLE": "Legend",
                         "ITEMS": [{
                             "NAME": "Min",
-                            "DESC": "Lowest active thread count of the agents serving user requests"
+                            "DESC": "Lowest active request count of the agents serving user requests"
                         }, {
                             "NAME": "Avg",
-                            "DESC": "Average active thread count of the agents serving user requests"
+                            "DESC": "Average active request count of the agents serving user requests"
                         }, {
                             "NAME": "Max",
-                            "DESC": "Highest active thread count of the agents serving user requests"
+                            "DESC": "Highest active request count of the agents serving user requests"
                         }]
                     }]
                 }],
@@ -796,8 +834,115 @@
                             "DESC": "Max memory used by mapped buffer"
                         }]
                     }]
+                }],
+                "TOTAL_THREAD":[{
+                    "TITLE": "Total Thread",
+                    "DESC": "Number of total thread used by each agent",
+                    "CATEGORY": [{
+                        "TITLE": "Legend",
+                        "ITEMS": [{
+                            "NAME": "Min",
+                            "DESC": "Minimum of total thread count by each agent"
+                        }, {
+                            "NAME": "Avg",
+                            "DESC": "Average of total thread count by each agent"
+                        }, {
+                            "NAME": "Max",
+                            "DESC": "Maximum of total thread count by each agent"
+                        }]
+                    }]
+                }],
+                "LOADED_CLASS_COUNT":[{
+                    "TITLE": "Loaded Class Count",
+                    "DESC": "Number of loaded class by each agent",
+                    "CATEGORY": [{
+                        "TITLE": "Legend",
+                        "ITEMS": [{
+                            "NAME": "Min",
+                            "DESC": "Minimum of loaded class count by each agent"
+                        }, {
+                            "NAME": "Avg",
+                            "DESC": "Average of loaded class count by each agent"
+                        }, {
+                            "NAME": "Max",
+                            "DESC": "Maximum of loaded class count by each agent"
+                        }]
+                    }]
+                }],
+                "UNLOADED_CLASS_COUNT":[{
+                    "TITLE": "Unloaded Class Count",
+                    "DESC": "Number of unloaded class by each agent",
+                    "CATEGORY": [{
+                        "TITLE": "Legend",
+                        "ITEMS": [{
+                            "NAME": "Min",
+                            "DESC": "Minimum of unloaded class count by each agent"
+                        }, {
+                            "NAME": "Avg",
+                            "DESC": "Average of unloaded class count by each agent"
+                        }, {
+                            "NAME": "Max",
+                            "DESC": "Maximum of unloaded class count by each agent"
+                        }]
+                    }]
                 }]
             }
-        }
+        },
+        "ALARM": [{
+            "TITLE": "Types of Alarm Rule",
+            "DESC": "The following types of alarm rules are supported by Pinpoint.",
+            "CATEGORY": [{
+                "TITLE": "Type",
+                "ITEMS": [{
+                    "NAME": "SLOW COUNT",
+                    "DESC": "Triggered when the number of slow requests sent to the application exceeds the configured threshold."
+                },{
+                    "NAME": "SLOW RATE",
+                    "DESC": "Triggered when the percentage(%) of slow requests sent to the application exceeds the configured threshold."
+                },{
+                    "NAME": "ERROR COUNT",
+                    "DESC": "Triggered when the number of failed requests sent to the application exceeds the configured threshold."
+                },{
+                    "NAME": "ERROR RATE",
+                    "DESC": "Triggered when the percentage(%) of failed requests sent to the application exceeds the configured threshold."
+                },{
+                    "NAME": "TOTAL COUNT",
+                    "DESC": "Triggered when the number of all requests sent to the application exceeds the configured threshold."
+                },{
+                    "NAME": "SLOW COUNT TO CALLEE",
+                    "DESC": "Triggered when the number of slow requests sent by the application exceeds the configured threshold. You must specify the domain or the address(ip, port) in the 'Notes' field: ex) www.naver.com, 127.0.0.1:8080"
+                },{
+                    "NAME": "SLOW RATE TO CALLEE",
+                    "DESC": "Triggered when the percentage(%) of slow requests sent by the application exceeds the configured threshold. You must specify the domain or the address(ip, port) in the 'Notes' field: ex) www.naver.com, 127.0.0.1:8080"
+                },{
+                    "NAME": "ERROR COUNT TO CALLEE",
+                    "DESC": "Triggered when the number of failed requests sent by the application exceeds the configured threshold. You must specify the domain or the address(ip, port) in the 'Notes' field: ex) www.naver.com, 127.0.0.1:8080"
+                },{
+                    "NAME": "ERROR RATE TO CALLEE",
+                    "DESC": "Triggered when the percentage(%) of failed requests sent by the application exceeds the configured threshold. You must specify the domain or the address(ip, port) in the 'Notes' field: ex) www.naver.com, 127.0.0.1:8080"
+                },{
+                    "NAME": "TOTAL COUNT TO CALLEE",
+                    "DESC": "Triggered when the number of all requests sent by the application exceeds the configured threshold. You must specify the domain or the address(ip, port) in the 'Notes' field: ex) www.naver.com, 127.0.0.1:8080"
+                },{
+                    "NAME": "HEAP USAGE RATE",
+                    "DESC": "Triggered when the application's heap usage(%) exceeds the configured threshold."
+                },{
+                    "NAME": "JVM CPU USAGE RATE",
+                    "DESC": "Triggered when the application's CPU usage(%) exceeds the configured threshold."
+                },{
+                    "NAME": "SYSTEM CPU USAGE RATE",
+                    "DESC": "Sends an alarm when the application's CPU usage(%) exceeds the configured threshold."
+                },{
+                    "NAME": "DATASOURCE CONNECTION USAGE RATE",
+                    "DESC": "Triggered when the application's DataSource connection usage(%) exceeds the configured threshold."
+                },{
+                    "NAME": "DEADLOCK OCCURRENCE",
+                    "DESC": "Sends an alarm when deadlock condition is detected in application."
+                },{
+                    "NAME": "FILE DESCRIPTOR COUNT",
+                    "DESC": "Sends an alarm when the number of open file descriptors exceeds the configured threshold."
+                }]
+            }]
+        }]
     }
 }

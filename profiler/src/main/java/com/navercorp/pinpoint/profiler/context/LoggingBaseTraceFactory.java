@@ -19,7 +19,7 @@ package com.navercorp.pinpoint.profiler.context;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.common.annotations.InterfaceAudience;
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,17 +31,16 @@ public class LoggingBaseTraceFactory implements BaseTraceFactory {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private BaseTraceFactory baseTraceFactory;
+    private final BaseTraceFactory baseTraceFactory;
 
     public static BaseTraceFactory wrap(BaseTraceFactory baseTraceFactory) {
-        if (baseTraceFactory == null) {
-            throw new NullPointerException("baseTraceFactory");
-        }
+        Objects.requireNonNull(baseTraceFactory, "baseTraceFactory");
+
         return new LoggingBaseTraceFactory(baseTraceFactory);
     }
 
     private LoggingBaseTraceFactory(BaseTraceFactory baseTraceFactory) {
-        this.baseTraceFactory = Assert.requireNonNull(baseTraceFactory, "baseTraceFactory");
+        this.baseTraceFactory = Objects.requireNonNull(baseTraceFactory, "baseTraceFactory");
     }
 
     @Override

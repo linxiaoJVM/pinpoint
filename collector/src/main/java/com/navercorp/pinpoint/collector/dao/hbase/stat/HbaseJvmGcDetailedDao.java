@@ -17,21 +17,24 @@
 package com.navercorp.pinpoint.collector.dao.hbase.stat;
 
 import com.navercorp.pinpoint.collector.dao.AgentStatDaoV2;
+import com.navercorp.pinpoint.collector.util.CollectorUtils;
 import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
 import com.navercorp.pinpoint.common.hbase.HbaseTable;
 import com.navercorp.pinpoint.common.hbase.TableNameProvider;
 import com.navercorp.pinpoint.common.server.bo.serializer.stat.AgentStatHbaseOperationFactory;
 import com.navercorp.pinpoint.common.server.bo.serializer.stat.JvmGcDetailedSerializer;
+import com.navercorp.pinpoint.common.server.bo.stat.AgentStatBo;
 import com.navercorp.pinpoint.common.server.bo.stat.AgentStatType;
 import com.navercorp.pinpoint.common.server.bo.stat.JvmGcDetailedBo;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Put;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -39,33 +42,41 @@ import java.util.List;
 @Repository
 public class HbaseJvmGcDetailedDao implements AgentStatDaoV2<JvmGcDetailedBo> {
 
-    @Autowired
-    private HbaseOperations2 hbaseTemplate;
+    private final HbaseOperations2 hbaseTemplate;
 
-    @Autowired
-    private TableNameProvider tableNameProvider;
+    private final TableNameProvider tableNameProvider;
 
-    @Autowired
-    private AgentStatHbaseOperationFactory agentStatHbaseOperationFactory;
+    private final AgentStatHbaseOperationFactory agentStatHbaseOperationFactory;
 
-    @Autowired
-    private JvmGcDetailedSerializer jvmGcDetailedSerializer;
+    private final JvmGcDetailedSerializer jvmGcDetailedSerializer;
+
+    public HbaseJvmGcDetailedDao(@Qualifier("asyncPutHbaseTemplate") HbaseOperations2 hbaseTemplate,
+                                 TableNameProvider tableNameProvider,
+                                 AgentStatHbaseOperationFactory agentStatHbaseOperationFactory, JvmGcDetailedSerializer jvmGcDetailedSerializer) {
+        this.hbaseTemplate = hbaseTemplate;
+        this.tableNameProvider = tableNameProvider;
+        this.agentStatHbaseOperationFactory = agentStatHbaseOperationFactory;
+        this.jvmGcDetailedSerializer = jvmGcDetailedSerializer;
+    }
 
     @Override
     public void insert(String agentId, List<JvmGcDetailedBo> jvmGcDetailedBos) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        // Assert agentId
+        CollectorUtils.checkAgentId(agentId);
+
         if (CollectionUtils.isEmpty(jvmGcDetailedBos)) {
             return;
         }
         List<Put> jvmGcDetailedPuts = this.agentStatHbaseOperationFactory.createPuts(agentId, AgentStatType.JVM_GC_DETAILED, jvmGcDetailedBos, this.jvmGcDetailedSerializer);
         if (!jvmGcDetailedPuts.isEmpty()) {
             TableName agentStatTableName = tableNameProvider.getTableName(HbaseTable.AGENT_STAT_VER2);
-            List<Put> rejectedPuts = this.hbaseTemplate.asyncPut(agentStatTableName, jvmGcDetailedPuts);
-            if (CollectionUtils.isNotEmpty(rejectedPuts)) {
-                this.hbaseTemplate.put(agentStatTableName, rejectedPuts);
-            }
+            this.hbaseTemplate.asyncPut(agentStatTableName, jvmGcDetailedPuts);
         }
+    }
+
+    @Override
+    public void dispatch(AgentStatBo agentStatBo) {
+        insert(agentStatBo.getAgentId(), agentStatBo.getJvmGcDetailedBos());
     }
 }

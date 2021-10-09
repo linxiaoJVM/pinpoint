@@ -21,25 +21,25 @@ import com.navercorp.pinpoint.collector.dao.MapStatisticsCalleeDao;
 import com.navercorp.pinpoint.collector.dao.MapStatisticsCallerDao;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 /**
- * 
  * @author netspider
- * 
+ * @author jaehong.kim
  */
 @Service
 public class StatisticsService {
+    private final MapStatisticsCalleeDao mapStatisticsCalleeDao;
+    private final MapStatisticsCallerDao mapStatisticsCallerDao;
+    private final MapResponseTimeDao mapResponseTimeDao;
 
-    @Autowired
-    private MapStatisticsCalleeDao mapStatisticsCalleeDao;
-
-    @Autowired
-    private MapStatisticsCallerDao mapStatisticsCallerDao;
-
-    @Autowired
-    private MapResponseTimeDao mapResponseTimeDao;
+    public StatisticsService(MapStatisticsCalleeDao mapStatisticsCalleeDao, MapStatisticsCallerDao mapStatisticsCallerDao, MapResponseTimeDao mapResponseTimeDao) {
+        this.mapStatisticsCalleeDao = Objects.requireNonNull(mapStatisticsCalleeDao, "mapStatisticsCalleeDao");
+        this.mapStatisticsCallerDao = Objects.requireNonNull(mapStatisticsCallerDao, "mapStatisticsCallerDao");
+        this.mapResponseTimeDao = Objects.requireNonNull(mapResponseTimeDao, "mapResponseTimeDao");
+    }
 
     /**
      * Calling MySQL from Tomcat generates the following message for the caller(Tomcat) :<br/>
@@ -79,5 +79,9 @@ public class StatisticsService {
 
     public void updateResponseTime(String applicationName, ServiceType serviceType, String agentId, int elapsed, boolean isError) {
         mapResponseTimeDao.received(applicationName, serviceType, agentId, elapsed, isError);
+    }
+
+    public void updateAgentState(final String callerApplicationName, final ServiceType callerServiceType, final String callerAgentId) {
+        mapResponseTimeDao.updatePing(callerApplicationName, callerServiceType, callerAgentId, 0, false);
     }
 }

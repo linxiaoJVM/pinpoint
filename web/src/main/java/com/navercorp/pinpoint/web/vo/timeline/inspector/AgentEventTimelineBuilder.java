@@ -41,7 +41,7 @@ public class AgentEventTimelineBuilder {
     private final int numTimeslots;
 
     private List<AgentEvent> agentEvents = Collections.emptyList();
-    private List<AgentEventFilter> filters = new ArrayList<>();
+    private final List<AgentEventFilter> filters = new ArrayList<>();
 
     public AgentEventTimelineBuilder(Range range) {
         this(range, DEFAULT_NUM_TIMESLOTS);
@@ -114,11 +114,7 @@ public class AgentEventTimelineBuilder {
         Map<Long, List<AgentEvent>> timeslotIndexMap = new TreeMap<>();
         for (AgentEvent agentEvent : agentEvents) {
             long timeslotIndex = getTimeslotIndex(agentEvent.getEventTimestamp());
-            List<AgentEvent> timeslotAgentEvents = timeslotIndexMap.get(timeslotIndex);
-            if (timeslotAgentEvents == null) {
-                timeslotAgentEvents = new ArrayList<>();
-                timeslotIndexMap.put(timeslotIndex, timeslotAgentEvents);
-            }
+            List<AgentEvent> timeslotAgentEvents = timeslotIndexMap.computeIfAbsent(timeslotIndex, k -> new ArrayList<>());
             timeslotAgentEvents.add(agentEvent);
         }
         return timeslotIndexMap;

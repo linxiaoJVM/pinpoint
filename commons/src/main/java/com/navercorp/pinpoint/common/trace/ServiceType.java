@@ -32,6 +32,8 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>5</td><td>TEST</td></tr>
  * <tr><td>7</td><td>COLLECTOR</td></tr>
  * <tr><td>100</td><td>ASYNC</td></tr>
+ * <tr><td>500</td><td>SDK</td></tr>
+ * <tr><td>510</td><td>SDK_ASYNC</td></tr>
  * </table>
  *
  * 
@@ -68,6 +70,9 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>1140</td><td>REACTOR_NETTY</td></tr>
  * <tr><td>1141</td><td>REACTOR_NETTY_INTERNAL</td></tr>
  *
+ * <tr><td>1300</td><td>C_CPP</td></tr>
+ * <tr><td>1301</td><td>C_CPP_METHOD</td></tr>
+ *
  * <tr><td>1400</td><td>NODE</td></tr>
  * <tr><td>1401</td><td>NODE_METHOD</td></tr>
  * <tr><td>1500</td><td>PHP</td></tr>
@@ -76,6 +81,12 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>1620</td><td>OPENWHISK_INTERNAL</td></tr>
  * <tr><td>1621</td><td>OPENWHISK_CONTROLLER</td></tr>
  * <tr><td>1622</td><td>OPENWHISK_INVOKER</td></tr>
+ * <tr><td>1700</td><td>PYTHON</td></tr>
+ * <tr><td>1701</td><td>PYTHON_METHOD</td></tr>
+ * <tr><td>1702</td><td>CELERY</td></tr>
+ * <tr><td>1703</td><td>CELERY-WORKER</td></tr>
+ * <tr><td>1800</td><td>GO</td></tr>
+ * <tr><td>1801</td><td>GO_FUNCTION</td></tr>
  *
  * </table>
  * 
@@ -101,6 +112,8 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>2410</td><td>NBASET</td></tr>
  * <tr><td>2411</td><td>NBASET_EXECUTE_QUERY</td></tr>
  * <tr><td>2412</td><td>NBASET_INTERNAL</td></tr>
+ * <tr><td>2450</td><td>INFORMIX</td></tr>
+ * <tr><td>2451</td><td>INFORMIX_EXECUTE_QUERY</td></tr>
  * <tr><td>2500</td><td>POSTGRESQL</td></tr>
  * <tr><td>2501</td><td>POSTGRESQL_EXECUTE_QUERY</td></tr>
  * <tr><td>2600</td><td>CASSANDRA</td></tr>
@@ -136,6 +149,8 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>5500</td><td>IBATIS</td></tr>
  * <tr><td>5501</td><td>IBATIS-SPRING</td></tr>
  * <tr><td>5510</td><td>MYBATIS</td></tr>
+ * <tr><td>6001</td><td>THREAD_ASYNC</td></tr>
+ * <tr><td>6005</td><td>PROCESS</td></tr>
  * <tr><td>6050</td><td>DBCP</td></tr>
  * <tr><td>6052</td><td>DBCP2</td></tr>
  * <tr><td>6060</td><td>HIKARICP</td></tr>
@@ -167,6 +182,7 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>8250</td><td><i>RESERVED</i></td></tr>
  * <tr><td>8251</td><td><i>RESERVED</i></td></tr>
  * <tr><td>8260</td><td><i>RESERVED</i></td></tr>
+ * <tr><td>8280</td><td><i>ETCD</i></td></tr>
  * <tr><td>8300</td><td>RABBITMQ</td></tr>
  * <tr><td>8310</td><td><i>ACTIVEMQ_CLIENT</i></td></tr>
  * <tr><td>8311</td><td><i>ACTIVEMQ_CLIENT_INTERNAL</i></td></tr>
@@ -210,6 +226,8 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>9151</td><td>NETTY_INTERNAL</td></tr>
  * <tr><td>9152</td><td>NETTY_HTTP</td></tr>
  * <tr><td>9153</td><td>SPRING_WEBFLUX_CLIENT</td></tr>
+ * <tr><td>9154</td><td>REACTOR_NETTY_CLIENT</td></tr>
+ * <tr><td>9155</td><td>REACTOR_NETTY_CLIENT_INTERNAL</td></tr>
  * <tr><td>9160</td><td>GRPC</td></tr>
  * <tr><td>9161</td><td>GRPC_INTERNAL</td></tr>
  * <tr><td>9162</td><td>GRPC_SERVER_INTERNAL</td></tr>
@@ -217,8 +235,11 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.*;
  * <tr><td>9202</td><td>ElasticsearchBBossExecutor</td></tr>
  * <tr><td>9301</td><td>ENVOY_INGRESS</td></tr>
  * <tr><td>9302</td><td>ENVOY_EGRESS</td></tr>
+ * <tr><td>9401</td><td>GO_HTTP_CLIENT</td></tr>
  * <tr><td>9622</td><td>OPENWHISK_CLIENT</td></tr>
- *
+ * <tr><td>9700</td><td>PHP_REMOTE_METHOD</td></tr>
+ * <tr><td>9800</td><td>C_CPP_REMOTE_METHOD</td></tr>
+ * <tr><td>9900</td><td>PYTHON_REMOTE_METHOD</td></tr>
  * </table>
  * 
  * <h3>RPC Sandbox (9900 ~ 9999)</h3>

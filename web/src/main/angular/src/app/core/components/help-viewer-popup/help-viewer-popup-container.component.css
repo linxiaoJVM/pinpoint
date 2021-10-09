@@ -1,6 +1,9 @@
 :host {
     display: block;
     border: 1px solid transparent;
+    max-height: 800px;
+    overflow-y: auto;
+    background-color: var(--background-layer);
 }
 
 :host(.navbar),
@@ -40,15 +43,21 @@
     width: 530px;
 }
 
-:host(.agent_active_thread),
-:host(.application_active_thread),
+:host(.agent_active_request),
+:host(.application_active_request),
 :host(.agent_tps),
 :host(.application_tps),
 :host(.agent_open_file_descriptor),
 :host(.application_open_file_descriptor),
 :host(.application_direct_buffer_count),
 :host(.application_direct_buffer_memory),
-:host(.application_mapped_buffer_count) {
+:host(.application_mapped_buffer_count),
+:host(.application_total_thread),
+:host(.agent_total_thread_),
+:host(.agent_loaded_class_count),
+:host(.agent_unloaded_class_count),
+:host(.application_loaded_class_count),
+:host(.application_unloaded_class_count) {
     width: 405px;
 }
 
@@ -78,9 +87,14 @@
     width: 320px;
 }
 
+:host(.alarm) {
+    width: 600px;
+}
+
 .tooltip-triangle {
     width: 0;
     height: 0;
     display: inline-block;
     position: fixed;
+    border-bottom-color: var(--background-layer) !important;
 }

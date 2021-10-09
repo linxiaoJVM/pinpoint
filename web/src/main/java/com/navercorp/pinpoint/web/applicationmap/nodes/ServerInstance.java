@@ -23,6 +23,8 @@ import com.navercorp.pinpoint.web.view.ServerInstanceSerializer;
 import com.navercorp.pinpoint.web.vo.AgentInfo;
 import com.navercorp.pinpoint.web.vo.AgentStatus;
 
+import java.util.Objects;
+
 /**
  *
  * @author netspider
@@ -36,6 +38,7 @@ public class ServerInstance {
     private final String ip;
 
     private final String name;
+    private final String agentName;
     private final short serviceTypeCode;
 
     private final ServerType serverType;
@@ -44,12 +47,12 @@ public class ServerInstance {
     private final AgentLifeCycleState status;
 
     public ServerInstance(AgentInfo agentInfo) {
-        if (agentInfo == null) {
-            throw new NullPointerException("agentInfo");
-        }
+        Objects.requireNonNull(agentInfo, "agentInfo");
+
         this.hostName = agentInfo.getHostName();
         this.ip = agentInfo.getIp();
         this.name = agentInfo.getAgentId();
+        this.agentName = agentInfo.getAgentName();
         this.serviceTypeCode = agentInfo.getServiceTypeCode();
         AgentStatus agentStatus = agentInfo.getStatus();
         if (agentStatus != null) {
@@ -61,15 +64,10 @@ public class ServerInstance {
     }
 
     public ServerInstance(String hostName, String physicalName, short serviceTypeCode) {
-        if (hostName == null) {
-            throw new NullPointerException("hostName");
-        }
-        if (physicalName == null) {
-            throw new NullPointerException("logicalName");
-        }
-        this.hostName = hostName;
+        this.hostName = Objects.requireNonNull(hostName, "hostName");
         this.ip = null;
-        this.name = physicalName;
+        this.agentName = null;
+        this.name = Objects.requireNonNull(physicalName, "physicalName");
         this.serviceTypeCode = serviceTypeCode;
         this.status = AgentLifeCycleState.UNKNOWN;
         this.serverType = ServerType.Logical;
@@ -83,6 +81,9 @@ public class ServerInstance {
         return name;
     }
 
+    public String getAgentName() {
+        return agentName;
+    }
 
     public short getServiceTypeCode() {
         return serviceTypeCode;

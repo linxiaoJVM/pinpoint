@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.profiler.context.thrift;
 
 import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.common.annotations.VisibleForTesting;
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.common.util.IntStringValue;
 import com.navercorp.pinpoint.profiler.context.Annotation;
@@ -28,6 +28,7 @@ import com.navercorp.pinpoint.profiler.context.LocalAsyncId;
 import com.navercorp.pinpoint.profiler.context.Span;
 import com.navercorp.pinpoint.profiler.context.SpanChunk;
 import com.navercorp.pinpoint.profiler.context.SpanEvent;
+import com.navercorp.pinpoint.profiler.context.SpanType;
 import com.navercorp.pinpoint.profiler.context.compress.SpanProcessor;
 import com.navercorp.pinpoint.profiler.context.id.Shared;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
@@ -48,7 +49,7 @@ import java.util.List;
 /**
  * @author Woonduk Kang(emeroad)
  */
-public class SpanThriftMessageConverter implements MessageConverter<TBase<?, ?>> {
+public class SpanThriftMessageConverter implements MessageConverter<SpanType, TBase<?, ?>> {
 
     private final String agentId;
     private final String applicationName;
@@ -56,21 +57,22 @@ public class SpanThriftMessageConverter implements MessageConverter<TBase<?, ?>>
     private final short applicationServiceType;
     private final TransactionIdEncoder transactionIdEncoder;
     private final SpanProcessor<TSpan, TSpanChunk> spanPostProcessor;
+    private final AnnotationValueThriftMapper annotationMapper = new AnnotationValueThriftMapper();
 
     public SpanThriftMessageConverter(String applicationName, String agentId, long agentStartTime, short applicationServiceType,
                                       TransactionIdEncoder transactionIdEncoder, SpanProcessor<TSpan, TSpanChunk> spanPostProcessor) {
-        this.applicationName = Assert.requireNonNull(applicationName, "applicationName");
-        this.agentId = Assert.requireNonNull(agentId, "agentId");
+        this.applicationName = Objects.requireNonNull(applicationName, "applicationName");
+        this.agentId = Objects.requireNonNull(agentId, "agentId");
         this.agentStartTime = agentStartTime;
         this.applicationServiceType = applicationServiceType;
-        this.transactionIdEncoder = Assert.requireNonNull(transactionIdEncoder, "transactionIdEncoder");
-        this.spanPostProcessor = Assert.requireNonNull(spanPostProcessor, "spanPostProcessor");
+        this.transactionIdEncoder = Objects.requireNonNull(transactionIdEncoder, "transactionIdEncoder");
+        this.spanPostProcessor = Objects.requireNonNull(spanPostProcessor, "spanPostProcessor");
 
     }
 
 
     @Override
-    public TBase<?, ?> toMessage(Object message) {
+    public TBase<?, ?> toMessage(SpanType message) {
         if (message instanceof SpanChunk) {
             final SpanChunk spanChunk = (SpanChunk) message;
             return buildTSpanChunk(spanChunk);
@@ -127,7 +129,7 @@ public class SpanThriftMessageConverter implements MessageConverter<TBase<?, ?>>
 
         tSpan.setLoggingTransactionInfo(shared.getLoggingInfo());
 
-        final List<Annotation> annotations = span.getAnnotations();
+        final List<Annotation<?>> annotations = span.getAnnotations();
         if (CollectionUtils.hasLength(annotations)) {
             final List<TAnnotation> tAnnotations = buildTAnnotation(annotations);
             tSpan.setAnnotations(tAnnotations);
@@ -145,7 +147,7 @@ public class SpanThriftMessageConverter implements MessageConverter<TBase<?, ?>>
 
     private List<TSpanEvent> buildTSpanEventList(List<SpanEvent> spanEventList) {
         final int eventSize = spanEventList.size();
-        final List<TSpanEvent> tSpanEventList = new ArrayList<TSpanEvent>(eventSize);
+        final List<TSpanEvent> tSpanEventList = new ArrayList<>(eventSize);
         for (SpanEvent spanEvent : spanEventList) {
             final TSpanEvent tSpanEvent = buildTSpanEvent(spanEvent);
             tSpanEventList.add(tSpanEvent);
@@ -229,7 +231,7 @@ public class SpanThriftMessageConverter implements MessageConverter<TBase<?, ?>>
             tSpanEvent.setNextAsyncId(asyncIdObject.getAsyncId());
         }
 
-        final List<Annotation> annotations = spanEvent.getAnnotations();
+        final List<Annotation<?>> annotations = spanEvent.getAnnotations();
         if (CollectionUtils.hasLength(annotations)) {
             final List<TAnnotation> tAnnotations = buildTAnnotation(annotations);
             tSpanEvent.setAnnotations(tAnnotations);
@@ -248,11 +250,11 @@ public class SpanThriftMessageConverter implements MessageConverter<TBase<?, ?>>
     }
 
     @VisibleForTesting
-    List<TAnnotation> buildTAnnotation(List<Annotation> annotations) {
-        final List<TAnnotation> tAnnotationList = new ArrayList<TAnnotation>(annotations.size());
-        for (Annotation annotation : annotations) {
-            final TAnnotation tAnnotation = new TAnnotation(annotation.getAnnotationKey());
-            final TAnnotationValue tAnnotationValue = AnnotationValueThriftMapper.buildTAnnotationValue(annotation.getValue());
+    List<TAnnotation> buildTAnnotation(List<? extends Annotation<?>> annotations) {
+        final List<TAnnotation> tAnnotationList = new ArrayList<>(annotations.size());
+        for (Annotation<?> annotation : annotations) {
+            final TAnnotation tAnnotation = new TAnnotation(annotation.getKey());
+            final TAnnotationValue tAnnotationValue = annotationMapper.buildTAnnotationValue(annotation);
             if (tAnnotationValue != null) {
                 tAnnotation.setValue(tAnnotationValue);
             }

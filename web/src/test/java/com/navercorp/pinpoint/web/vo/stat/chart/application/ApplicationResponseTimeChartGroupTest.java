@@ -16,19 +16,21 @@
 
 package com.navercorp.pinpoint.web.vo.stat.chart.application;
 
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinLongFieldBo;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.chart.Chart;
 import com.navercorp.pinpoint.web.vo.chart.Point;
 import com.navercorp.pinpoint.web.vo.stat.AggreJoinResponseTimeBo;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChartGroup;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author minwoo.jung
@@ -38,7 +40,7 @@ public class ApplicationResponseTimeChartGroupTest {
     @Test
     public void createApplicationResponseTimeChartGroupTest() {
         long time = 1495418083250L;
-        Range range = new Range(time - 240000, time);
+        Range range = Range.newRange(time - 240000, time);
         TimeWindow timeWindow = new TimeWindow(range);
 
         final String id = "test_app";
@@ -62,16 +64,17 @@ public class ApplicationResponseTimeChartGroupTest {
         int index = responseTimePointList.size();
 
         for (Point point : responseTimePointList) {
-            testResponseTimeCount((ResponseTimePoint) point, aggreJoinResponseTimeBoList.get(--index));
+            testResponseTimeCount((DoubleApplicationStatPoint) point, aggreJoinResponseTimeBoList.get(--index));
         }
     }
 
-    private void testResponseTimeCount(ResponseTimePoint responseTimePoint, AggreJoinResponseTimeBo aggreJoinResponseTimeBo) {
-        assertEquals(responseTimePoint.getYValForAvg(), aggreJoinResponseTimeBo.getAvg(), 0);
-        assertEquals(responseTimePoint.getYValForMin(), aggreJoinResponseTimeBo.getMinAvg(), 0);
-        assertEquals(responseTimePoint.getYValForMax(), aggreJoinResponseTimeBo.getMaxAvg(), 0);
-        assertEquals(responseTimePoint.getAgentIdForMax(), aggreJoinResponseTimeBo.getMaxAvgAgentId());
-        assertEquals(responseTimePoint.getAgentIdForMin(), aggreJoinResponseTimeBo.getMinAvgAgentId());
+    private void testResponseTimeCount(DoubleApplicationStatPoint responseTimePoint, AggreJoinResponseTimeBo aggreJoinResponseTimeBo) {
+        final JoinLongFieldBo responseTimeJoinValue = aggreJoinResponseTimeBo.getResponseTimeJoinValue();
+        assertEquals(responseTimePoint.getYValForAvg(), responseTimeJoinValue.getAvg(), 0);
+        assertEquals(responseTimePoint.getYValForMin(), responseTimeJoinValue.getMin(), 0);
+        assertEquals(responseTimePoint.getYValForMax(), responseTimeJoinValue.getMax(), 0);
+        assertEquals(responseTimePoint.getAgentIdForMax(), responseTimeJoinValue.getMaxAgentId());
+        assertEquals(responseTimePoint.getAgentIdForMin(), responseTimeJoinValue.getMinAgentId());
     }
 
 

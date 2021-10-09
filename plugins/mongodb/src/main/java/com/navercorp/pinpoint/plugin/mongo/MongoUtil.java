@@ -16,6 +16,7 @@ package com.navercorp.pinpoint.plugin.mongo;
 
 import com.mongodb.WriteConcern;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
+import com.navercorp.pinpoint.common.util.StringJoinUtils;
 import com.navercorp.pinpoint.common.util.StringStringValue;
 import org.bson.BsonType;
 
@@ -68,8 +69,8 @@ public final class MongoUtil {
             return null;
         }
 
-        final List<String> parsedJson = new ArrayList<String>(2);
-        final List<String> jsonParameter = new ArrayList<String>(16);
+        final List<String> parsedJson = new ArrayList<>(2);
+        final List<String> jsonParameter = new ArrayList<>(16);
 
         for (Object arg : args) {
 
@@ -82,8 +83,8 @@ public final class MongoUtil {
             }
         }
 
-        String parsedJsonString = StringJoiner.join(parsedJson, SEPARATOR);
-        String jsonParameterString = StringJoiner.join(jsonParameter, SEPARATOR);
+        String parsedJsonString = StringJoinUtils.join(parsedJson, SEPARATOR);
+        String jsonParameterString = StringJoinUtils.join(jsonParameter, SEPARATOR);
         return new NormalizedBson(parsedJsonString, jsonParameterString);
     }
 }

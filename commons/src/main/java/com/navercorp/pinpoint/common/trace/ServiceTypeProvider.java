@@ -39,7 +39,7 @@ public class ServiceTypeProvider {
             throw new IllegalStateException("ServiceTypeRegistry not registered");
         }
     };
-
+    // must be non final  : TraceMetadataRegistrar
     private static ServiceTypeLocator registry = UNREGISTERED;
 
     private ServiceTypeProvider() {
@@ -47,8 +47,7 @@ public class ServiceTypeProvider {
     }
 
     public static ServiceType getByCode(int serviceTypeCode) {
-        Short code = (short) serviceTypeCode;
-        ServiceType serviceType = registry.findServiceType(code);
+        ServiceType serviceType = registry.findServiceType((short) serviceTypeCode);
         if (ServiceType.UNDEFINED == serviceType) {
             throw new IllegalStateException("Unknown ServiceType code: " + serviceTypeCode);
         }

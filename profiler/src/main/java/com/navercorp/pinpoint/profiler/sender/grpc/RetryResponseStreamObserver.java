@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.profiler.sender.grpc;
 
 import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.TextFormat;
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.grpc.StatusError;
 import com.navercorp.pinpoint.grpc.StatusErrors;
 import io.grpc.stub.StreamObserver;
@@ -34,9 +34,9 @@ public class RetryResponseStreamObserver<ReqT, ResT> implements StreamObserver<R
     private final int remainingRetryCount;
 
     public RetryResponseStreamObserver(Logger logger, RetryScheduler<ReqT, ResT> retryScheduler, ReqT message, int remainingRetryCount) {
-        this.logger = Assert.requireNonNull(logger, "logger");
-        this.retryScheduler = Assert.requireNonNull(retryScheduler, "retryScheduler");
-        this.message = Assert.requireNonNull(message, "message");
+        this.logger = Objects.requireNonNull(logger, "logger");
+        this.retryScheduler = Objects.requireNonNull(retryScheduler, "retryScheduler");
+        this.message = Objects.requireNonNull(message, "message");
         this.remainingRetryCount = remainingRetryCount;
     }
 
@@ -63,7 +63,7 @@ public class RetryResponseStreamObserver<ReqT, ResT> implements StreamObserver<R
         if (statusError.isSimpleError()) {
             logger.info("Error. request={}, cause={}", logString(message), statusError.getMessage());
         } else {
-            logger.warn("Error. request={}, cause={}", logString(message), statusError.getMessage(), statusError.getThrowable());
+            logger.info("Error. request={}, cause={}", logString(message), statusError.getMessage(), statusError.getThrowable());
         }
 
         // Retry

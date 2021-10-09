@@ -18,10 +18,11 @@ package com.navercorp.pinpoint.collector.config;
 
 import com.navercorp.pinpoint.common.server.config.AnnotationVisitor;
 import com.navercorp.pinpoint.common.server.config.LoggingEvent;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.Arrays;
@@ -30,39 +31,27 @@ import java.util.Objects;
 
 /**
  * @author emeroad
+ * @author jaehong.kim
  */
-@Configuration
+@Component
 public class CollectorConfiguration {
-
-    private final Logger logger = LoggerFactory.getLogger(CollectorConfiguration.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Value("${collector.agentEventWorker.threadSize:32}")
     private int agentEventWorkerThreadSize;
-
     @Value("${collector.agentEventWorker.queueSize:5120}")
     private int agentEventWorkerQueueSize;
-
-//    @Value("#{'${collector.l4.ip:}'.split(',')}")
-//    private List<String> l4IpList = Collections.emptyList();
     @Value("${collector.l4.ip:}")
     private String[] l4IpList = new String[0];
+    @Value("${collector.metric.jmx:false}")
+    private boolean metricJmxEnable;
+    @Value("${collector.metric.jmx.domain:pinpoint.collector.metrics}")
+    private String metricJmxDomainName;
 
-    @Value("${cluster.enable}")
-    private boolean clusterEnable;
-
-    @Value("${cluster.zookeeper.address:}")
-    private String clusterAddress;
-
-    @Value("${cluster.zookeeper.sessiontimeout:-1}")
-    private int clusterSessionTimeout;
-
-
-    @Value("${cluster.listen.ip:}")
-    private String clusterListenIp;
-
-
-    @Value("${cluster.listen.port:-1}")
-    private int clusterListenPort;
+    @Value("${collector.stat.uri:false}")
+    private boolean uriStatEnable;
+    @Value("${collector.statistics.agent-state.enable:false}")
+    private boolean statisticsAgentStateEnable;
 
     public int getAgentEventWorkerThreadSize() {
         return this.agentEventWorkerThreadSize;
@@ -89,53 +78,44 @@ public class CollectorConfiguration {
         this.l4IpList = l4IpList.toArray(new String[0]);
     }
 
-    public boolean isClusterEnable() {
-        return clusterEnable;
+    public boolean isMetricJmxEnable() {
+        return metricJmxEnable;
     }
 
-    public void setClusterEnable(boolean clusterEnable) {
-        this.clusterEnable = clusterEnable;
+    public void setMetricJmxEnable(boolean metricJmxEnable) {
+        this.metricJmxEnable = metricJmxEnable;
     }
 
-    public String getClusterAddress() {
-        return clusterAddress;
+    public String getMetricJmxDomainName() {
+        return metricJmxDomainName;
     }
 
-    public void setClusterAddress(String clusterAddress) {
-        this.clusterAddress = clusterAddress;
+    public void setMetricJmxDomainName(String metricJmxDomainName) {
+        this.metricJmxDomainName = metricJmxDomainName;
     }
 
-    public int getClusterSessionTimeout() {
-        return clusterSessionTimeout;
+    public boolean isUriStatEnable() {
+        return uriStatEnable;
     }
 
-    public void setClusterSessionTimeout(int clusterSessionTimeout) {
-        this.clusterSessionTimeout = clusterSessionTimeout;
+    public void setUriStatEnable(boolean uriStatEnable) {
+        this.uriStatEnable = uriStatEnable;
     }
 
-    public String getClusterListenIp() {
-        return clusterListenIp;
+    public void setStatisticsAgentStateEnable(boolean statisticsAgentStateEnable) {
+        this.statisticsAgentStateEnable = statisticsAgentStateEnable;
     }
 
-    public void setClusterListenIp(String clusterListenIp) {
-        this.clusterListenIp = clusterListenIp;
-    }
-
-    public int getClusterListenPort() {
-        return clusterListenPort;
-    }
-
-    public void setClusterListenPort(int clusterListenPort) {
-        this.clusterListenPort = clusterListenPort;
+    public boolean isStatisticsAgentStateEnable() {
+        return statisticsAgentStateEnable;
     }
 
     @PostConstruct
     public void log() {
         logger.info("{}", this);
-        AnnotationVisitor visitor = new AnnotationVisitor(Value.class);
+        AnnotationVisitor<Value> visitor = new AnnotationVisitor<>(Value.class);
         visitor.visit(this, new LoggingEvent(logger));
     }
-
 
     @Override
     public String toString() {
@@ -143,13 +123,11 @@ public class CollectorConfiguration {
         sb.append("agentEventWorkerThreadSize=").append(agentEventWorkerThreadSize);
         sb.append(", agentEventWorkerQueueSize=").append(agentEventWorkerQueueSize);
         sb.append(", l4IpList=").append(Arrays.toString(l4IpList));
-        sb.append(", clusterEnable=").append(clusterEnable);
-        sb.append(", clusterAddress='").append(clusterAddress).append('\'');
-        sb.append(", clusterSessionTimeout=").append(clusterSessionTimeout);
-        sb.append(", clusterListenIp='").append(clusterListenIp).append('\'');
-        sb.append(", clusterListenPort=").append(clusterListenPort);
+        sb.append(", metricJmxEnable=").append(metricJmxEnable);
+        sb.append(", metricJmxDomainName='").append(metricJmxDomainName).append('\'');
+        sb.append(", uriStatEnable=").append(uriStatEnable);
+        sb.append(", statisticsAgentStateEnable=").append(statisticsAgentStateEnable);
         sb.append('}');
         return sb.toString();
     }
-
 }

@@ -22,7 +22,7 @@ import com.navercorp.pinpoint.thrift.dto.TAnnotation;
 import com.navercorp.pinpoint.thrift.dto.TSpan;
 import com.navercorp.pinpoint.thrift.dto.TSpanChunk;
 import com.navercorp.pinpoint.thrift.dto.TSpanEvent;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.junit.Assert;
 
 import java.nio.ByteBuffer;
@@ -158,7 +158,7 @@ public class SpanFactoryAssert {
     private void assertSpanEventList(List<SpanEventBo> spanEventBoList, List<TSpanEvent> spanEventList) {
         Assert.assertEquals(CollectionUtils.isEmpty(spanEventBoList), CollectionUtils.isEmpty(spanEventList));
         if (CollectionUtils.isNotEmpty(spanEventBoList)) {
-            Map<Integer, SpanEventBo> spanEventBoMap = new HashMap<Integer, SpanEventBo>();
+            Map<Integer, SpanEventBo> spanEventBoMap = new HashMap<>();
             for (int i = 0; i < spanEventBoList.size(); i++) {
                 SpanEventBo spanEventBo = spanEventBoList.get(i);
                 spanEventBoMap.put((int)spanEventBo.getSequence(), spanEventBo);

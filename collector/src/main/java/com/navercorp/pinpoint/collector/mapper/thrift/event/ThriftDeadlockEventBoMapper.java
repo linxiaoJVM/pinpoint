@@ -20,8 +20,9 @@ import com.navercorp.pinpoint.common.server.bo.event.DeadlockBo;
 import com.navercorp.pinpoint.common.server.bo.event.DeadlockEventBo;
 import com.navercorp.pinpoint.common.server.util.AgentEventType;
 import com.navercorp.pinpoint.thrift.dto.TDeadlock;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -30,8 +31,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class ThriftDeadlockEventBoMapper implements AgentEventBoMapper<DeadlockEventBo, TDeadlock> {
 
-    @Autowired
-    private ThriftDeadlockBoMapper deadlockBoMapper;
+    private final ThriftDeadlockBoMapper deadlockBoMapper;
+
+    public ThriftDeadlockEventBoMapper(ThriftDeadlockBoMapper deadlockBoMapper) {
+        this.deadlockBoMapper = Objects.requireNonNull(deadlockBoMapper, "deadlockBoMapper");
+    }
 
     @Override
     public DeadlockEventBo map(String agentId, long startTimeStamp, long eventTimestamp, TDeadlock tDeadlock) {

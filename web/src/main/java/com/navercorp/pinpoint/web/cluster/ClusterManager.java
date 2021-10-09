@@ -25,15 +25,17 @@ import com.navercorp.pinpoint.web.vo.AgentInfo;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -45,14 +47,13 @@ public class ClusterManager {
 
     private final WebConfig config;
 
-    @Autowired
-    ClusterConnectionManager clusterConnectionManager;
+    private final ClusterConnectionManager clusterConnectionManager;
+    private final ClusterDataManager clusterDataManager;
 
-    @Autowired
-    ClusterDataManager clusterDataManager;
-
-    public ClusterManager(WebConfig config) {
-        this.config = config;
+    public ClusterManager(WebConfig config, ClusterConnectionManager clusterConnectionManager, ClusterDataManager clusterDataManager) {
+        this.config = Objects.requireNonNull(config, "config");
+        this.clusterConnectionManager = Objects.requireNonNull(clusterConnectionManager, "clusterConnectionManager");
+        this.clusterDataManager = Objects.requireNonNull(clusterDataManager, "clusterDataManager");
     }
 
     @PostConstruct
@@ -140,8 +141,12 @@ public class ClusterManager {
         return stringBuilder.toString().getBytes(charset);
     }
 
+    public boolean isEnabled() {
+        return config.isClusterEnable();
+    }
+
     public boolean isConnected(AgentInfo agentInfo) {
-        if (!config.isClusterEnable()) {
+        if (!isEnabled()) {
             return false;
         }
 
@@ -149,28 +154,31 @@ public class ClusterManager {
         return clusterIdList.size() == 1;
     }
 
-    public PinpointSocket getSocket(AgentInfo agentInfo) {
+    public List<PinpointSocket> getSocket(AgentInfo agentInfo) {
         return getSocket(agentInfo.getApplicationName(), agentInfo.getAgentId(), agentInfo.getStartTimestamp());
     }
 
-    public PinpointSocket getSocket(String applicationName, String agentId, long startTimeStamp) {
-        if (!config.isClusterEnable()) {
-            return null;
+    public List<PinpointSocket> getSocket(String applicationName, String agentId, long startTimeStamp) {
+        if (!isEnabled()) {
+            return Collections.emptyList();
         }
 
         List<String> clusterIdList = clusterDataManager.getRegisteredAgentList(applicationName, agentId, startTimeStamp);
 
-        // having duplicate AgentName registered is an exceptional case
         if (clusterIdList.isEmpty()) {
             logger.warn("{}/{}/{} couldn't find agent.", applicationName, agentId, startTimeStamp);
-            return null;
+            return Collections.emptyList();
         } else if (clusterIdList.size() > 1) {
             logger.warn("{}/{}/{} found duplicate agent {}.", applicationName, agentId, startTimeStamp, clusterIdList);
-            return null;
         }
 
-        String clusterId = clusterIdList.get(0);
-        return clusterConnectionManager.getSocket(clusterId);
+        List<PinpointSocket> pinpointSocketList = new ArrayList<>(clusterIdList.size());
+        for (String clusterId : clusterIdList) {
+            PinpointSocket pinpointSocket = clusterConnectionManager.getSocket(clusterId);
+            pinpointSocketList.add(pinpointSocket);
+        }
+
+        return pinpointSocketList;
     }
 
 }

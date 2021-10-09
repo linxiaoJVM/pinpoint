@@ -16,29 +16,34 @@
 
 package com.navercorp.pinpoint.test.plugin;
 
-import com.navercorp.pinpoint.common.util.Assert;
-import com.navercorp.pinpoint.common.util.SystemProperty;
+import com.navercorp.pinpoint.bootstrap.config.Profiles;
+import com.navercorp.pinpoint.test.plugin.util.TestLogger;
+import org.tinylog.TaggedLogger;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static com.navercorp.pinpoint.test.plugin.PinpointPluginTestConstants.PINPOINT_TEST_ID;
+import static com.navercorp.pinpoint.test.plugin.PluginTestConstants.PINPOINT_TEST_ID;
+import static com.navercorp.pinpoint.test.plugin.util.SystemPropertyBuilder.format;
 
 /**
  * @author Taejin Koo
  */
 public class DefaultProcessManager implements ProcessManager {
 
-    private final PinpointPluginTestContext context;
+    private final TaggedLogger logger = TestLogger.getLogger();
+
+    private final PluginTestContext context;
     private Process process = null;
 
-    public DefaultProcessManager(PinpointPluginTestContext context) {
-        this.context = Assert.requireNonNull(context, "context");
+    public DefaultProcessManager(PluginTestContext context) {
+        this.context = Objects.requireNonNull(context, "context");
     }
 
     @Override
@@ -49,11 +54,12 @@ public class DefaultProcessManager implements ProcessManager {
             builder.command(buildCommand(pluginTestInstance));
             builder.redirectErrorStream(true);
             builder.directory(pluginTestInstance.getWorkingDirectory());
-            System.out.println("Working directory: " + SystemProperty.INSTANCE.getProperty("user.dir"));
-            System.out.println("Command: " + builder.command());
+            logger.info("Working directory: {}", System.getProperty("user.dir"));
+            logger.info("Command: {}", builder.command());
             try {
                 this.process = builder.start();
             } catch (IOException e) {
+                logger.error(e, "process start failed");
             }
         } else {
             throw new IllegalStateException("Already create Process");
@@ -83,7 +89,8 @@ public class DefaultProcessManager implements ProcessManager {
             try {
                 process.waitFor();
             } catch (InterruptedException e) {
-                // ignore
+                Thread.currentThread().interrupt();
+                logger.warn(e, "waitFor() is interrupted");
             }
 
             timer.cancel();
@@ -92,7 +99,7 @@ public class DefaultProcessManager implements ProcessManager {
     }
 
     private String[] buildCommand(PinpointPluginTestInstance pluginTestInstance) {
-        List<String> list = new ArrayList<String>();
+        List<String> list = new ArrayList<>();
 
         list.add(context.getJavaExecutable());
 
@@ -101,30 +108,35 @@ public class DefaultProcessManager implements ProcessManager {
 
         list.add(getAgent());
 
-        list.add("-Dpinpoint.agentId=build.test.0");
-        list.add("-Dpinpoint.applicationName=test");
-        list.add("-D" + PINPOINT_TEST_ID + "=" + pluginTestInstance.getTestId());
+        list.add(format("pinpoint.agentId", "build.test.0"));
+        list.add(format("pinpoint.applicationName", "test"));
+        list.add(format(PINPOINT_TEST_ID, pluginTestInstance.getTestId()));
 
-        for (String arg : context.getJvmArguments()) {
-            list.add(arg);
-        }
+        list.addAll(Arrays.asList(context.getJvmArguments()));
 
         if (context.isDebug()) {
             list.addAll(getDebugOptions());
         }
 
         if (context.getProfile() != null) {
-            list.add("-Dpinpoint.profiler.profiles.active=" + context.getProfile());
+            list.add(format("pinpoint.profiler.profiles.active", context.getProfile()));
         }
 
         if (context.getConfigFile() != null) {
-            list.add("-Dpinpoint.config=" + context.getConfigFile());
-            list.add("-Dpinpoint.config.load.mode=simple");
+            list.add(format("pinpoint.config", context.getConfigFile()));
+            list.add(format("pinpoint.config.load.mode", "simple"));
         }
 
-        for (String arg : pluginTestInstance.getVmArgs()) {
-            list.add(arg);
+        String logLocationConfig = context.getLogLocationConfig();
+        if (logLocationConfig != null) {
+            if (logLocationConfig.endsWith("/")) {
+                list.add(format(Profiles.LOG_CONFIG_LOCATION_KEY, context.getLogLocationConfig()));
+            } else {
+                list.add(format(Profiles.LOG_CONFIG_LOCATION_KEY, context.getLogLocationConfig() + '/'));
+            }
         }
+
+        list.addAll(pluginTestInstance.getVmArgs());
 
         String mainClass = pluginTestInstance.getMainClass();
 
@@ -143,7 +155,7 @@ public class DefaultProcessManager implements ProcessManager {
     }
 
     private String getAgent() {
-        return "-javaagent:" + context.getAgentJar() + "=AGENT_TYPE=PLUGIN_TEST";
+        return String.format("-javaagent:%s=AGENT_TYPE=PLUGIN_TEST", context.getAgentJar());
     }
 
     private String getClassPathAsString(PinpointPluginTestInstance pluginTestInstance) {

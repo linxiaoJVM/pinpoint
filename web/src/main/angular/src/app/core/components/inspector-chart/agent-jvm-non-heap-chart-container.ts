@@ -1,4 +1,4 @@
-import { PrimitiveArray, Data } from 'billboard.js';
+import { PrimitiveArray, Data, spline, areaSpline, bar } from 'billboard.js';
 import { Observable } from 'rxjs';
 
 import { IInspectorChartContainer } from './inspector-chart-container-factory';
@@ -16,7 +16,7 @@ export class AgentJVMNonHeapChartContainer implements IInspectorChartContainer {
         private inspectorChartDataService: InspectorChartDataService
     ) {}
 
-    getData(range: number[]): Observable<IInspectorChartData | AjaxException> {
+    getData(range: number[]): Observable<IInspectorChartData> {
         return this.inspectorChartDataService.getData(this.apiUrl, range);
     }
 
@@ -47,9 +47,9 @@ export class AgentJVMNonHeapChartContainer implements IInspectorChartContainer {
     makeDataOption(): Data {
         return {
             types: {
-                max: 'spline',
-                used: 'area-spline',
-                fgcTime: 'bar'
+                max: spline(),
+                used: areaSpline(),
+                fgcTime: bar()
             },
             names: {
                 max: 'Max',
@@ -57,8 +57,8 @@ export class AgentJVMNonHeapChartContainer implements IInspectorChartContainer {
                 fgcTime: 'Major GC'
             },
             colors: {
-                max: 'rgba(174, 199, 232, 0.4)',
-                used: 'rgba(31, 119, 180, 0.4)',
+                max: 'rgba(31, 119, 180, 0.4)',
+                used: 'rgba(174, 199, 232, 0.4)',
                 fgcTime: 'rgba(255, 42, 0, 0.3)'
             },
             axes: {

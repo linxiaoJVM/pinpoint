@@ -41,7 +41,7 @@ import java.util.Map;
  * @author minwoo.jung
  */
 public class Bootstrap {
-    private static Logger logger = LoggerFactory.getLogger(Bootstrap.class);
+    private static final Logger logger = LoggerFactory.getLogger(Bootstrap.class);
     private static final String SPRING_PROFILE = "spring.profiles.active";
 
     private volatile static Bootstrap instance;
@@ -63,6 +63,8 @@ public class Bootstrap {
     private final DataSourceDao dataSourceDao;
     private final FileDescriptorDao fileDescriptorDao;
     private final DirectBufferDao directBufferDao;
+    private final TotalThreadCountDao totalThreadCountDao;
+    private final LoadedClassDao loadedClassDao;
     private final TBaseFlatMapperInterceptor tBaseFlatMapperInterceptor;
     private final StatisticsDaoInterceptor statisticsDaoInterceptor;
     private final ApplicationStatBoWindowInterceptor applicationStatBoWindowInterceptor;
@@ -83,8 +85,10 @@ public class Bootstrap {
         activeTraceDao = applicationContext.getBean("activeTraceDao", ActiveTraceDao.class);
         responseTimeDao = applicationContext.getBean("responseTimeDao", ResponseTimeDao.class);
         dataSourceDao = applicationContext.getBean("dataSourceDao", DataSourceDao.class);
+        totalThreadCountDao = applicationContext.getBean("totalThreadCountDao", TotalThreadCountDao.class);
         fileDescriptorDao = applicationContext.getBean("fileDescriptorDao", FileDescriptorDao.class);
         directBufferDao = applicationContext.getBean("directBufferDao", DirectBufferDao.class);
+        loadedClassDao = applicationContext.getBean("loadedClassDao", LoadedClassDao.class);
         tBaseFlatMapperInterceptor = applicationContext.getBean("tBaseFlatMapperInterceptor", TBaseFlatMapperInterceptor.class);
         statisticsDaoInterceptor =  applicationContext.getBean("statisticsDaoInterceptor", StatisticsDaoInterceptor.class);
         applicationStatBoWindowInterceptor = applicationContext.getBean("applicationStatBoWindowInterceptor", ApplicationStatBoWindowInterceptor.class);
@@ -145,6 +149,10 @@ public class Bootstrap {
     public DirectBufferDao getDirectBufferDao() {
         return directBufferDao;
     }
+
+    public TotalThreadCountDao getTotalThreadCountDao() { return totalThreadCountDao; }
+
+    public LoadedClassDao getLoadedClassDao() { return loadedClassDao; }
 
     public TBaseFlatMapper getTbaseFlatMapper() {
         return tbaseFlatMapper;

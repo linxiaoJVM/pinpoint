@@ -20,6 +20,8 @@ import com.navercorp.pinpoint.web.applicationmap.appender.histogram.EmptyNodeHis
 import com.navercorp.pinpoint.web.applicationmap.appender.histogram.NodeHistogramAppender;
 import com.navercorp.pinpoint.web.applicationmap.appender.histogram.NodeHistogramAppenderFactory;
 import com.navercorp.pinpoint.web.applicationmap.appender.histogram.NodeHistogramFactory;
+import com.navercorp.pinpoint.web.applicationmap.appender.metric.MetricInfoAppender;
+import com.navercorp.pinpoint.web.applicationmap.appender.metric.MetricInfoAppenderFactory;
 import com.navercorp.pinpoint.web.applicationmap.appender.server.EmptyServerInstanceListFactory;
 import com.navercorp.pinpoint.web.applicationmap.appender.server.ServerInfoAppender;
 import com.navercorp.pinpoint.web.applicationmap.appender.server.ServerInfoAppenderFactory;
@@ -38,6 +40,8 @@ import com.navercorp.pinpoint.web.vo.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 /**
  * @author emeroad
  * @author minwoo.jung
@@ -51,25 +55,18 @@ public class ApplicationMapBuilder {
 
     private final NodeHistogramAppenderFactory nodeHistogramAppenderFactory;
     private final ServerInfoAppenderFactory serverInfoAppenderFactory;
+    private final MetricInfoAppenderFactory metricInfoAppenderFactory;
 
     private NodeType nodeType;
     private LinkType linkType;
     private NodeHistogramFactory nodeHistogramFactory;
     private ServerInstanceListFactory serverInstanceListFactory;
 
-    public ApplicationMapBuilder(Range range, NodeHistogramAppenderFactory nodeHistogramAppenderFactory, ServerInfoAppenderFactory serverInfoAppenderFactory) {
-        if (range == null) {
-            throw new NullPointerException("range");
-        }
-        if (nodeHistogramAppenderFactory == null) {
-            throw new NullPointerException("nodeHistogramAppenderFactory");
-        }
-        if (serverInfoAppenderFactory == null) {
-            throw new NullPointerException("serverInfoAppenderFactory");
-        }
-        this.range = range;
-        this.nodeHistogramAppenderFactory = nodeHistogramAppenderFactory;
-        this.serverInfoAppenderFactory = serverInfoAppenderFactory;
+    public ApplicationMapBuilder(Range range, NodeHistogramAppenderFactory nodeHistogramAppenderFactory, ServerInfoAppenderFactory serverInfoAppenderFactory, MetricInfoAppenderFactory metricInfoAppenderFactory) {
+        this.range = Objects.requireNonNull(range, "range");
+        this.nodeHistogramAppenderFactory = Objects.requireNonNull(nodeHistogramAppenderFactory, "nodeHistogramAppenderFactory");
+        this.serverInfoAppenderFactory = Objects.requireNonNull(serverInfoAppenderFactory, "serverInfoAppenderFactory");
+        this.metricInfoAppenderFactory = Objects.requireNonNull(metricInfoAppenderFactory, "metricInfoAppenderFactory");
     }
 
     public ApplicationMapBuilder nodeType(NodeType nodeType) {
@@ -92,7 +89,7 @@ public class ApplicationMapBuilder {
         return this;
     }
 
-    public ApplicationMap build(Application application) {
+    public ApplicationMap build(Application application, long timeoutMillis) {
         logger.info("Building empty application map");
 
         NodeList nodeList = new NodeList();
@@ -117,15 +114,14 @@ public class ApplicationMapBuilder {
             nodeHistogramFactory = new EmptyNodeHistogramFactory();
         }
         NodeHistogramAppender nodeHistogramAppender = nodeHistogramAppenderFactory.create(nodeHistogramFactory);
-        nodeHistogramAppender.appendNodeHistogram(range, nodeList, emptyLinkList);
+        nodeHistogramAppender.appendNodeHistogram(range, nodeList, emptyLinkList, timeoutMillis);
 
         return new DefaultApplicationMap(range, nodeList, emptyLinkList);
     }
 
-    public ApplicationMap build(LinkDataDuplexMap linkDataDuplexMap) {
-        if (linkDataDuplexMap == null) {
-            throw new NullPointerException("linkDataDuplexMap");
-        }
+    public ApplicationMap build(LinkDataDuplexMap linkDataDuplexMap, long timeoutMillis) {
+        Objects.requireNonNull(linkDataDuplexMap, "linkDataDuplexMap");
+
         logger.info("Building application map");
 
         NodeType nodeType = this.nodeType;
@@ -145,16 +141,48 @@ public class ApplicationMapBuilder {
         if (nodeHistogramFactory == null) {
             nodeHistogramFactory = new EmptyNodeHistogramFactory();
         }
+
         NodeHistogramAppender nodeHistogramAppender = nodeHistogramAppenderFactory.create(nodeHistogramFactory);
-        nodeHistogramAppender.appendNodeHistogram(range, nodeList, linkList);
+        final TimeoutWatcher timeoutWatcher = new TimeoutWatcher(timeoutMillis);
+        nodeHistogramAppender.appendNodeHistogram(range, nodeList, linkList, timeoutWatcher.remainingTimeMillis());
 
         ServerInstanceListFactory serverInstanceListFactory = this.serverInstanceListFactory;
         if (serverInstanceListFactory == null) {
             serverInstanceListFactory = new EmptyServerInstanceListFactory();
         }
         ServerInfoAppender serverInfoAppender = serverInfoAppenderFactory.create(serverInstanceListFactory);
-        serverInfoAppender.appendServerInfo(range, nodeList, linkDataDuplexMap);
+        serverInfoAppender.appendServerInfo(range, nodeList, linkDataDuplexMap, timeoutWatcher.remainingTimeMillis());
+
+        MetricInfoAppender metricInfoAppender = metricInfoAppenderFactory.create();
+        metricInfoAppender.appendMetricInfo(range, nodeList, linkDataDuplexMap);
 
         return new DefaultApplicationMap(range, nodeList, linkList);
+    }
+
+    private static class TimeoutWatcher {
+        private static final int INFINITY_TIME = -1;
+        private final long timeoutMillis;
+        private final long startTimeMillis;
+
+        public TimeoutWatcher(long timeoutMillis) {
+            if (timeoutMillis <= 0) {
+                this.timeoutMillis = INFINITY_TIME;
+            } else {
+                this.timeoutMillis = timeoutMillis;
+            }
+            this.startTimeMillis = System.currentTimeMillis();
+        }
+
+        public long remainingTimeMillis() {
+            if (timeoutMillis == INFINITY_TIME) {
+                return INFINITY_TIME;
+            }
+
+            long elapsedTimeMillis = System.currentTimeMillis() - this.startTimeMillis;
+            if (this.timeoutMillis <= elapsedTimeMillis) {
+                return 0;
+            }
+            return this.timeoutMillis - elapsedTimeMillis;
+        }
     }
 }

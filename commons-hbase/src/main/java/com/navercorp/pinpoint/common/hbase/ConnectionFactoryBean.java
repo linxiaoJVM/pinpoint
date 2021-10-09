@@ -27,6 +27,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -42,50 +43,49 @@ public class ConnectionFactoryBean implements FactoryBean<Connection>, Initializ
     @Autowired(required = false)
     private TableNameProvider tableNameProvider;
 
+    @Qualifier("hbaseSecurityInterceptor")
+    @Autowired(required = false)
+    private HbaseSecurityInterceptor hbaseSecurityInterceptor = new EmptyHbaseSecurityInterceptor();
+
     private final boolean warmUp;
-    private final Connection connection;
+    private final Configuration configuration;
+    private Connection connection;
+    private ExecutorService executorService;
 
     public ConnectionFactoryBean(Configuration configuration) {
         Objects.requireNonNull(configuration, "configuration");
-        try {
-            warmUp = configuration.getBoolean("hbase.client.warmup.enable", false);
-            connection = ConnectionFactory.createConnection(configuration);
-        } catch (IOException e) {
-            throw new HbaseSystemException(e);
-        }
+        this.configuration = configuration;
+        warmUp = configuration.getBoolean("hbase.client.warmup.enable", false);
     }
 
     public ConnectionFactoryBean(Configuration configuration, ExecutorService executorService) {
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(executorService, "executorService");
-
-        try {
-            warmUp = configuration.getBoolean("hbase.client.warmup.enable", false);
-            connection = ConnectionFactory.createConnection(configuration, executorService);
-        } catch (IOException e) {
-            throw new HbaseSystemException(e);
-        }
-    }
-
-    public ConnectionFactoryBean(Configuration configuration, ExecutorService executorService, HbaseSecurityInterceptor hbaseSecurityInterceptor) {
-        Objects.requireNonNull(configuration, "configuration");
-        Objects.requireNonNull(executorService, "executorService");
-
-        try {
-            warmUp = configuration.getBoolean("hbase.client.warmup.enable", false);
-            hbaseSecurityInterceptor.process(configuration);
-            connection = ConnectionFactory.createConnection(configuration, executorService);
-        } catch (IOException e) {
-            throw new HbaseSystemException(e);
-        }
+        this.configuration = configuration;
+        this.executorService = executorService;
+        warmUp = configuration.getBoolean("hbase.client.warmup.enable", false);
     }
 
     @Override
     public void afterPropertiesSet() throws Exception {
+        hbaseSecurityInterceptor.process(configuration);
+        try {
+            if (Objects.isNull(executorService)) {
+                connection = ConnectionFactory.createConnection(this.configuration);
+            } else {
+                connection = ConnectionFactory.createConnection(this.configuration, executorService);
+            }
+        } catch (IOException e) {
+            throw new HbaseSystemException(e);
+        }
+
         if (warmUp) {
             if (tableNameProvider != null && tableNameProvider.hasDefaultNameSpace()) {
                 logger.info("warmup for hbase connection started");
                 for (HbaseTable hBaseTable : HbaseTable.values()) {
+                    if (!hBaseTable.isMustIncluded()) {
+                        continue;
+                    }
                     try {
                         TableName tableName = tableNameProvider.getTableName(hBaseTable);
                         RegionLocator regionLocator = connection.getRegionLocator(tableName);

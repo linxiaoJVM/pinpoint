@@ -28,8 +28,8 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -178,7 +178,8 @@ public class HbaseSchemaServiceImpl implements HbaseSchemaService {
         if (appliedChangeSets.isEmpty()) {
             logger.info("[{}] Current table schema does not match any schema from the change sets.", namespace);
         } else {
-            List<String> appliedChangeSetIds = appliedChangeSets.stream().map(ChangeSet::getId).collect(Collectors.toList());
+            List<String> appliedChangeSetIds = appliedChangeSets.stream()
+                    .map(ChangeSet::getId).collect(Collectors.toList());
             logger.info("[{}] Change sets already applied : {}", namespace, appliedChangeSetIds);
         }
 
@@ -195,7 +196,8 @@ public class HbaseSchemaServiceImpl implements HbaseSchemaService {
     private boolean updateExistingSchemas(String namespace, String compression, List<ChangeSet> changeSets, List<HTableDescriptor> currentHtds, List<SchemaChangeLog> executedLogs) {
         logger.info("[{}] Updating hbase schema.", namespace);
 
-        List<String> executedChangeLogIds = executedLogs.stream().map(SchemaChangeLog::getId).collect(Collectors.toList());
+        List<String> executedChangeLogIds = executedLogs.stream()
+                .map(SchemaChangeLog::getId).collect(Collectors.toList());
         logger.info("[{}] Executed change logs : {}", namespace, executedChangeLogIds);
 
         ChangeSetManager changeSetManager = new ChangeSetManager(changeSets);
@@ -260,9 +262,7 @@ public class HbaseSchemaServiceImpl implements HbaseSchemaService {
 
     @Override
     public SchemaChangeLog getChangeLog(String namespace, String changeSetId) {
-        if (StringUtils.isEmpty(changeSetId)) {
-            throw new IllegalArgumentException("Change set id must not be empty");
-        }
+        Assert.hasLength(changeSetId, "Change set must not be empty");
         assertInitialization(namespace);
         return schemaChangeLogService.getSchemaChangeLog(namespace, changeSetId);
     }

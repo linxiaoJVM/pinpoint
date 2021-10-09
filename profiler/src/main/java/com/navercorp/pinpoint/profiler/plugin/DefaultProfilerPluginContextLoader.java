@@ -19,10 +19,11 @@ import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.plugin.ProfilerPlugin;
 import com.navercorp.pinpoint.bootstrap.plugin.ProfilerPluginGlobalContext;
 import com.navercorp.pinpoint.common.trace.ServiceType;
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
 import com.navercorp.pinpoint.profiler.instrument.classloading.ClassInjector;
 import com.navercorp.pinpoint.profiler.instrument.classloading.ClassInjectorFactory;
+import com.navercorp.pinpoint.profiler.plugin.config.PluginLoadingConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,19 +45,23 @@ public class DefaultProfilerPluginContextLoader implements ProfilerPluginContext
     private final ClassNameFilter profilerPackageFilter = new PinpointProfilerPackageSkipFilter();
 
     private final ProfilerConfig profilerConfig;
+    private final PluginLoadingConfig pluginLoadingConfig;
     private final ServiceType configuredApplicationType;
     private final ClassInjectorFactory classInjectorFactory;
     private final PluginSetup pluginSetup;
     private final List<PluginJar> pluginJars;
 
-    public DefaultProfilerPluginContextLoader(ProfilerConfig profilerConfig, ServiceType configuredApplicationType,
+    public DefaultProfilerPluginContextLoader(ProfilerConfig profilerConfig,
+                                              PluginLoadingConfig pluginLoadingConfig,
+                                              ServiceType configuredApplicationType,
                                               ClassInjectorFactory classInjectorFactory, PluginSetup pluginSetup,
                                               List<PluginJar> pluginJars) {
-        this.profilerConfig = Assert.requireNonNull(profilerConfig, "profilerConfig");
-        this.configuredApplicationType = Assert.requireNonNull(configuredApplicationType, "configuredApplicationType");
-        this.classInjectorFactory = Assert.requireNonNull(classInjectorFactory, "classInjectorFactory");
-        this.pluginSetup = Assert.requireNonNull(pluginSetup, "pluginSetup");
-        this.pluginJars = Assert.requireNonNull(pluginJars, "pluginJars");
+        this.profilerConfig = Objects.requireNonNull(profilerConfig, "profilerConfig");
+        this.pluginLoadingConfig = Objects.requireNonNull(pluginLoadingConfig, "pluginLoadingConfig");
+        this.configuredApplicationType = Objects.requireNonNull(configuredApplicationType, "configuredApplicationType");
+        this.classInjectorFactory = Objects.requireNonNull(classInjectorFactory, "classInjectorFactory");
+        this.pluginSetup = Objects.requireNonNull(pluginSetup, "pluginSetup");
+        this.pluginJars = Objects.requireNonNull(pluginJars, "pluginJars");
     }
 
     @Override
@@ -82,9 +87,9 @@ public class DefaultProfilerPluginContextLoader implements ProfilerPluginContext
         List<String> pluginPackageList = plugin.getPackageList();
         final ClassNameFilter pluginFilterChain = createPluginFilterChain(pluginPackageList);
 
-        List<ProfilerPlugin> filterProfilerPlugin = filterProfilerPlugin(plugin.getInstanceList(), profilerConfig.getDisabledPlugins());
+        List<ProfilerPlugin> filterProfilerPlugin = filterProfilerPlugin(plugin.getInstanceList(), pluginLoadingConfig.getDisabledPlugins());
 
-        List<PluginSetupResult> result = new ArrayList<PluginSetupResult>();
+        List<PluginSetupResult> result = new ArrayList<>();
         for (ProfilerPlugin profilerPlugin : filterProfilerPlugin) {
             if (logger.isInfoEnabled()) {
                 logger.info("{} Plugin {}:{}", profilerPlugin.getClass(), PluginJar.PINPOINT_PLUGIN_PACKAGE, pluginPackageList);
@@ -102,7 +107,7 @@ public class DefaultProfilerPluginContextLoader implements ProfilerPluginContext
     // 1.9.0 - Disabled plugin configuration should now be groupId:artifactId
     @Deprecated
     private List<ProfilerPlugin> filterProfilerPlugin(List<ProfilerPlugin> originalProfilerPlugin, List<String> disabled) {
-        List<ProfilerPlugin> result = new ArrayList<ProfilerPlugin>();
+        List<ProfilerPlugin> result = new ArrayList<>();
         for (ProfilerPlugin profilerPlugin : originalProfilerPlugin) {
             if (disabled.contains(profilerPlugin.getClass().getName())) {
                 logger.info("Skip disabled plugin: {}", profilerPlugin.getClass().getName());
@@ -131,7 +136,7 @@ public class DefaultProfilerPluginContextLoader implements ProfilerPluginContext
         private final Map<String, JarPluginComponent> componentMap;
 
         private JarPluginComponents(List<PluginJar> pluginJars) {
-            this.componentMap = new LinkedHashMap<String, JarPluginComponent>(pluginJars.size());
+            this.componentMap = new LinkedHashMap<>(pluginJars.size());
             for (PluginJar pluginJar : pluginJars) {
                 String key = generateKey(pluginJar.getUrl());
                 componentMap.put(key, new JarPluginComponent(pluginJar));
@@ -158,7 +163,7 @@ public class DefaultProfilerPluginContextLoader implements ProfilerPluginContext
         }
 
         public Collection<JarPlugin<ProfilerPlugin>> buildJarPlugins() {
-            List<JarPlugin<ProfilerPlugin>> jarPlugins = new ArrayList<JarPlugin<ProfilerPlugin>>(componentMap.size());
+            List<JarPlugin<ProfilerPlugin>> jarPlugins = new ArrayList<>(componentMap.size());
             for (JarPluginComponent component : componentMap.values()) {
                 jarPlugins.add(component.toJarPlugin());
             }
@@ -170,8 +175,8 @@ public class DefaultProfilerPluginContextLoader implements ProfilerPluginContext
             private final List<ProfilerPlugin> profilerPlugins;
 
             private JarPluginComponent(PluginJar pluginJar) {
-                this.pluginJar = Assert.requireNonNull(pluginJar, "pluginJar");
-                this.profilerPlugins = new ArrayList<ProfilerPlugin>();
+                this.pluginJar = Objects.requireNonNull(pluginJar, "pluginJar");
+                this.profilerPlugins = new ArrayList<>();
             }
 
             private void addProfilerPlugin(ProfilerPlugin profilerPlugin) {

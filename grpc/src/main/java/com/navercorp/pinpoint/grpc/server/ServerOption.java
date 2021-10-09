@@ -17,7 +17,9 @@
 package com.navercorp.pinpoint.grpc.server;
 
 import com.navercorp.pinpoint.common.util.Assert;
+import com.navercorp.pinpoint.grpc.ChannelTypeEnum;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -27,7 +29,8 @@ public class ServerOption {
     public static final int DEFAULT_FLOW_CONTROL_WINDOW = 1048576; // 1MiB
     public static final long DEFAULT_KEEPALIVE_TIME = TimeUnit.SECONDS.toMillis(30);
     public static final long DEFAULT_KEEPALIVE_TIMEOUT = TimeUnit.SECONDS.toMillis(60);
-    public static final long DEFAULT_PERMIT_KEEPALIVE_TIME = TimeUnit.SECONDS.toMillis(30);
+    // Set it to 10 seconds shorter than the client's KeepAliveTime.
+    public static final long DEFAULT_PERMIT_KEEPALIVE_TIME = TimeUnit.SECONDS.toMillis(20);
     public static final boolean PERMIT_KEEPALIVE_WITHOUT_CALLS_DISABLE = Boolean.FALSE;
 
     public static final long DEFAULT_MAX_CONNECTION_IDLE = TimeUnit.SECONDS.toMillis(10); // 10s
@@ -40,6 +43,8 @@ public class ServerOption {
 
     public static final long DEFAULT_HANDSHAKE_TIMEOUT = TimeUnit.SECONDS.toMillis(120);
     public static final int DEFAULT_RECEIVE_BUFFER_SIZE = 64 * 1024;
+
+    public static final String DEFAULT_CHANNEL_TYPE = ChannelTypeEnum.AUTO.name();
 
     // Sets a custom keepalive time, the delay time for sending next keepalive ping.
     private final long keepAliveTime;
@@ -71,7 +76,12 @@ public class ServerOption {
     // ChannelOption
     private final int receiveBufferSize;
 
-    ServerOption(long keepAliveTime, long keepAliveTimeout, long permitKeepAliveTime, long maxConnectionIdle, int maxConcurrentCallsPerConnection, int maxInboundMessageSize, int maxHeaderListSize, long handshakeTimeout, int flowControlWindow, int receiveBufferSize) {
+    public final ChannelTypeEnum channelTypeEnum;
+
+    ServerOption(long keepAliveTime, long keepAliveTimeout, long permitKeepAliveTime, long maxConnectionIdle,
+                 int maxConcurrentCallsPerConnection, int maxInboundMessageSize, int maxHeaderListSize,
+                 long handshakeTimeout, int flowControlWindow, int receiveBufferSize,
+                 ChannelTypeEnum channelTypeEnum) {
         this.keepAliveTime = keepAliveTime;
         this.keepAliveTimeout = keepAliveTimeout;
         this.permitKeepAliveTime = permitKeepAliveTime;
@@ -82,6 +92,7 @@ public class ServerOption {
         this.handshakeTimeout = handshakeTimeout;
         this.flowControlWindow = flowControlWindow;
         this.receiveBufferSize = receiveBufferSize;
+        this.channelTypeEnum = Objects.requireNonNull(channelTypeEnum, "channelTypeEnum");
     }
 
     public long getKeepAliveTime() {
@@ -136,6 +147,14 @@ public class ServerOption {
         return receiveBufferSize;
     }
 
+    public ChannelTypeEnum getChannelTypeEnum() {
+        return channelTypeEnum;
+    }
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("ServerOption{");
@@ -152,6 +171,7 @@ public class ServerOption {
         sb.append(", handshakeTimeout=").append(handshakeTimeout);
         sb.append(", flowControlWindow=").append(flowControlWindow);
         sb.append(", receiveBufferSize=").append(receiveBufferSize);
+        sb.append(", channelTypeEnum=").append(channelTypeEnum);
         sb.append('}');
         return sb.toString();
     }
@@ -180,8 +200,15 @@ public class ServerOption {
 
         private int receiveBufferSize = DEFAULT_RECEIVE_BUFFER_SIZE;
 
+        private ChannelTypeEnum channelTypeEnum = ChannelTypeEnum.valueOf(DEFAULT_CHANNEL_TYPE);
+
+        private Builder() {
+        }
+
         public ServerOption build() {
-            final ServerOption serverOption = new ServerOption(keepAliveTime, keepAliveTimeout, permitKeepAliveTime, maxConnectionIdle, maxConcurrentCallsPerConnection, maxInboundMessageSize, maxHeaderListSize, handshakeTimeout, flowControlWindow, receiveBufferSize);
+            final ServerOption serverOption = new ServerOption(keepAliveTime, keepAliveTimeout, permitKeepAliveTime,
+                    maxConnectionIdle, maxConcurrentCallsPerConnection, maxInboundMessageSize,
+                    maxHeaderListSize, handshakeTimeout, flowControlWindow, receiveBufferSize, channelTypeEnum);
             return serverOption;
         }
 
@@ -235,6 +262,11 @@ public class ServerOption {
             this.receiveBufferSize = receiveBufferSize;
         }
 
+        public void setChannelTypeEnum(String channelTypeEnum) {
+            Objects.requireNonNull(channelTypeEnum, "channelTypeEnum");
+            this.channelTypeEnum = ChannelTypeEnum.valueOf(channelTypeEnum);
+        }
+
         @Override
         public String toString() {
             final StringBuilder sb = new StringBuilder("Builder{");
@@ -248,6 +280,7 @@ public class ServerOption {
             sb.append(", handshakeTimeout=").append(handshakeTimeout);
             sb.append(", flowControlWindow=").append(flowControlWindow);
             sb.append(", receiveBufferSize=").append(receiveBufferSize);
+            sb.append(", channelTypeEnum=").append(channelTypeEnum);
             sb.append('}');
             return sb.toString();
         }

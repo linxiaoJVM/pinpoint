@@ -20,15 +20,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import com.navercorp.pinpoint.common.hbase.RowMapper;
+import com.navercorp.pinpoint.common.hbase.util.CellUtils;
 import com.navercorp.pinpoint.web.service.ApplicationFactory;
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.navercorp.pinpoint.web.vo.Application;
@@ -39,8 +38,11 @@ import com.navercorp.pinpoint.web.vo.Application;
 @Component
 public class ApplicationNameMapper implements RowMapper<List<Application>> {
 
-    @Autowired
-    private ApplicationFactory applicationFactory;
+    private final ApplicationFactory applicationFactory;
+
+    public ApplicationNameMapper(ApplicationFactory applicationFactory) {
+        this.applicationFactory = Objects.requireNonNull(applicationFactory, "applicationFactory");
+    }
 
     @Override
     public List<Application> mapRow(Result result, int rowNum) throws Exception {
@@ -48,11 +50,11 @@ public class ApplicationNameMapper implements RowMapper<List<Application>> {
             return Collections.emptyList();
         }
         Set<Short> uniqueTypeCodes = new HashSet<>();
-        String applicationName = Bytes.toString(result.getRow());
+        String applicationName = CellUtils.rowToString(result);
         
         Cell[] rawCells = result.rawCells();
         for (Cell cell : rawCells) {
-            short serviceTypeCode = Bytes.toShort(CellUtil.cloneValue(cell));
+            short serviceTypeCode = CellUtils.valueToShort(cell);
             uniqueTypeCodes.add(serviceTypeCode);
         }
         List<Application> applicationList = new ArrayList<>();

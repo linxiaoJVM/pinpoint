@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Subject, Observable, forkJoin, merge, of } from 'rxjs';
+import { Subject, Observable, forkJoin, merge, EMPTY } from 'rxjs';
 import { filter, tap, switchMap, catchError, map } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 
@@ -30,14 +30,16 @@ export class RemovableAgentListContainerComponent implements OnInit, OnDestroy {
     errorMessage: string;
     agentList$: Observable<{[key: string]: any}>;
     selectedApplication: IApplication = null;
-    removeTarget: {appName: string, agentId: string};
+    removeAgent: string;
     i18nText: {[key: string]: string} = {
         select: '',
         cancelButton: '',
         removeButton: '',
         removeAllAgents: '',
-        removeAgent: ''
+        removeAgent: '',
+        passwordGuide: ''
     };
+    password: string;
 
     constructor(
         private translateService: TranslateService,
@@ -74,15 +76,17 @@ export class RemovableAgentListContainerComponent implements OnInit, OnDestroy {
                 map((data: IAgentList) => {
                     return Object.entries(data).reduce((acc: {[key: string]: any}[], [key, value]: [string, IAgent[]]) => {
                         return [...acc, ...value.map((agent: IAgent) => {
-                            const {applicationName, hostName, agentId, agentVersion, startTimestamp, ip} = agent;
+                            const {applicationName, hostName, agentId, agentName, agentVersion, startTimestamp, ip} = agent;
+                            const agentNameText = agentName ? agentName : 'N/A';
 
-                            return {applicationName, hostName, agentId, agentVersion, startTimestamp, ip};
+                            return {applicationName, hostName, agentId, agentNameText, agentVersion, startTimestamp, ip};
                         })];
                     }, []);
                 }),
                 catchError((error: IServerErrorFormat) => {
                     this.errorMessage = error.exception.message;
-                    return of(null);
+                    this.hideProcessing();
+                    return EMPTY;
                 }),
                 tap(() => this.hideProcessing())
             )),
@@ -96,26 +100,29 @@ export class RemovableAgentListContainerComponent implements OnInit, OnDestroy {
             this.translateService.get('COMMON.CANCEL'),
             this.translateService.get('CONFIGURATION.AGENT_MANAGEMENT.REMOVE_APPLICATION'),
             this.translateService.get('CONFIGURATION.AGENT_MANAGEMENT.REMOVE_AGENT'),
-        ).subscribe(([selectApp, removeBtnLabel, cancelBtnLabel, removeApp, removeAgent]: string[]) => {
+            this.translateService.get('CONFIGURATION.AGENT_MANAGEMENT.PASSWORD_GUIDE')
+        ).subscribe(([selectApp, removeBtnLabel, cancelBtnLabel, removeApp, removeAgent, passwordGuide]: string[]) => {
             this.i18nText.select = selectApp;
             this.i18nText.removeButton = removeBtnLabel;
             this.i18nText.cancelButton = cancelBtnLabel;
             this.i18nText.removeApplication = removeApp;
             this.i18nText.removeAgent = removeAgent;
+            this.i18nText.passwordGuide = passwordGuide;
         });
     }
 
     private set removeType(type: REMOVE_TYPE) {
         this._removeType = type;
         this.isOnRemovePhase = type !== REMOVE_TYPE.NONE;
+        this.password = '';
     }
 
     private get removeType(): REMOVE_TYPE {
         return this._removeType;
     }
 
-    onRemoveSelectAgent(agentInfo: {appName: string, agentId: string}): void {
-        this.removeTarget = agentInfo;
+    onRemoveSelectAgent(agentId: string): void {
+        this.removeAgent = agentId;
         this.removeType = REMOVE_TYPE.EACH;
         this.analyticsService.trackEvent(TRACKED_EVENT_LIST.SHOW_ONE_AGENT_REMOVE_CONFIRM_VIEW);
     }
@@ -125,7 +132,7 @@ export class RemovableAgentListContainerComponent implements OnInit, OnDestroy {
         // this.analyticsService.trackEvent(TRACKED_EVENT_LIST.SHOW_ALL_INACTIVE_AGENTS_REMOVE_CONFIRM_VIEW);
     }
 
-    onRemoveCancel(): void {
+    onClose(): void {
         this.removeType = REMOVE_TYPE.NONE;
     }
 
@@ -133,7 +140,10 @@ export class RemovableAgentListContainerComponent implements OnInit, OnDestroy {
         this.showProcessing();
 
         if (this.isAppRemove()) {
-            this.removableAgentDataService.removeApplication(this.selectedApplication.getApplicationName()).pipe(
+            this.removableAgentDataService.removeApplication({
+                applicationName: this.selectedApplication.getApplicationName(),
+                password: this.password
+            }).pipe(
                 filter((response: string) => response === 'OK')
             ).subscribe(() => {
                 this.messageQueueService.sendMessage({
@@ -152,8 +162,9 @@ export class RemovableAgentListContainerComponent implements OnInit, OnDestroy {
             });
         } else {
             this.removableAgentDataService.removeAgentId({
-                applicationName: this.removeTarget.appName,
-                agentId: this.removeTarget.agentId
+                applicationName: this.selectedApplication.getApplicationName(),
+                agentId: this.removeAgent,
+                password: this.password
             }).pipe(
                 tap(() => this.analyticsService.trackEvent(TRACKED_EVENT_LIST.REMOVE_ONE_AGENT)),
                 filter((response: string) => response === 'OK'),

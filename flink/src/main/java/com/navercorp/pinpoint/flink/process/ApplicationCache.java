@@ -15,17 +15,13 @@
  */
 package com.navercorp.pinpoint.flink.process;
 
-import com.navercorp.pinpoint.common.hbase.HbaseTableConstatns;
 import com.navercorp.pinpoint.common.hbase.HbaseTemplate2;
 import com.navercorp.pinpoint.common.hbase.TableNameProvider;
-import com.navercorp.pinpoint.common.server.util.RowKeyUtils;
-import com.navercorp.pinpoint.common.util.TimeUtils;
+import com.navercorp.pinpoint.common.server.bo.serializer.agent.AgentIdRowKeyEncoder;
 import com.navercorp.pinpoint.web.mapper.AgentInfoMapper;
 import com.navercorp.pinpoint.web.vo.AgentInfo;
-
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
@@ -49,16 +45,18 @@ public class ApplicationCache {
 
     private final transient TableNameProvider tableNameProvider;
 
+    private final AgentIdRowKeyEncoder rowKeyEncoder = new AgentIdRowKeyEncoder();
+
     public ApplicationCache(HbaseTemplate2 hbaseTemplate2, TableNameProvider tableNameProvider) {
         this.hbaseTemplate2 = Objects.requireNonNull(hbaseTemplate2, "hbaseTemplate");
         this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
     }
 
-    @Cacheable(value="applicationId", key=SPEL_KEY)
+    @Cacheable(cacheNames = "applicationId", key = SPEL_KEY, cacheManager = "applicationId")
     public String findApplicationId(ApplicationKey application) {
         final String agentId = application.getAgentId();
         final long agentStartTimestamp = application.getAgentStartTime();
-        final byte[] rowKey = RowKeyUtils.concatFixedByteAndLong(Bytes.toBytes(agentId), HbaseTableConstatns.AGENT_NAME_MAX_LEN, TimeUtils.reverseTimeMillis(agentStartTimestamp));
+        final byte[] rowKey = rowKeyEncoder.encodeRowKey(agentId, agentStartTimestamp);
 
         Get get = new Get(rowKey);
 
@@ -121,9 +119,9 @@ public class ApplicationCache {
         @Override
         public String toString() {
             return "ApplicationKey{" +
-                "agentId='" + agentId + '\'' +
-                ", agentStartTime=" + agentStartTime +
-                '}';
+                    "agentId='" + agentId + '\'' +
+                    ", agentStartTime=" + agentStartTime +
+                    '}';
         }
     }
 }

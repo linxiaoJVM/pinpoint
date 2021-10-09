@@ -17,20 +17,22 @@
 
 package com.navercorp.pinpoint.test.monitor;
 
+import com.navercorp.pinpoint.profiler.context.monitor.config.MonitorConfig;
 import com.navercorp.pinpoint.profiler.monitor.AgentStatMonitor;
 import com.navercorp.pinpoint.profiler.monitor.DefaultAgentStatMonitor;
 import com.navercorp.pinpoint.profiler.monitor.collector.AgentStatMetricCollector;
 import com.navercorp.pinpoint.profiler.monitor.metric.AgentStatMetricSnapshot;
 import com.navercorp.pinpoint.profiler.monitor.metric.AgentStatMetricSnapshotBatch;
+import com.navercorp.pinpoint.profiler.monitor.metric.MetricType;
 import com.navercorp.pinpoint.profiler.sender.DataSender;
 import com.navercorp.pinpoint.test.ListenableDataSender;
 import com.navercorp.pinpoint.test.TBaseRecorder;
 import com.navercorp.pinpoint.test.TBaseRecorderAdaptor;
-import com.navercorp.pinpoint.thrift.dto.TAgentStat;
-import com.navercorp.pinpoint.thrift.dto.TAgentStatBatch;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,21 +48,21 @@ public class AgentStatMonitorTest {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private TBaseRecorder<AgentStatMetricSnapshotBatch> tBaseRecorder;
-    private DataSender dataSender;
+    private DataSender<MetricType> dataSender;
 
     @Mock
     private AgentStatMetricCollector<AgentStatMetricSnapshot> agentStatCollector;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         MockitoAnnotations.initMocks(this);
         when(agentStatCollector.collect()).thenReturn(new AgentStatMetricSnapshot());
 
-        this.tBaseRecorder = new TBaseRecorder<AgentStatMetricSnapshotBatch>();
-        TBaseRecorderAdaptor recorderAdaptor = new TBaseRecorderAdaptor(tBaseRecorder);
+        this.tBaseRecorder = new TBaseRecorder<>();
+        ListenableDataSender.Listener<? extends MetricType> recorderAdaptor = new TBaseRecorderAdaptor<>(tBaseRecorder);
 
-        ListenableDataSender listenableDataSender = new ListenableDataSender("testDataSender");
-        listenableDataSender.setListener(recorderAdaptor);
+        ListenableDataSender<MetricType> listenableDataSender = new ListenableDataSender<>("testDataSender");
+        listenableDataSender.setListener((ListenableDataSender.Listener<MetricType>) recorderAdaptor);
         this.dataSender = listenableDataSender;
     }
 
@@ -71,9 +73,16 @@ public class AgentStatMonitorTest {
         final int numCollectionsPerBatch = 2;
         final int minNumBatchToTest = 2;
         final long totalTestDurationMs = collectionIntervalMs + collectionIntervalMs * numCollectionsPerBatch * minNumBatchToTest;
+
+//        profilerConfig.getProfileJvmStatCollectIntervalMs(), profilerConfig.getProfileJvmStatBatchSendCount()
+
+        MonitorConfig mockProfilerConfig = Mockito.mock(MonitorConfig.class);
+        Mockito.when(mockProfilerConfig.getProfileJvmStatCollectIntervalMs()).thenReturn((int) collectionIntervalMs);
+        Mockito.when(mockProfilerConfig.getProfileJvmStatBatchSendCount()).thenReturn(numCollectionsPerBatch);
+
         // When
         AgentStatMonitor monitor = new DefaultAgentStatMonitor(this.dataSender, "agentId", System.currentTimeMillis(),
-                agentStatCollector, collectionIntervalMs, numCollectionsPerBatch);
+                agentStatCollector, null, null, mockProfilerConfig);
         monitor.start();
         Thread.sleep(totalTestDurationMs);
         monitor.stop();

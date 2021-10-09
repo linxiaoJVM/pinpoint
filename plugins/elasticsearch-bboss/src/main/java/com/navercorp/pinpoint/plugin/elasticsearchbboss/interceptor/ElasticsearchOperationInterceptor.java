@@ -42,14 +42,12 @@ public class ElasticsearchOperationInterceptor extends SpanEventSimpleAroundInte
     protected void doInAfterTrace(SpanEventRecorder recorder, Object target, Object[] args, Object result, Throwable throwable) {
         recorder.recordServiceType(ElasticsearchConstants.ELASTICSEARCH);
         recorder.recordException(throwable);
-        if (recordArgs && args != null && args.length > 0) {
-            recorder.recordApi(getMethodDescriptor());
-//            recorder.recordAttribute(ElasticsearchConstants.ARGS_ANNOTATION_KEY,convertParams(args));
-        } else {
-            recorder.recordApi(getMethodDescriptor());
-        }
+        recorder.recordApi(getMethodDescriptor());
+//        if (recordArgs && ArrayUtils.hasLength(args)) {
+////            recorder.recordAttribute(ElasticsearchConstants.ARGS_ANNOTATION_KEY,convertParams(args));
+//        }
 
-        if(recordResult){
+        if (recordResult) {
             recorder.recordAttribute(AnnotationKey.RETURN_DATA,result);
         }
     }

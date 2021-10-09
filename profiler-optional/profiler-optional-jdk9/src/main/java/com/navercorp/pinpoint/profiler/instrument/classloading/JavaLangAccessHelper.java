@@ -17,129 +17,55 @@
 package com.navercorp.pinpoint.profiler.instrument.classloading;
 
 import com.navercorp.pinpoint.common.util.JvmUtils;
-import com.navercorp.pinpoint.common.util.JvmVersion;
+import com.navercorp.pinpoint.common.util.SystemPropertyKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 
 /**
  * @author jaehong.kim
  */
-public class JavaLangAccessHelper {
+public final class JavaLangAccessHelper {
     private static final Logger logger = LoggerFactory.getLogger(JavaLangAccessHelper.class);
     // Java 9 version over and after
-    private static final String JAVA9_SHARED_SECRETS_CLASS_NAME = "jdk.internal.misc.SharedSecrets";
-    private static final String JAVA9_JAVA_LANG_ACCESS_CLASS_NAME = "jdk.internal.misc.JavaLangAccess";
+    private static final String MISC_SHARED_SECRETS_CLASS_NAME = "jdk.internal.misc.SharedSecrets";
+    private static final String MISC_JAVA_LANG_ACCESS_CLASS_NAME = "jdk.internal.misc.JavaLangAccess";
     // Java 12 version over and after
-    private static final String JAVA12_SHARED_SECRETS_CLASS_NAME = "jdk.internal.access.SharedSecrets";
-    private static final String JAVA12_JAVA_LANG_ACCESS_CLASS_NAME = "jdk.internal.access.JavaLangAccess";
+    private static final String ACCESS_SHARED_SECRETS_CLASS_NAME = "jdk.internal.access.SharedSecrets";
+    private static final String ACCESS_JAVA_LANG_ACCESS_CLASS_NAME = "jdk.internal.access.JavaLangAccess";
 
-    // Static method
-    private static final String GET_JAVA_LANG_ACCESS_METHOD_NAME = "getJavaLangAccess";
-    // Public method
-    private static final String REGISTER_SHUTDOWN_HOOK_METHOD_NAME = "registerShutdownHook";
-    private static final String DEFINE_CLASS_METHOD_NAME = "defineClass";
+    private static final JavaLangAccess JAVA_LANG_ACCESS = newJavaLangAccessor();
 
     private JavaLangAccessHelper() {
     }
 
-    public static Object getJavaLangAccessObject() {
-        return JavaLangAccessObjectHolder.JAVA_LANG_ACCESS_OBJECT;
+    public static JavaLangAccess getJavaLangAccess() {
+        return JAVA_LANG_ACCESS;
     }
 
-    public static MethodHandle getRegisterShutdownHookMethodHandle() {
-        return RegisterShutdownHookMethodHandleHolder.REGISTER_SHUTDOWN_HOOK_METHOD_HANDLE;
+    // for debugging
+    private static void dumpJdkInfo() {
+        logger.warn("Dump JDK info java.vm.name:{} java.version:{}", JvmUtils.getSystemProperty(SystemPropertyKey.JAVA_VM_NAME), JvmUtils.getSystemProperty(SystemPropertyKey.JAVA_VM_VERSION));
     }
 
-    public static MethodHandle getDefineClassMethodHandle() {
-        return DefineClassMethodHandleHolder.DEFINE_CLASS_METHOD_HANDLE;
-    }
 
-    private static Object initJavaLangAccessObject() {
-        final MethodHandles.Lookup lookup = MethodHandles.lookup();
-        final JvmVersion version = JvmUtils.getVersion();
-
+    private static JavaLangAccess newJavaLangAccessor()  {
         try {
-            final Class<?> sharedSecretsClazz = findSharedSecretsClass(lookup, version);
-            final Class<?> javaLangAccessClazz = findJavaLangAccessClass(lookup, version);
-            Object result = invokeGetJavaLangAccessMethod(lookup, sharedSecretsClazz, javaLangAccessClazz);
-            return result;
-        } catch (Throwable t) {
-            logger.warn("Failed to initialized JavaLangAccess Object", t);
+            Class.forName(MISC_JAVA_LANG_ACCESS_CLASS_NAME, false, JavaLangAccess.class.getClassLoader());
+            return new JavaLangAccess9();
+        } catch (ClassNotFoundException ignore) {
+            // ignore
         }
-
-        return null;
-    }
-
-    private static MethodHandle initRegisterShutdownHookMethodHandle() {
-        final MethodHandles.Lookup lookup = MethodHandles.lookup();
-        final JvmVersion version = JvmUtils.getVersion();
-
         try {
-            Class<?> javaLangAccessClazz = findJavaLangAccessClass(lookup, version);
-            return findRegisterShutdownHookMethodHandle(lookup, javaLangAccessClazz);
-        } catch (Throwable t) {
-            logger.warn("Failed to initialized registerShutdownHook MethodHandle", t);
+            // https://github.com/naver/pinpoint/issues/6752
+            // Oracle JDK11 : jdk.internal.access
+            // openJDK11 =  jdk.internal.misc
+            Class.forName(ACCESS_SHARED_SECRETS_CLASS_NAME, false, JavaLangAccess.class.getClassLoader());
+            return new JavaLangAccess11();
+        } catch (ClassNotFoundException ignore) {
+            // ignore
         }
 
-        return null;
-    }
-
-    private static MethodHandle initDefineClassMethodHandle() {
-        final MethodHandles.Lookup lookup = MethodHandles.lookup();
-        final JvmVersion version = JvmUtils.getVersion();
-
-        try {
-            Class<?> javaLangAccessClazz = findJavaLangAccessClass(lookup, version);
-            return findDefineClassMethodHandle(lookup, javaLangAccessClazz);
-        } catch (Throwable t) {
-            logger.warn("Failed to initialized defineClass MethodHandle", t);
-        }
-
-        return null;
-    }
-
-    private static Class<?> findSharedSecretsClass(MethodHandles.Lookup lookup, JvmVersion version) throws IllegalAccessException, ClassNotFoundException {
-        if (version.onOrAfter(JvmVersion.JAVA_12)) {
-            return lookup.findClass(JAVA12_SHARED_SECRETS_CLASS_NAME);
-        } else {
-            return lookup.findClass(JAVA9_SHARED_SECRETS_CLASS_NAME);
-        }
-    }
-
-    private static Class<?> findJavaLangAccessClass(MethodHandles.Lookup lookup, JvmVersion version) throws IllegalAccessException, ClassNotFoundException {
-        if (version.onOrAfter(JvmVersion.JAVA_12)) {
-            return lookup.findClass(JAVA12_JAVA_LANG_ACCESS_CLASS_NAME);
-        } else {
-            return lookup.findClass(JAVA9_JAVA_LANG_ACCESS_CLASS_NAME);
-        }
-    }
-
-    private static Object invokeGetJavaLangAccessMethod(MethodHandles.Lookup lookup, Class<?> refc, Class<?> rtype) throws Throwable {
-        final MethodHandle methodHandle = lookup.findStatic(refc, GET_JAVA_LANG_ACCESS_METHOD_NAME, MethodType.methodType(rtype));
-        return methodHandle.invoke();
-    }
-
-    private static MethodHandle findRegisterShutdownHookMethodHandle(MethodHandles.Lookup lookup, Class<?> refc) throws NoSuchMethodException, IllegalAccessException {
-        return lookup.findVirtual(refc, REGISTER_SHUTDOWN_HOOK_METHOD_NAME, MethodType.methodType(void.class, int.class, boolean.class, Runnable.class));
-    }
-
-    private static MethodHandle findDefineClassMethodHandle(MethodHandles.Lookup lookup, Class<?> refc) throws NoSuchMethodException, IllegalAccessException {
-        return lookup.findVirtual(refc, DEFINE_CLASS_METHOD_NAME, MethodType.methodType(Class.class, ClassLoader.class, String.class, byte[].class, java.security.ProtectionDomain.class, String.class));
-    }
-
-    private static class JavaLangAccessObjectHolder {
-        static final Object JAVA_LANG_ACCESS_OBJECT = initJavaLangAccessObject();
-    }
-
-    private static class RegisterShutdownHookMethodHandleHolder {
-        static final MethodHandle REGISTER_SHUTDOWN_HOOK_METHOD_HANDLE = initRegisterShutdownHookMethodHandle();
-    }
-
-    private static class DefineClassMethodHandleHolder {
-        static final MethodHandle DEFINE_CLASS_METHOD_HANDLE = initDefineClassMethodHandle();
+        dumpJdkInfo();
+        throw new IllegalStateException("JavaLangAccess not found");
     }
 }

@@ -16,14 +16,17 @@
 
 package com.navercorp.pinpoint.collector.receiver.thrift.tcp;
 
+import com.navercorp.pinpoint.collector.config.CollectorConfiguration;
 import com.navercorp.pinpoint.collector.handler.DirectExecutor;
 import com.navercorp.pinpoint.collector.service.AgentLifeCycleService;
+import com.navercorp.pinpoint.collector.service.StatisticsService;
 import com.navercorp.pinpoint.collector.service.async.AgentLifeCycleAsyncTaskService;
 import com.navercorp.pinpoint.collector.service.async.AgentProperty;
 import com.navercorp.pinpoint.collector.service.async.AgentPropertyChannelAdaptor;
 import com.navercorp.pinpoint.collector.util.ManagedAgentLifeCycle;
 import com.navercorp.pinpoint.common.server.bo.AgentLifeCycleBo;
 import com.navercorp.pinpoint.common.server.util.AgentLifeCycleState;
+import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
 import com.navercorp.pinpoint.rpc.client.HandshakerFactory;
 import com.navercorp.pinpoint.rpc.packet.HandshakePropertyType;
 import com.navercorp.pinpoint.rpc.server.ChannelProperties;
@@ -59,8 +62,17 @@ public class AgentLifeCycleAsyncTaskServiceTest {
     @Mock
     private AgentLifeCycleService agentLifeCycleService;
 
+    @Mock
+    private ServiceTypeRegistryService serviceTypeRegistryService;
+
+    @Mock
+    private StatisticsService statisticsService;
+
+    @Mock
+    private CollectorConfiguration collectorConfiguration;
+
     @InjectMocks
-    private AgentLifeCycleAsyncTaskService agentLifeCycleAsyncTaskService = new AgentLifeCycleAsyncTaskService();
+    private AgentLifeCycleAsyncTaskService agentLifeCycleAsyncTaskService;
 
     private static final String TEST_APP_ID = "TEST_APP_ID";
     private static final String TEST_AGENT_ID = "TEST_AGENT";

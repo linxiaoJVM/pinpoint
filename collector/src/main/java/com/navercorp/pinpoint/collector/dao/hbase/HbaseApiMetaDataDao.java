@@ -17,6 +17,7 @@
 package com.navercorp.pinpoint.collector.dao.hbase;
 
 import com.navercorp.pinpoint.collector.dao.ApiMetaDataDao;
+import com.navercorp.pinpoint.collector.util.CollectorUtils;
 import com.navercorp.pinpoint.common.buffer.AutomaticBuffer;
 import com.navercorp.pinpoint.common.buffer.Buffer;
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
@@ -24,14 +25,18 @@ import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
 import com.navercorp.pinpoint.common.hbase.TableDescriptor;
 import com.navercorp.pinpoint.common.server.bo.ApiMetaDataBo;
 
+import com.navercorp.pinpoint.common.server.bo.serializer.RowKeyEncoder;
+import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetaDataRowKey;
+import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetadataEncoder;
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Put;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
+
+import java.util.Objects;
 
 /**
  * @author emeroad
@@ -42,23 +47,33 @@ public class HbaseApiMetaDataDao implements ApiMetaDataDao {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private HbaseOperations2 hbaseTemplate;
+    private final HbaseOperations2 hbaseTemplate;
 
-    @Autowired
-    @Qualifier("metadataRowKeyDistributor")
-    private RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
+    private final TableDescriptor<HbaseColumnFamily.ApiMetadata> description;
 
-    @Autowired
-    private TableDescriptor<HbaseColumnFamily.ApiMetadata> description;
+    private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
+
+    private final RowKeyEncoder<MetaDataRowKey> rowKeyEncoder = new MetadataEncoder();
+
+    public HbaseApiMetaDataDao(HbaseOperations2 hbaseTemplate,
+                               TableDescriptor<HbaseColumnFamily.ApiMetadata> description,
+                               @Qualifier("metadataRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix) {
+        this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
+        this.description = Objects.requireNonNull(description, "description");
+        this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
+    }
 
     @Override
     public void insert(ApiMetaDataBo apiMetaData) {
+        Objects.requireNonNull(apiMetaData, "apiMetaData");
         if (logger.isDebugEnabled()) {
             logger.debug("insert:{}", apiMetaData);
         }
 
-        final byte[] rowKey = getDistributedKey(apiMetaData.toRowKey());
+        // Assert agentId
+        CollectorUtils.checkAgentId(apiMetaData.getAgentId());
+
+        final byte[] rowKey = getDistributedKey(rowKeyEncoder.encodeRowKey(apiMetaData));
         final Put put = new Put(rowKey);
         final Buffer buffer = new AutomaticBuffer(64);
         final String api = apiMetaData.getApiInfo();
@@ -76,6 +91,4 @@ public class HbaseApiMetaDataDao implements ApiMetaDataDao {
     private byte[] getDistributedKey(byte[] rowKey) {
         return rowKeyDistributorByHashPrefix.getDistributedKey(rowKey);
     }
-
-
 }

@@ -16,16 +16,21 @@
 
 package com.navercorp.pinpoint.common.util;
 
-import com.navercorp.pinpoint.common.Charsets;
 
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
  * @author emeroad
  */
 public final class PropertyUtils {
-    public static final String DEFAULT_ENCODING = Charsets.UTF_8_NAME;
+    public static final String DEFAULT_ENCODING = StandardCharsets.UTF_8.name();
 
     private static final ClassLoaderUtils.ClassLoaderCallable CLASS_LOADER_CALLABLE = new ClassLoaderUtils.ClassLoaderCallable() {
         @Override
@@ -41,18 +46,28 @@ public final class PropertyUtils {
     private PropertyUtils() {
     }
 
+    public static Properties loadProperty(final InputStream inputStream) throws IOException {
+        Objects.requireNonNull(inputStream, "inputStream");
+
+        final InputStreamFactory inputStreamFactory = new InputStreamFactory() {
+            @Override
+            public InputStream openInputStream() throws IOException {
+                return inputStream;
+            }
+        };
+        return loadProperty(new Properties(), inputStreamFactory, DEFAULT_ENCODING);
+    }
+
     public static Properties loadProperty(final String filePath) throws IOException {
-        if (filePath == null) {
-            throw new NullPointerException("filePath");
-        }
+        Objects.requireNonNull(filePath, "filePath");
+
         final InputStreamFactory inputStreamFactory = new FileInputStreamFactory(filePath);
         return loadProperty(new Properties(), inputStreamFactory, DEFAULT_ENCODING);
     }
 
     public static Properties loadPropertyFromClassPath(final String classPath) throws IOException {
-        if (classPath == null) {
-            throw new NullPointerException("classPath");
-        }
+        Objects.requireNonNull(classPath, "classPath");
+
         final InputStreamFactory inputStreamFactory = new InputStreamFactory() {
             @Override
             public InputStream openInputStream() throws IOException {
@@ -63,9 +78,8 @@ public final class PropertyUtils {
     }
 
     public static Properties loadPropertyFromClassLoader(final ClassLoader classLoader, final String classPath) throws IOException {
-        if (classLoader == null) {
-            throw new NullPointerException("classLoader");
-        }
+        Objects.requireNonNull(classLoader, "classLoader");
+
         final InputStreamFactory inputStreamFactory = new InputStreamFactory() {
             @Override
             public InputStream openInputStream() throws IOException {
@@ -77,15 +91,10 @@ public final class PropertyUtils {
 
 
     public static Properties loadProperty(Properties properties, InputStreamFactory inputStreamFactory, String encoding) throws IOException {
-        if (properties == null) {
-            throw new NullPointerException("properties");
-        }
-        if (inputStreamFactory == null) {
-            throw new NullPointerException("inputStreamFactory");
-        }
-        if (encoding == null) {
-            throw new NullPointerException("encoding");
-        }
+        Objects.requireNonNull(properties, "properties");
+        Objects.requireNonNull(inputStreamFactory, "inputStreamFactory");
+        Objects.requireNonNull(encoding, "encoding");
+
         InputStream in = null;
         Reader reader = null;
         try {
@@ -103,16 +112,13 @@ public final class PropertyUtils {
         private final String filePath;
 
         public FileInputStreamFactory(String filePath) {
-            if (filePath == null) {
-                throw new NullPointerException("filePath");
-            }
-            this.filePath = filePath;
+            this.filePath = Objects.requireNonNull(filePath, "filePath");
         }
 
         @Override
         public InputStream openInputStream() throws IOException {
             return new FileInputStream(filePath);
         }
-    };
+    }
 
 }

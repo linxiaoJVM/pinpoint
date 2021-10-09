@@ -17,22 +17,20 @@
 package com.navercorp.pinpoint.web.vo;
 
 import org.junit.Assert;
-
 import org.junit.Test;
-
-import com.navercorp.pinpoint.web.vo.Range;
 
 /**
  * @author emeroad
  */
 public class RangeTest {
+
     @Test
     public void testCreate() {
-        Range range1 = new Range(0, 0);
-        Range range2 = new Range(0, 1);
+        Range range1 = Range.newRange(0, 0);
+        Range range2 = Range.newRange(0, 1);
 
         try {
-            Range range3 = new Range(0, -1);
+            Range range3 = Range.newRange(0, -1);
             Assert.fail();
         } catch (Exception ignored) {
         }
@@ -41,10 +39,22 @@ public class RangeTest {
 
     @Test
     public void testRange() {
-        Range range1 =  new Range(0, 0);
+        Range range1 =  Range.newRange(0, 0);
         Assert.assertEquals(range1.getRange(), 0);
 
-        Range range2 =  new Range(0, 1);
+        Range range2 =  Range.newRange(0, 1);
         Assert.assertEquals(range2.getRange(), 1);
+    }
+
+    @Test
+    public void testRange_String() {
+        Range range1 =  Range.newRange(0, 0);
+        Assert.assertTrue(range1.toString().contains(" = "));
+
+        Range range2 =  Range.newRange(0, 1);
+        Assert.assertTrue(range2.toString().contains(" < "));
+
+        Range range3 =  Range.newUncheckedRange(1, 0);
+        Assert.assertTrue(range3.toString().contains(" > "));
     }
 }

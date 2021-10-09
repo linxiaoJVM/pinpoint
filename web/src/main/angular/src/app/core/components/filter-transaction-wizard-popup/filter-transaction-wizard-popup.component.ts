@@ -1,7 +1,7 @@
 import { Component, OnInit, Input, Output, EventEmitter, HostBinding } from '@angular/core';
 import { NouiFormatter } from 'ng2-nouislider';
 
-import { Filter } from 'app/core/models/';
+import { Filter, ResponseRange } from 'app/core/models/';
 
 export class TimeFormatter implements NouiFormatter {
     to(value: number): string {
@@ -36,10 +36,12 @@ export class FilterTransactionWizardPopupComponent implements OnInit {
     selectedResultType: RESULT_TYPE = RESULT_TYPE.SUCCESS_AND_FAIL;
     selectedFromAgent = AGENT_ALL;
     selectedToAgent = AGENT_ALL;
-    urlPattern = '';
-    responseTimeMin = 0;
-    responseTimeMax = 30000;
-    responseTimeRange = [0, 30000];
+    // urlPattern = '';
+    responseTimeMin = ResponseRange.MIN;
+    responseTimeMax = ResponseRange.MAX;
+    responseTimeRange = [ResponseRange.MIN, ResponseRange.MAX];
+
+    private _urlPattern: string;
 
     constructor() {}
     ngOnInit() {
@@ -52,9 +54,9 @@ export class FilterTransactionWizardPopupComponent implements OnInit {
             this.responseTimeRange = [this.filterInfo.responseFrom, this.filterInfo.responseTo];
             this.urlPattern = this.filterInfo.urlPattern || '';
             if (this.filterInfo.transactionResult === true) {
-                this.selectedResultType = RESULT_TYPE.SUCCESS_ONLY;
-            } else if (this.filterInfo.transactionResult === false) {
                 this.selectedResultType = RESULT_TYPE.FAIL_ONLY;
+            } else if (this.filterInfo.transactionResult === false) {
+                this.selectedResultType = RESULT_TYPE.SUCCESS_ONLY;
             } else {
                 this.selectedResultType = RESULT_TYPE.SUCCESS_AND_FAIL;
             }
@@ -79,7 +81,7 @@ export class FilterTransactionWizardPopupComponent implements OnInit {
             urlPattern: this.urlPattern,
             responseFrom: this.responseTimeRange[0],
             responseTo: this.responseTimeRange[1],
-            transactionResult: this.selectedResultType === 0 ? null : this.selectedResultType === 1 ? true : false,
+            transactionResult: this.selectedResultType === RESULT_TYPE.SUCCESS_AND_FAIL ? null : !(this.selectedResultType === RESULT_TYPE.SUCCESS_ONLY),
             filterTargetRpcList : this.link.sourceInfo.isWas && this.link.targetInfo.isWas ? this.link.filterTargetRpcList : []
         });
         this.onClickClose();
@@ -105,6 +107,12 @@ export class FilterTransactionWizardPopupComponent implements OnInit {
     getIconFullPath(applicationName: string): string {
         return this.funcImagePath(applicationName);
     }
+    getFromAgentName(agentId: string): string {
+        return this.link.fromAgentIdNameMap && this.link.fromAgentIdNameMap[agentId] ? this.link.fromAgentIdNameMap[agentId] : "N/A";
+    }
+    getToAgentName(agentId: string): string {
+        return this.link.toAgentIdNameMap && this.link.toAgentIdNameMap[agentId] ? this.link.toAgentIdNameMap[agentId] : "N/A";
+    }
     isSelectedResultType(type: number): boolean {
         return this.selectedResultType === type;
     }
@@ -116,5 +124,13 @@ export class FilterTransactionWizardPopupComponent implements OnInit {
     }
     getTimeFormatter(): NouiFormatter {
         return <NouiFormatter>new TimeFormatter();
+    }
+
+    set urlPattern(url: string) {
+        this._urlPattern = url.startsWith('/') ? url : `/${url}`;
+    }
+
+    get urlPattern(): string {
+        return this._urlPattern;
     }
 }

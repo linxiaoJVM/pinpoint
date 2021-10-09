@@ -23,9 +23,11 @@ import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.sampler.SamplingFlagUtils;
 import com.navercorp.pinpoint.bootstrap.util.NumberUtils;
 import com.navercorp.pinpoint.common.trace.ServiceType;
+import com.navercorp.pinpoint.common.util.ArrayUtils;
 import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.plugin.kafka.KafkaConstants;
 import com.navercorp.pinpoint.plugin.kafka.descriptor.EntryPointMethodDescriptor;
+import com.navercorp.pinpoint.plugin.kafka.field.accessor.EndPointFieldAccessor;
 import com.navercorp.pinpoint.plugin.kafka.field.accessor.RemoteAddressFieldAccessor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -42,7 +44,7 @@ public class ConsumerRecordEntryPointInterceptor extends SpanRecursiveAroundInte
 
     protected static final EntryPointMethodDescriptor ENTRY_POINT_METHOD_DESCRIPTOR = new EntryPointMethodDescriptor();
 
-    private final AtomicReference<TraceFactoryProvider.TraceFactory> tracyFactoryReference = new AtomicReference<TraceFactoryProvider.TraceFactory>();
+    private final AtomicReference<TraceFactoryProvider.TraceFactory> tracyFactoryReference = new AtomicReference<>();
 
     protected final int parameterIndex;
 
@@ -87,7 +89,8 @@ public class ConsumerRecordEntryPointInterceptor extends SpanRecursiveAroundInte
     }
 
     protected Object getTargetParameter(Object[] args) {
-        if (args == null || args.length <= parameterIndex) {
+        int length = ArrayUtils.getLength(args);
+        if (length <= parameterIndex) {
             return null;
         }
 
@@ -95,12 +98,12 @@ public class ConsumerRecordEntryPointInterceptor extends SpanRecursiveAroundInte
     }
 
     private Trace createTrace(ConsumerRecord consumerRecord) {
-        TraceFactoryProvider.TraceFactory createTrace = tracyFactoryReference.get();
-        if (createTrace == null) {
-            createTrace = TraceFactoryProvider.get(consumerRecord);
-            tracyFactoryReference.compareAndSet(null, createTrace);
+        TraceFactoryProvider.TraceFactory traceFactory = tracyFactoryReference.get();
+        if (traceFactory == null) {
+            traceFactory = TraceFactoryProvider.get(consumerRecord);
+            tracyFactoryReference.compareAndSet(null, traceFactory);
         }
-        return createTrace.createTrace(traceContext, consumerRecord);
+        return traceFactory.createTrace(traceContext, consumerRecord);
     }
 
     private static class TraceFactoryProvider {
@@ -160,8 +163,13 @@ public class ConsumerRecordEntryPointInterceptor extends SpanRecursiveAroundInte
                 recorder.recordServiceType(KafkaConstants.KAFKA_CLIENT);
                 recorder.recordApi(ConsumerRecordEntryPointInterceptor.ENTRY_POINT_METHOD_DESCRIPTOR);
 
+                String endPointAddress = getEndPointAddress(consumerRecord);
                 String remoteAddress = getRemoteAddress(consumerRecord);
-                recorder.recordEndPoint(remoteAddress);
+                if (StringUtils.isEmpty(endPointAddress)) {
+                    endPointAddress = remoteAddress;
+                }
+
+                recorder.recordEndPoint(endPointAddress);
                 recorder.recordRemoteAddress(remoteAddress);
 
                 String topic = consumerRecord.topic();
@@ -175,6 +183,15 @@ public class ConsumerRecordEntryPointInterceptor extends SpanRecursiveAroundInte
                 if (StringUtils.hasText(parentApplicationName) && StringUtils.hasText(parentApplicationType)) {
                     recorder.recordParentApplication(parentApplicationName, NumberUtils.parseShort(parentApplicationType, ServiceType.UNDEFINED.getCode()));
                 }
+            }
+
+            private String getEndPointAddress(Object endPointFieldAccessor) {
+                String endPointAddress = null;
+                if (endPointFieldAccessor instanceof EndPointFieldAccessor) {
+                    endPointAddress = ((EndPointFieldAccessor) endPointFieldAccessor)._$PINPOINT$_getEndPoint();
+                }
+
+                return endPointAddress;
             }
 
             private String getRemoteAddress(Object remoteAddressFieldAccessor) {
@@ -207,7 +224,7 @@ public class ConsumerRecordEntryPointInterceptor extends SpanRecursiveAroundInte
             public Trace createTrace(TraceContext traceContext, ConsumerRecord consumerRecord) {
                 org.apache.kafka.common.header.Headers headers = consumerRecord.headers();
                 if (headers == null) {
-                    return null;
+                    return createTrace0(traceContext, consumerRecord);
                 }
 
                 if (!isSampled(headers)) {

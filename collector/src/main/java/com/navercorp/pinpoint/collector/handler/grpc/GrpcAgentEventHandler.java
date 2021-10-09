@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.collector.handler.grpc;
 
+import com.google.protobuf.GeneratedMessageV3;
 import com.navercorp.pinpoint.collector.handler.SimpleHandler;
 import com.navercorp.pinpoint.collector.mapper.grpc.event.GrpcAgentEventBatchMapper;
 import com.navercorp.pinpoint.collector.mapper.grpc.event.GrpcAgentEventMapper;
@@ -29,43 +30,51 @@ import com.navercorp.pinpoint.grpc.MessageFormatUtils;
 import com.navercorp.pinpoint.grpc.server.ServerContext;
 import com.navercorp.pinpoint.grpc.trace.PAgentStat;
 import com.navercorp.pinpoint.grpc.trace.PAgentStatBatch;
+import com.navercorp.pinpoint.grpc.trace.PAgentUriStat;
 import com.navercorp.pinpoint.io.request.ServerRequest;
 import io.grpc.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
  * @author jaehong.kim - Add AgentEventMessageSerializerV1
  */
 @Service
-public class GrpcAgentEventHandler implements SimpleHandler {
+public class GrpcAgentEventHandler implements SimpleHandler<GeneratedMessageV3> {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final boolean isDebug = logger.isDebugEnabled();
 
-    @Autowired
-    private GrpcAgentEventMapper agentEventMapper;
+    private final GrpcAgentEventMapper agentEventMapper;
 
-    @Autowired
-    private GrpcAgentEventBatchMapper agentEventBatchMapper;
+    private final GrpcAgentEventBatchMapper agentEventBatchMapper;
 
-    @Autowired
-    private AgentEventMessageSerializerV1 agentEventMessageSerializerV1;
+    private final AgentEventMessageSerializerV1 agentEventMessageSerializerV1;
 
-    @Autowired
-    private AgentEventService agentEventService;
+    private final AgentEventService agentEventService;
+
+    public GrpcAgentEventHandler(GrpcAgentEventMapper agentEventMapper,
+                                 GrpcAgentEventBatchMapper agentEventBatchMapper,
+                                 AgentEventMessageSerializerV1 agentEventMessageSerializerV1,
+                                 AgentEventService agentEventService) {
+        this.agentEventMapper = Objects.requireNonNull(agentEventMapper, "agentEventMapper");
+        this.agentEventBatchMapper = Objects.requireNonNull(agentEventBatchMapper, "agentEventBatchMapper");
+        this.agentEventMessageSerializerV1 = Objects.requireNonNull(agentEventMessageSerializerV1, "agentEventMessageSerializerV1");
+        this.agentEventService = Objects.requireNonNull(agentEventService, "agentEventService");
+    }
 
     @Override
-    public void handleSimple(ServerRequest serverRequest) {
-        final Object data = serverRequest.getData();
+    public void handleSimple(ServerRequest<GeneratedMessageV3> serverRequest) {
+        final GeneratedMessageV3 data = serverRequest.getData();
         if (data instanceof PAgentStat) {
             handleAgentStat((PAgentStat) data);
         } else if (data instanceof PAgentStatBatch) {
             handleAgentStatBatch((PAgentStatBatch) data);
+        } else if (data instanceof PAgentUriStat) {
+            // do nothing
         } else {
             logger.warn("Invalid request type. serverRequest={}", serverRequest);
             throw Status.INTERNAL.withDescription("Bad Request(invalid request type)").asRuntimeException();
@@ -73,7 +82,7 @@ public class GrpcAgentEventHandler implements SimpleHandler {
     }
 
     private void handleAgentStat(PAgentStat agentStat) {
-        if (isDebug) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Handle PAgentStat={}", MessageFormatUtils.debugLog(agentStat));
         }
 
@@ -91,7 +100,7 @@ public class GrpcAgentEventHandler implements SimpleHandler {
     }
 
     private void handleAgentStatBatch(PAgentStatBatch agentStatBatch) {
-        if (isDebug) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Handle PAgentStatBatch={}", MessageFormatUtils.debugLog(agentStatBatch));
         }
 

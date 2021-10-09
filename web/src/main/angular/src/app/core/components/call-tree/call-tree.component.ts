@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, AfterViewInit, HostBinding } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, AfterViewInit, HostBinding, Renderer2 } from '@angular/core';
 import * as moment from 'moment-timezone';
 import { GridOptions, RowNode } from 'ag-grid-community';
 
@@ -18,6 +18,7 @@ export interface IGridData {
     clazz: string;
     api: string;
     agent: string;
+    agentName?: string;
     application: string;
     isMethod: boolean;
     methodType: string;
@@ -59,7 +60,8 @@ export class CallTreeComponent implements OnInit, OnChanges, AfterViewInit {
     rowData: IGridData[];
 
     constructor(
-        private windowRefService: WindowRefService
+        private windowRefService: WindowRefService,
+        private renderer: Renderer2,
     ) {}
 
     ngAfterViewInit() {
@@ -180,10 +182,19 @@ export class CallTreeComponent implements OnInit, OnChanges, AfterViewInit {
                 width: 420,
                 cellRenderer: 'agGroupCellRenderer',
                 cellRendererParams: {
-                    innerRenderer: this.innerCellRenderer,
+                    innerRenderer: this.innerCellRenderer.bind(this),
                     suppressCount: true
                 },
-                tooltipField: 'method'
+                tooltipField: 'method',
+                cellStyle: (params: any) => {
+                    const { level } = params.node;
+                    const indent = 15;
+                    const isRootRow = params.node.rowIndex === 0;
+
+                    return {
+                        paddingLeft: isRootRow ? `4px` : `${(level + 1) * indent}px`
+                    };
+                }
             },
             {
                 headerName: 'Argument',
@@ -278,7 +289,7 @@ export class CallTreeComponent implements OnInit, OnChanges, AfterViewInit {
                 tooltipField: 'api'
             },
             {
-                headerName: 'Agent',
+                headerName: 'Agent Id',
                 field: 'agent',
                 width: 150,
                 tooltipField: 'agent'
@@ -288,6 +299,12 @@ export class CallTreeComponent implements OnInit, OnChanges, AfterViewInit {
                 field: 'application',
                 width: 150,
                 tooltipField: 'application'
+            },
+            {
+                headerName: 'Agent Name',
+                field: 'agentName',
+                width: 150,
+                tooltipField: 'agentName'
             }
         ];
     }
@@ -335,7 +352,14 @@ export class CallTreeComponent implements OnInit, OnChanges, AfterViewInit {
                     break;
             }
         }
-        return result + params.data.method;
+
+        const span = this.renderer.createElement('span');
+        const text = this.renderer.createText(params.data.method);
+
+        this.renderer.setProperty(span, 'innerHTML', result);
+        this.renderer.appendChild(span, text);
+
+        return span;
     }
 
     onCellClick({colDef, value, data}: any): void {
@@ -446,6 +470,7 @@ export class CallTreeComponent implements OnInit, OnChanges, AfterViewInit {
         oRow['clazz'] = callTree[oIndex.simpleClassName];
         oRow['api'] = callTree[oIndex.apiType];
         oRow['agent'] = callTree[oIndex.agent];
+        oRow['agentName'] = callTree[oIndex.agentName];
         oRow['application'] = callTree[oIndex.applicationName];
         oRow['isMethod'] = callTree[oIndex.isMethod];
         oRow['methodType'] = callTree[oIndex.methodType];
@@ -472,6 +497,11 @@ export class CallTreeComponent implements OnInit, OnChanges, AfterViewInit {
                 return +data.selp >= +value;
             case 'argument':
                 return data.argument.indexOf(value) !== -1;
+            case 'exception':
+                return data.hasException && (
+                    (data.method && data.method.indexOf(value) !== -1) ||
+                    (data.argument && data.argument.indexOf(value) !== -1)
+                )
         }
     }
 

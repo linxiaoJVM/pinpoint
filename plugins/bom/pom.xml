@@ -21,8 +21,8 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint</artifactId>
-        <relativePath>../..</relativePath>
-        <version>2.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+        <version>2.3.1-SNAPSHOT</version>
     </parent>
 
     <packaging>pom</packaging>
@@ -36,6 +36,7 @@
         <dubbo.version>2.5.3</dubbo.version>
         <mongo.driver.version>3.9.0</mongo.driver.version>
         <apache.dubbo.version>2.7.2</apache.dubbo.version>
+        <ehcache.version>2.10.6</ehcache.version>
     </properties>
 
     <dependencyManagement>
@@ -47,7 +48,7 @@
             </dependency>
             <dependency>
                 <groupId>net.sf.ehcache</groupId>
-                <artifactId>ehcache-core</artifactId>
+                <artifactId>ehcache</artifactId>
                 <version>${ehcache.version}</version>
             </dependency>
             <dependency>
@@ -69,7 +70,7 @@
             <dependency>
                 <groupId>org.elasticsearch.client</groupId>
                 <artifactId>elasticsearch-rest-high-level-client</artifactId>
-                <version>7.2.0</version>
+                <version>7.3.0</version>
             </dependency>
 
             <dependency>
@@ -325,17 +326,17 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>${fastxml.jackson-jdk6.version}</version>
+                <version>${fastxml.jackson.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${fastxml.jackson-jdk6.version}</version>
+                <version>${fastxml.jackson.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>${fastxml.jackson-jdk6.version}</version>
+                <version>${fastxml.jackson.version}</version>
             </dependency>
 
             <dependency>
@@ -367,6 +368,24 @@
                 <artifactId>reactor-netty</artifactId>
                 <version>0.9.1.RELEASE</version>
             </dependency>
+
+            <dependency>
+                <groupId>org.eclipse.paho</groupId>
+                <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+                <version>1.2.5</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.paho</groupId>
+                <artifactId>org.eclipse.paho.mqttv5.client</artifactId>
+                <version>1.2.5</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-client</artifactId>
+                <version>4.7.1</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 </project>

@@ -21,7 +21,6 @@ import com.google.common.cache.CacheBuilder;
 import com.navercorp.pinpoint.common.trace.BaseHistogramSchema;
 import com.navercorp.pinpoint.common.trace.HistogramSchema;
 import com.navercorp.pinpoint.common.trace.HistogramSlot;
-import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
 import com.navercorp.pinpoint.profiler.monitor.metric.response.ResponseTimeCollector;
 import org.slf4j.Logger;
@@ -31,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -57,7 +57,7 @@ public class DefaultActiveTraceRepository implements ActiveTraceRepository {
     }
 
     public DefaultActiveTraceRepository(ResponseTimeCollector responseTimeCollector, int maxActiveTraceSize) {
-        this.responseTimeCollector = Assert.requireNonNull(responseTimeCollector, "responseTimeCollector");
+        this.responseTimeCollector = Objects.requireNonNull(responseTimeCollector, "responseTimeCollector");
         this.activeTraceInfoMap = createCache(maxActiveTraceSize);
     }
 
@@ -127,7 +127,7 @@ public class DefaultActiveTraceRepository implements ActiveTraceRepository {
             return Collections.emptyList();
         }
         final Collection<ActiveTrace> activeTraceCollection = this.activeTraceInfoMap.values();
-        final List<ActiveTraceSnapshot> collectData = new ArrayList<ActiveTraceSnapshot>(activeTraceCollection.size());
+        final List<ActiveTraceSnapshot> collectData = new ArrayList<>(activeTraceCollection.size());
 
         for (ActiveTrace trace : activeTraceCollection) {
             final long startTime = trace.getStartTime();
@@ -152,7 +152,7 @@ public class DefaultActiveTraceRepository implements ActiveTraceRepository {
             return Collections.emptyList();
         }
         final Collection<ActiveTrace> activeTraceCollection = this.activeTraceInfoMap.values();
-        final List<Long> collectData = new ArrayList<Long>(activeTraceCollection.size());
+        final List<Long> collectData = new ArrayList<>(activeTraceCollection.size());
 
         for (ActiveTrace trace : activeTraceCollection) {
             final long startTime = trace.getStartTime();

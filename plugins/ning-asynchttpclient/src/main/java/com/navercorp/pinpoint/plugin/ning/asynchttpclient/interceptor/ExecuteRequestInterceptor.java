@@ -34,6 +34,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorderFactor
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.EntityExtractor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.EntityRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.EntityRecorderFactory;
+import com.navercorp.pinpoint.common.util.ArrayUtils;
 import com.navercorp.pinpoint.plugin.ning.asynchttpclient.EndPointUtils;
 import com.navercorp.pinpoint.plugin.ning.asynchttpclient.NingAsyncHttpClientConstants;
 import com.navercorp.pinpoint.plugin.ning.asynchttpclient.NingAsyncHttpClientPluginConfig;
@@ -70,7 +71,7 @@ public class ExecuteRequestInterceptor implements AroundInterceptor {
         final NingAsyncHttpClientPluginConfig config = new NingAsyncHttpClientPluginConfig(traceContext.getProfilerConfig());
 
         ClientRequestAdaptor<Request> clientRequestAdaptor = new NingAsyncHttpClientRequestAdaptorV1();
-        this.clientRequestRecorder = new ClientRequestRecorder<Request>(config.isParam(), clientRequestAdaptor);
+        this.clientRequestRecorder = new ClientRequestRecorder<>(config.isParam(), clientRequestAdaptor);
 
         CookieExtractor<Request> cookieExtractor = NingCookieExtractorV1.INSTANCE;
         this.cookieRecorder = CookieRecorderFactory.newCookieRecorder(config.getHttpDumpConfig(), cookieExtractor);
@@ -79,7 +80,7 @@ public class ExecuteRequestInterceptor implements AroundInterceptor {
         this.entityRecorder = EntityRecorderFactory.newEntityRecorder(config.getHttpDumpConfig(), entityExtractor);
 
         ClientHeaderAdaptor<Request> clientHeaderAdaptor = new RequestHeaderAdaptorV1();
-        this.requestTraceWriter = new DefaultRequestTraceWriter<Request>(clientHeaderAdaptor, traceContext);
+        this.requestTraceWriter = new DefaultRequestTraceWriter<>(clientHeaderAdaptor, traceContext);
     }
 
     @Override
@@ -155,7 +156,8 @@ public class ExecuteRequestInterceptor implements AroundInterceptor {
     }
 
     private boolean validate(final Object[] args) {
-        if (args == null || args.length == 0 || !(args[0] instanceof Request)) {
+        final Object request = ArrayUtils.get(args, 0);
+        if (!(request instanceof Request)) {
             if (isDebug) {
                 logger.debug("Invalid args[0] object. args={}.", args);
             }

@@ -1,4 +1,4 @@
-import { PrimitiveArray, Data } from 'billboard.js';
+import { PrimitiveArray, Data, spline } from 'billboard.js';
 import { Observable } from 'rxjs';
 
 import { IInspectorChartContainer } from './inspector-chart-container-factory';
@@ -18,7 +18,7 @@ export class ApplicationJVMCpuChartContainer implements IInspectorChartContainer
         private inspectorChartDataService: InspectorChartDataService
     ) {}
 
-    getData(range: number[]): Observable<IInspectorChartData | AjaxException> {
+    getData(range: number[]): Observable<IInspectorChartData> {
         return this.inspectorChartDataService.getData(this.apiUrl, range);
     }
 
@@ -28,15 +28,15 @@ export class ApplicationJVMCpuChartContainer implements IInspectorChartContainer
 
         return [
             ['x', ...makeXData(charts.x)],
-            ['min', ...makeYData(charts.y['CPU_LOAD_JVM'], 0)],
-            ['avg', ...makeYData(charts.y['CPU_LOAD_JVM'], 4)],
             ['max', ...makeYData(charts.y['CPU_LOAD_JVM'], 2)],
+            ['avg', ...makeYData(charts.y['CPU_LOAD_JVM'], 4)],
+            ['min', ...makeYData(charts.y['CPU_LOAD_JVM'], 0)],
         ];
     }
 
     makeDataOption(): Data {
         return {
-            type: 'spline',
+            type: spline(),
             names: {
                 min: 'Min',
                 avg: 'Avg',

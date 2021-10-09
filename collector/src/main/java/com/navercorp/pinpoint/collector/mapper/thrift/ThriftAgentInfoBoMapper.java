@@ -19,25 +19,31 @@ package com.navercorp.pinpoint.collector.mapper.thrift;
 import com.navercorp.pinpoint.common.server.bo.AgentInfoBo;
 import com.navercorp.pinpoint.thrift.dto.TAgentInfo;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.Objects;
 
 /**
  * @author hyungil.jeong
  */
 @Component
 public class ThriftAgentInfoBoMapper {
-    @Autowired
-    private ThriftServerMetaDataBoMapper serverMetaDataBoMapper;
+    private final ThriftServerMetaDataBoMapper serverMetaDataBoMapper;
 
-    @Autowired
-    private ThriftJvmInfoBoMapper jvmInfoBoMapper;
+    private final ThriftJvmInfoBoMapper jvmInfoBoMapper;
+
+    public ThriftAgentInfoBoMapper(ThriftServerMetaDataBoMapper serverMetaDataBoMapper, ThriftJvmInfoBoMapper jvmInfoBoMapper) {
+        this.serverMetaDataBoMapper = Objects.requireNonNull(serverMetaDataBoMapper, "serverMetaDataBoMapper");
+        this.jvmInfoBoMapper = Objects.requireNonNull(jvmInfoBoMapper, "jvmInfoBoMapper");
+    }
+
 
     public AgentInfoBo map(TAgentInfo thriftObject) {
         final String hostName = thriftObject.getHostname();
         final String ip = thriftObject.getIp();
         final String ports = thriftObject.getPorts();
         final String agentId = thriftObject.getAgentId();
+        final String agentName = thriftObject.getAgentName();
         final String applicationName = thriftObject.getApplicationName();
         final short serviceType = thriftObject.getServiceType();
         final int pid = thriftObject.getPid();
@@ -53,6 +59,7 @@ public class ThriftAgentInfoBoMapper {
         builder.setIp(ip);
         builder.setPorts(ports);
         builder.setAgentId(agentId);
+        builder.setAgentName(agentName);
         builder.setApplicationName(applicationName);
         builder.setServiceTypeCode(serviceType);
         builder.setPid(pid);

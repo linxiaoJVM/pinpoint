@@ -22,7 +22,9 @@ import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
 import com.navercorp.pinpoint.common.server.bo.ApiMetaDataBo;
 import com.navercorp.pinpoint.common.server.bo.MethodTypeEnum;
-
+import com.navercorp.pinpoint.common.server.bo.serializer.RowKeyDecoder;
+import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetaDataRowKey;
+import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetadataDecoder;
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -30,13 +32,13 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author emeroad
@@ -45,13 +47,17 @@ import java.util.List;
 @Component
 public class ApiMetaDataMapper implements RowMapper<List<ApiMetaDataBo>> {
 
+    private final static byte[] API_METADATA_CF_API_QUALI_SIGNATURE  = HbaseColumnFamily.API_METADATA_API.QUALIFIER_SIGNATURE;
+
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    @Qualifier("metadataRowKeyDistributor")
-    private RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
-    
-    private final static String API_METADATA_CF_API_QUALI_SIGNATURE  = Bytes.toString(HbaseColumnFamily.API_METADATA_API.QUALIFIER_SIGNATURE);
+    private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
+
+    private final RowKeyDecoder<MetaDataRowKey> decoder = new MetadataDecoder();
+
+    public ApiMetaDataMapper(@Qualifier("metadataRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix) {
+        this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
+    }
 
     @Override
     public List<ApiMetaDataBo> mapRow(Result result, int rowNum) throws Exception {
@@ -60,24 +66,23 @@ public class ApiMetaDataMapper implements RowMapper<List<ApiMetaDataBo>> {
         }
         final byte[] rowKey = getOriginalKey(result.getRow());
 
+        final MetaDataRowKey key = decoder.decodeRowKey(rowKey);
+
         List<ApiMetaDataBo> apiMetaDataList = new ArrayList<>();
+
         for (Cell cell : result.rawCells()) {
-            ApiMetaDataBo apiMetaDataBo = new ApiMetaDataBo();
-            apiMetaDataBo.readRowKey(rowKey);
-
-            final byte[] qualifier = CellUtil.cloneQualifier(cell);
-            final byte[] value = getValue(cell, qualifier);
-
+            final byte[] value = getValue(cell);
             Buffer buffer = new FixedBuffer(value);
-            String apiInfo = buffer.readPrefixedString();
-            int lineNumber = buffer.readInt();
+
+            final String apiInfo = buffer.readPrefixedString();
+            final int lineNumber = buffer.readInt();
             MethodTypeEnum methodTypeEnum = MethodTypeEnum.DEFAULT;
             if (buffer.hasRemaining()) {
                 methodTypeEnum = MethodTypeEnum.valueOf(buffer.readInt());
             }
-            apiMetaDataBo.setApiInfo(apiInfo);
-            apiMetaDataBo.setLineNumber(lineNumber);
-            apiMetaDataBo.setMethodTypeEnum(methodTypeEnum);
+
+            ApiMetaDataBo apiMetaDataBo = new ApiMetaDataBo(key.getAgentId(), key.getAgentStartTime(), key.getId(), lineNumber, methodTypeEnum, apiInfo);
+
             apiMetaDataList.add(apiMetaDataBo);
             if (logger.isDebugEnabled()) {
                 logger.debug("read apiAnnotation:{}", apiMetaDataBo);
@@ -86,11 +91,13 @@ public class ApiMetaDataMapper implements RowMapper<List<ApiMetaDataBo>> {
         return apiMetaDataList;
     }
 
-    private byte[] getValue(Cell cell, byte[] qualifier) {
-        if (API_METADATA_CF_API_QUALI_SIGNATURE.equals(Bytes.toString(qualifier))) {
+    private byte[] getValue(Cell cell) {
+        if (Bytes.equals(API_METADATA_CF_API_QUALI_SIGNATURE, 0, API_METADATA_CF_API_QUALI_SIGNATURE.length,
+                cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength())) {
             return CellUtil.cloneValue(cell);
         } else {
-            return qualifier;
+            // backward compatibility
+            return CellUtil.cloneQualifier(cell);
         }
     }
 

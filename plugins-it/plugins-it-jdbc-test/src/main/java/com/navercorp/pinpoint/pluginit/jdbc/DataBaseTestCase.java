@@ -21,25 +21,33 @@ import com.navercorp.pinpoint.bootstrap.plugin.jdbc.JdbcUrlParserV2;
 import com.navercorp.pinpoint.bootstrap.plugin.test.Expectations;
 import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifier;
 import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifierHolder;
+import com.navercorp.pinpoint.pluginit.jdbc.template.CallableStatementCallback;
+import com.navercorp.pinpoint.pluginit.jdbc.template.DriverManagerDataSource;
+import com.navercorp.pinpoint.pluginit.jdbc.template.PreparedStatementSetter;
+import com.navercorp.pinpoint.pluginit.jdbc.template.ResultSetExtractor;
+import com.navercorp.pinpoint.pluginit.jdbc.template.SimpleJdbcTemplate;
+import com.navercorp.pinpoint.pluginit.jdbc.template.TransactionCallback;
+import com.navercorp.pinpoint.pluginit.jdbc.template.TransactionDataSource;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.lang.reflect.Method;
 import java.sql.CallableStatement;
-import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
+
 
 /**
- *
  * @author Woonduk Kang(emeroad)
  */
 public abstract class DataBaseTestCase {
@@ -55,6 +63,7 @@ public abstract class DataBaseTestCase {
     protected String databaseAddress;
     protected String databaseName;
     protected JDBCApi jdbcApi;
+    private DataSource dataSource;
 
     public void setup(String dbType, String executeQuery, DriverProperties driverProperties, JdbcUrlParserV2 jdbcUrlParser, JDBCApi jdbcApi) {
         this.DB_TYPE = dbType;
@@ -69,6 +78,7 @@ public abstract class DataBaseTestCase {
 
         this.databaseId = driverProperties.getUser();
         this.databaseIdPassword = driverProperties.getPassword();
+        this.dataSource = new DriverManagerDataSource(jdbcUrl, databaseId, databaseIdPassword);
 
         this.jdbcApi = jdbcApi;
 
@@ -89,39 +99,77 @@ public abstract class DataBaseTestCase {
         DriverManagerUtils.deregisterDriver();
     }
 
-    protected Connection connectDB() throws SQLException {
-        return DriverManager.getConnection(jdbcUrl, databaseId, databaseIdPassword);
+    public static class User {
+        private final int id;
+        private final String name;
+        private final int age;
+
+        public User(int id, String name, int age) {
+            this.id = id;
+            this.name = name;
+            this.age = age;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getAge() {
+            return age;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "id=" + id +
+                    ", name='" + name + '\'' +
+                    ", age=" + age +
+                    '}';
+        }
     }
 
     @Test
     public void testStatement() throws Exception {
-        Connection conn = connectDB();
 
-        conn.setAutoCommit(false);
 
-        String insertQuery = "INSERT INTO test (name, age) VALUES (?, ?)";
-        String selectQuery = "SELECT * FROM test";
-        String deleteQuery = "DELETE FROM test";
+        final String insertQuery = "INSERT INTO test (name, age) VALUES (?, ?)";
+        final String selectQuery = "SELECT * FROM test";
+        final String deleteQuery = "DELETE FROM test";
 
-        PreparedStatement insert = conn.prepareStatement(insertQuery);
-        insert.setString(1, "maru");
-        insert.setInt(2, 5);
-        insert.execute();
+        TransactionDataSource transactionDataSource = new TransactionDataSource(this.dataSource);
+        final SimpleJdbcTemplate template = new SimpleJdbcTemplate(transactionDataSource, SimpleJdbcTemplate.ConnectionInterceptor.EMPTY);
+        transactionDataSource.doInTransaction(new TransactionCallback() {
+            @Override
+            public void doInTransaction() throws SQLException {
+                template.execute(insertQuery, new PreparedStatementSetter() {
+                    @Override
+                    public void setValues(PreparedStatement ps) throws SQLException {
+                        ps.setString(1, "maru");
+                        ps.setInt(2, 5);
+                    }
+                });
 
-        Statement select = conn.createStatement();
-        ResultSet rs = select.executeQuery(selectQuery);
-
-        while (rs.next()) {
-            final int id = rs.getInt("id");
-            final String name = rs.getString("name");
-            final int age = rs.getInt("age");
-            logger.debug("id: {}, name: {}, age: {}", id, name, age);
-        }
-
-        Statement delete = conn.createStatement();
-        delete.executeUpdate(deleteQuery);
-
-        conn.commit();
+                List<User> users = template.executeQuery(selectQuery, new ResultSetExtractor<List<User>>() {
+                    @Override
+                    public List<User> extractData(ResultSet rs) throws SQLException {
+                        List<User> users = new ArrayList<>();
+                        while (rs.next()) {
+                            final int id = rs.getInt("id");
+                            final String name = rs.getString("name");
+                            final int age = rs.getInt("age");
+                            users.add(new User(id, name, age));
+                        }
+                        return users;
+                    }
+                });
+                logger.debug("users:{}", users);
+                template.executeUpdate(deleteQuery);
+            }
+        });
 
         PluginTestVerifier verifier = PluginTestVerifierHolder.getInstance();
 
@@ -150,10 +198,7 @@ public abstract class DataBaseTestCase {
 
         Method commit = connectionClass.getCommit();
         verifier.verifyTrace(Expectations.event(DB_TYPE, commit, null, databaseAddress, databaseName));
-
-        close(conn);
     }
-
 
 
     /*
@@ -170,15 +215,19 @@ public abstract class DataBaseTestCase {
         final String param2 = "b";
         final String storedProcedureQuery = "{ call concatCharacters(?, ?, ?) }";
 
-        Connection conn = connectDB();
 
-        CallableStatement cs = conn.prepareCall(storedProcedureQuery);
-        cs.setString(1, param1);
-        cs.setString(2, param2);
-        cs.registerOutParameter(3, Types.VARCHAR);
-        cs.execute();
-
-        Assert.assertEquals(param1.concat(param2), cs.getString(3));
+        final SimpleJdbcTemplate template = new SimpleJdbcTemplate(this.dataSource, SimpleJdbcTemplate.ConnectionInterceptor.EMPTY);
+        String result = template.execute(storedProcedureQuery, new CallableStatementCallback<String>() {
+            @Override
+            public String doInCallableStatement(CallableStatement cs) throws SQLException {
+                cs.setString(1, param1);
+                cs.setString(2, param2);
+                cs.registerOutParameter(3, Types.VARCHAR);
+                cs.execute();
+                return cs.getString(3);
+            }
+        });
+        Assert.assertEquals(param1.concat(param2), result);
 
         PluginTestVerifier verifier = PluginTestVerifierHolder.getInstance();
 
@@ -201,8 +250,21 @@ public abstract class DataBaseTestCase {
         // JtdsPreparedStatement#execute
         Method execute = jdbcApi.getPreparedStatement().getExecute();
         verifier.verifyTrace(Expectations.event(DB_EXECUTE_QUERY, execute, null, databaseAddress, databaseName, Expectations.sql(storedProcedureQuery, null, param1 + ", " + param2)));
+    }
 
-        close(conn);
+    private static class Swap {
+        int a;
+        int b;
+
+        public Swap(int a, int b) {
+            this.a = a;
+            this.b = b;
+        }
+
+    }
+    public static class SwapResult {
+        private List<Integer> results = new ArrayList<>();
+        private Swap swap;
     }
 
     /*
@@ -222,20 +284,38 @@ public abstract class DataBaseTestCase {
         final int param2 = 2;
         final String storedProcedureQuery = "{ call swapAndGetSum(?, ?) }";
 
-        Connection conn = connectDB();
+        final SimpleJdbcTemplate template = new SimpleJdbcTemplate(this.dataSource, SimpleJdbcTemplate.ConnectionInterceptor.EMPTY);
+        SwapResult result = template.execute(storedProcedureQuery, new CallableStatementCallback<SwapResult>() {
+            @Override
+            public SwapResult doInCallableStatement(CallableStatement cs) throws SQLException {
+                cs.setInt(1, param1);
+                cs.setInt(2, param2);
+                cs.registerOutParameter(1, Types.INTEGER);
+                cs.registerOutParameter(2, Types.INTEGER);
+                SwapResult swapResult = new SwapResult();
+                ResultSet rs = null;
+                try {
+                    rs = cs.executeQuery();
+                    while (rs.next()) {
+                        int sum = rs.getInt(1);
+                        swapResult.results.add(sum);
+                    }
+                } finally {
+                    JdbcUtils.closeResultSet(rs);
+                }
 
-        CallableStatement cs = conn.prepareCall(storedProcedureQuery);
-        cs.setInt(1, param1);
-        cs.setInt(2, param2);
-        cs.registerOutParameter(1, Types.INTEGER);
-        cs.registerOutParameter(2, Types.INTEGER);
-        ResultSet rs = cs.executeQuery();
+                int output1 = cs.getInt(1);
+                int output2 = cs.getInt(2);
+                swapResult.swap = new Swap(output1, output2);
+                return swapResult;
+            }
 
-        Assert.assertTrue(rs.next());
-        Assert.assertEquals(param1 + param2, rs.getInt(1));
-        Assert.assertFalse(cs.getMoreResults());
-        Assert.assertEquals(param2, cs.getInt(1));
-        Assert.assertEquals(param1, cs.getInt(2));
+
+        });
+
+        Assert.assertEquals(param1 + param2, result.results.get(0).intValue());
+        Assert.assertEquals(param2, result.swap.a);
+        Assert.assertEquals(param1, result.swap.b);
 
         PluginTestVerifier verifier = PluginTestVerifierHolder.getInstance();
 
@@ -247,7 +327,7 @@ public abstract class DataBaseTestCase {
         verifier.verifyTrace(Expectations.event(DB_TYPE, connect, null, databaseAddress, databaseName, Expectations.cachedArgs(jdbcUrl)));
 
         // ConnectionJDBC2#prepareCall(String)
-        Method prepareCall = jdbcApi.getConnection().getPrepareCall();;
+        Method prepareCall = jdbcApi.getConnection().getPrepareCall();
         verifier.verifyTrace(Expectations.event(DB_TYPE, prepareCall, null, databaseAddress, databaseName, Expectations.sql(storedProcedureQuery, null)));
 
         // JtdsCallableStatement#registerOutParameter(int, int)
@@ -261,15 +341,6 @@ public abstract class DataBaseTestCase {
         Method executeQuery = jdbcApi.getPreparedStatement().getExecuteQuery();
         verifier.verifyTrace(Expectations.event(DB_EXECUTE_QUERY, executeQuery, null, databaseAddress, databaseName, Expectations.sql(storedProcedureQuery, null, param1 + ", " + param2)));
 
-        close(conn);
     }
 
-    public void close(Connection connection) {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-            }
-        }
-    }
 }

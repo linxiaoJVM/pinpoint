@@ -19,10 +19,9 @@ package com.navercorp.pinpoint.common.server.bo.stat.join;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author minwoo.jung
@@ -30,7 +29,7 @@ import static org.junit.Assert.*;
 public class JoinMemoryBoTest {
     @Test
     public void joinMemoryBoListTest() throws Exception {
-        List<JoinMemoryBo> joinMemoryBoList = new ArrayList<JoinMemoryBo>();
+        List<JoinMemoryBo> joinMemoryBoList = new ArrayList<>();
         JoinMemoryBo joinMemoryBo1 = new JoinMemoryBo("agent1", 1496988667231L, 3000, 2000, 5000, "agent1", "agent1", 500, 50, 600, "agent1", "agent1");
         JoinMemoryBo joinMemoryBo2 = new JoinMemoryBo("agent2", 1496988667231L, 4000, 1000, 7000, "agent2", "agent2", 400, 150, 600, "agent2", "agent2");
         JoinMemoryBo joinMemoryBo3 = new JoinMemoryBo("agent3", 1496988667231L, 5000, 3000, 8000, "agent3", "agent3", 200, 100, 200, "agent3", "agent3");
@@ -45,21 +44,14 @@ public class JoinMemoryBoTest {
         JoinMemoryBo joinMemoryBo = JoinMemoryBo.joinMemoryBoList(joinMemoryBoList, 1496988667231L);
         assertEquals("agent1", joinMemoryBo.getId());
         assertEquals(1496988667231L, joinMemoryBo.getTimestamp());
-        assertEquals(3000, joinMemoryBo.getHeapUsed());
-        assertEquals(100, joinMemoryBo.getMinHeapUsed());
-        assertEquals(8000, joinMemoryBo.getMaxHeapUsed());
-        assertEquals("agent4", joinMemoryBo.getMinHeapAgentId());
-        assertEquals("agent3", joinMemoryBo.getMaxHeapAgentId());
-        assertEquals(300, joinMemoryBo.getNonHeapUsed());
-        assertEquals(50, joinMemoryBo.getMinNonHeapUsed());
-        assertEquals(2900, joinMemoryBo.getMaxNonHeapUsed());
-        assertEquals("agent1", joinMemoryBo.getMinNonHeapAgentId());
-        assertEquals("agent5", joinMemoryBo.getMaxNonHeapAgentId());
+
+        assertEquals(joinMemoryBo.getHeapUsedJoinValue(), new JoinLongFieldBo(3000L, 100L, "agent4", 8000L, "agent3"));
+        assertEquals(joinMemoryBo.getNonHeapUsedJoinValue(), new JoinLongFieldBo(300L, 50L, "agent1", 2900L, "agent5"));
     }
 
     @Test
     public void joinMemoryBoList2Test() {
-        List<JoinMemoryBo> joinMemoryBoList = new ArrayList<JoinMemoryBo>();
+        List<JoinMemoryBo> joinMemoryBoList = new ArrayList<>();
         JoinMemoryBo joinMemoryBo = JoinMemoryBo.joinMemoryBoList(joinMemoryBoList, 1496988667231L);
         assertEquals(joinMemoryBo, JoinMemoryBo.EMPTY_JOIN_MEMORY_BO);
     }

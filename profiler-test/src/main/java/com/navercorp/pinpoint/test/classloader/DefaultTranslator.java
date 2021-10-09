@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -39,17 +40,14 @@ public class DefaultTranslator implements Translator {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private final ConcurrentMap<String, MatchableClassFileTransformer> transformerMap = new ConcurrentHashMap<String, MatchableClassFileTransformer>();
+    private final ConcurrentMap<String, MatchableClassFileTransformer> transformerMap = new ConcurrentHashMap<>();
 
     private final ClassLoader loader;
     private final ClassFileTransformer dispatcher;
 
     public DefaultTranslator(ClassLoader loader, ClassFileTransformer defaultTransformer) {
-        if (defaultTransformer == null) {
-            throw new NullPointerException("dispatcher");
-        }
         this.loader = loader;
-        this.dispatcher = defaultTransformer;
+        this.dispatcher = Objects.requireNonNull(defaultTransformer, "defaultTransformer");
     }
 
     public void addTransformer(MatchableClassFileTransformer transformer) {
@@ -112,12 +110,12 @@ public class DefaultTranslator implements Translator {
     }
 
     private byte[] customTransformer(String jvmClassName) {
-        logger.info("Modify find classname:{}, loader:{}", jvmClassName, loader);
+        logger.debug("Modify find classname:{}, loader:{}", jvmClassName, loader);
         MatchableClassFileTransformer transformer = transformerMap.get(jvmClassName);
         if (transformer == null) {
             return null;
         }
-        logger.info("Modify jvmClassName:{},  modifier{}, loader:{}", jvmClassName, transformer, loader);
+        logger.debug("Modify jvmClassName:{},  modifier{}, loader:{}", jvmClassName, transformer, loader);
 
 
         final Thread thread = Thread.currentThread();

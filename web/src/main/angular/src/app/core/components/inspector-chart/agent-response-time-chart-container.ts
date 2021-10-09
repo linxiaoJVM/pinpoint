@@ -1,4 +1,4 @@
-import { PrimitiveArray, Data } from 'billboard.js';
+import { PrimitiveArray, Data, spline, areaSpline } from 'billboard.js';
 import { Observable } from 'rxjs';
 
 import { IInspectorChartContainer } from './inspector-chart-container-factory';
@@ -15,23 +15,23 @@ export class AgentResponseTimeChartContainer implements IInspectorChartContainer
         private inspectorChartDataService: InspectorChartDataService
     ) {}
 
-    getData(range: number[]): Observable<IInspectorChartData | AjaxException> {
+    getData(range: number[]): Observable<IInspectorChartData> {
         return this.inspectorChartDataService.getData(this.apiUrl, range);
     }
 
     makeChartData({charts}: IInspectorChartData): PrimitiveArray[] {
         return [
             ['x', ...makeXData(charts.x)],
-            ['avg', ...makeYData(charts.y['AVG'], 2)],
             ['max', ...makeYData(charts.y['MAX'], 1)],
+            ['avg', ...makeYData(charts.y['AVG'], 2)],
         ];
     }
 
     makeDataOption(): Data {
         return {
             types: {
-                avg: 'area-spline',
-                max: 'spline'
+                avg: areaSpline(),
+                max: spline()
             },
             names: {
                 avg: 'Avg',

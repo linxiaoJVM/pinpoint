@@ -18,9 +18,10 @@ package com.navercorp.pinpoint.grpc;
 
 import com.google.protobuf.Empty;
 import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
+import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.grpc.client.ChannelFactory;
 import com.navercorp.pinpoint.grpc.client.ChannelFactoryBuilder;
-import com.navercorp.pinpoint.grpc.client.ClientOption;
+import com.navercorp.pinpoint.grpc.client.config.ClientOption;
 import com.navercorp.pinpoint.grpc.client.DefaultChannelFactoryBuilder;
 import com.navercorp.pinpoint.grpc.client.HeaderFactory;
 import com.navercorp.pinpoint.grpc.server.MetadataServerTransportFilter;
@@ -52,7 +53,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import javax.net.ssl.SSLException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -103,7 +104,7 @@ public class ChannelFactoryTest {
     @Test
     public void build() throws InterruptedException {
 
-        HeaderFactory headerFactory = new AgentHeaderFactory("agentId", "appName", System.currentTimeMillis());
+        HeaderFactory headerFactory = new AgentHeaderFactory("agentId", "agentName", "appName", ServiceType.UNDEFINED.getCode(), System.currentTimeMillis());
 
         CountRecordClientInterceptor countRecordClientInterceptor = new CountRecordClientInterceptor();
 
@@ -111,7 +112,7 @@ public class ChannelFactoryTest {
         channelFactoryBuilder.setHeaderFactory(headerFactory);
         channelFactoryBuilder.setNameResolverProvider(nameResolverProvider);
         channelFactoryBuilder.addClientInterceptor(countRecordClientInterceptor);
-        channelFactoryBuilder.setClientOption(new ClientOption.Builder().build());
+        channelFactoryBuilder.setClientOption(new ClientOption());
         ChannelFactory channelFactory = channelFactoryBuilder.build();
 
         ManagedChannel managedChannel = channelFactory.build("127.0.0.1", PORT);
@@ -119,7 +120,7 @@ public class ChannelFactoryTest {
 
         SpanGrpc.SpanStub spanStub = SpanGrpc.newStub(managedChannel);
 
-        final QueueingStreamObserver<Empty> responseObserver = new QueueingStreamObserver<Empty>();
+        final QueueingStreamObserver<Empty> responseObserver = new QueueingStreamObserver<>();
 
         logger.debug("sendSpan");
         StreamObserver<PSpanMessage> sendSpan = spanStub.sendSpan(responseObserver);
@@ -160,10 +161,10 @@ public class ChannelFactoryTest {
     }
 
 
-    private static Server serverStart(ExecutorService executorService) throws IOException {
+    private static Server serverStart(ExecutorService executorService) throws SSLException {
         logger.debug("server start");
 
-        serverFactory = new ServerFactory(ChannelFactoryTest.class.getSimpleName() + "-server", "127.0.0.1", PORT, executorService, new ServerOption.Builder().build());
+        serverFactory = new ServerFactory(ChannelFactoryTest.class.getSimpleName() + "-server", "127.0.0.1", PORT, executorService, ServerOption.newBuilder().build());
         spanService = new SpanService();
 
         serverFactory.addService(spanService);

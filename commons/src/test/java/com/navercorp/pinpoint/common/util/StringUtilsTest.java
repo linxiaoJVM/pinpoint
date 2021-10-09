@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author poap
@@ -41,7 +42,7 @@ public class StringUtilsTest {
 
     @Test
     public void toStringTest() {
-        int array[] = {0, 1};
+        int[] array = {0, 1};
 
         Assert.assertEquals(StringUtils.toString(null), "null");
         Assert.assertEquals(StringUtils.toString(1), "1");
@@ -155,7 +156,7 @@ public class StringUtilsTest {
 
         final String sample = "a, b,  ,,   c";
         List<String> tokenList = StringUtils.tokenizeToStringList(sample, ",");
-        Assert.assertEquals(Arrays.asList(new String[]{"a", "b", "c"}), tokenList);
+        Assert.assertEquals(Arrays.asList("a", "b", "c"), tokenList);
 
 
     }
@@ -185,10 +186,10 @@ public class StringUtilsTest {
         if (StringUtils.isEmpty(value)) {
             return Collections.emptyList();
         }
-        if (separator == null) {
-            throw new NullPointerException("separator");
-        }
-        final List<String> result = new ArrayList<String>();
+
+        Objects.requireNonNull(separator, "separator");
+
+        final List<String> result = new ArrayList<>();
         final String[] split = value.split(separator);
         for (String method : split) {
             if (StringUtils.isEmpty(method)) {
@@ -242,5 +243,11 @@ public class StringUtilsTest {
         Assert.assertFalse(StringUtils.hasText("  "));
 
     }
+
+    @Test
+    public void abbreviateBufferSize() {
+        Assert.assertEquals("a...(123)".length(), StringUtils.abbreviateBufferSize(1, 123));
+    }
+
 
 }

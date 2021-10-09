@@ -38,19 +38,19 @@ import static org.hamcrest.core.Is.is;
  */
 class TraceMetadataVerifier {
 
-    private final Map<Short, List<String>> serviceTypeNamesByCode = new TreeMap<Short, List<String>>();
-    private final Map<String, List<Short>> serviceTypeCodesByName = new TreeMap<String, List<Short>>();
-    private final List<ServiceType> serviceTypeList = new ArrayList<ServiceType>();
-    private final Map<Integer, List<String>> annotationKeyNamesByCode = new TreeMap<Integer, List<String>>();
+    private final Map<Short, List<String>> serviceTypeNamesByCode = new TreeMap<>();
+    private final Map<String, List<Short>> serviceTypeCodesByName = new TreeMap<>();
+    private final List<ServiceType> serviceTypeList = new ArrayList<>();
+    private final Map<Integer, List<String>> annotationKeyNamesByCode = new TreeMap<>();
 
     private final TraceMetadataVerifierSetupContext traceMetadataSetupContext;
 
     TraceMetadataVerifier() {
-        StaticFieldLookUp<ServiceType> staticServiceTypes = new StaticFieldLookUp<ServiceType>(ServiceType.class, ServiceType.class);
+        StaticFieldLookUp<ServiceType> staticServiceTypes = new StaticFieldLookUp<>(ServiceType.class, ServiceType.class);
         for (ServiceType staticServiceType : staticServiceTypes.lookup()) {
             addServiceType(staticServiceType);
         }
-        StaticFieldLookUp<AnnotationKey> staticAnnotationKeys = new StaticFieldLookUp<AnnotationKey>(AnnotationKey.class, AnnotationKey.class);
+        StaticFieldLookUp<AnnotationKey> staticAnnotationKeys = new StaticFieldLookUp<>(AnnotationKey.class, AnnotationKey.class);
         for (AnnotationKey staticAnnotationKey : staticAnnotationKeys.lookup()) {
             addAnnotationKey(staticAnnotationKey);
         }
@@ -65,14 +65,14 @@ class TraceMetadataVerifier {
 
         List<String> serviceTypeNames = serviceTypeNamesByCode.get(serviceTypeCode);
         if (serviceTypeNames == null) {
-            serviceTypeNames = new ArrayList<String>();
+            serviceTypeNames = new ArrayList<>();
             serviceTypeNamesByCode.put(serviceTypeCode, serviceTypeNames);
         }
         serviceTypeNames.add(serviceTypeName);
 
         List<Short> serviceTypeCodes = serviceTypeCodesByName.get(serviceTypeName);
         if (serviceTypeCodes == null) {
-            serviceTypeCodes = new ArrayList<Short>();
+            serviceTypeCodes = new ArrayList<>();
             serviceTypeCodesByName.put(serviceTypeName, serviceTypeCodes);
         }
         serviceTypeCodes.add(serviceTypeCode);
@@ -82,7 +82,7 @@ class TraceMetadataVerifier {
         Integer annotationKeyCode = annotationKey.getCode();
         List<String> annotationKeyNames = annotationKeyNamesByCode.get(annotationKeyCode);
         if (annotationKeyNames == null) {
-            annotationKeyNames = new ArrayList<String>();
+            annotationKeyNames = new ArrayList<>();
             annotationKeyNamesByCode.put(annotationKeyCode, annotationKeyNames);
         }
         String annotationKeyName = annotationKey.getName();
@@ -132,8 +132,8 @@ class TraceMetadataVerifier {
         private final List<AnnotationKey> dynamicAnnotationKeys;
 
         private TraceMetadataVerifierSetupContext() {
-            this.dynamicServiceTypes = new ArrayList<ServiceType>();
-            this.dynamicAnnotationKeys = new ArrayList<AnnotationKey>();
+            this.dynamicServiceTypes = new ArrayList<>();
+            this.dynamicAnnotationKeys = new ArrayList<>();
         }
 
         @Override

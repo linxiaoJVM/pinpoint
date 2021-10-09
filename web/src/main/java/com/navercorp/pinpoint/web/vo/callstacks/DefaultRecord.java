@@ -23,7 +23,10 @@ import com.navercorp.pinpoint.common.trace.ServiceType;
  * @author jaehong.kim
  */
 public class DefaultRecord extends BaseRecord {
-    public DefaultRecord(int tab, int id, int parentId, boolean method, String title, String arguments, long begin, long elapsed, long gap, String agent, String applicationName, ServiceType serviceType, String destinationId, boolean hasChild, boolean hasException, String transactionId, long spanId, long executionMilliseconds, MethodTypeEnum methodTypeEnum, boolean isAuthorized) {
+    public DefaultRecord(int tab, int id, int parentId, boolean method, String title, String arguments,
+                         long begin, long elapsed, long gap, String agentId, String agentName, String applicationName, ServiceType serviceType,
+                         String destinationId, boolean hasChild, boolean hasException, String transactionId, long spanId,
+                         long executionMilliseconds, MethodTypeEnum methodTypeEnum, boolean isAuthorized) {
         this.tab = tab;
         this.id = id;
         this.parentId = parentId;
@@ -34,7 +37,8 @@ public class DefaultRecord extends BaseRecord {
         this.begin = begin;
         this.elapsed = elapsed;
         this.gap = gap;
-        this.agent = agent;
+        this.agentId = agentId;
+        this.agentName = agentName;
 
         this.applicationName = applicationName;
         this.serviceType = serviceType;
@@ -99,8 +103,8 @@ public class DefaultRecord extends BaseRecord {
         return gap;
     }
 
-    public String getAgent() {
-        return agent;
+    public String getAgentId() {
+        return agentId;
     }
 
     public String getApplicationName() {
@@ -206,8 +210,8 @@ public class DefaultRecord extends BaseRecord {
         builder.append(gap);
         builder.append(", executionMilliseconds=");
         builder.append(executionMilliseconds);
-        builder.append(", agent=");
-        builder.append(agent);
+        builder.append(", agentId=");
+        builder.append(agentId);
         builder.append(", applicationName=");
         builder.append(applicationName);
         builder.append(", serviceType=");

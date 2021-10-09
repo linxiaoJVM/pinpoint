@@ -16,15 +16,12 @@
 
 package com.navercorp.pinpoint.rpc.server;
 
-import com.navercorp.pinpoint.common.util.Assert;
-import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.rpc.ChannelWriteFailListenableFuture;
 import com.navercorp.pinpoint.rpc.Future;
 import com.navercorp.pinpoint.rpc.ResponseMessage;
 import com.navercorp.pinpoint.rpc.client.RequestManager;
 import com.navercorp.pinpoint.rpc.client.WriteFailFutureListener;
 import com.navercorp.pinpoint.rpc.cluster.ClusterOption;
-import com.navercorp.pinpoint.rpc.cluster.Role;
 import com.navercorp.pinpoint.rpc.common.CyclicStateChecker;
 import com.navercorp.pinpoint.rpc.common.SocketStateChangeResult;
 import com.navercorp.pinpoint.rpc.common.SocketStateCode;
@@ -51,8 +48,6 @@ import com.navercorp.pinpoint.rpc.util.ClassUtils;
 import com.navercorp.pinpoint.rpc.util.ControlMessageEncodingUtils;
 import com.navercorp.pinpoint.rpc.util.IDGenerator;
 import com.navercorp.pinpoint.rpc.util.ListUtils;
-import com.navercorp.pinpoint.rpc.util.MapUtils;
-
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -65,6 +60,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -82,7 +78,7 @@ public class DefaultPinpointServer implements PinpointServer {
     private final DefaultPinpointServerState state;
     private final CyclicStateChecker stateChecker;
 
-    private HealthCheckStateContext healthCheckStateContext = new HealthCheckStateContext();
+    private final HealthCheckStateContext healthCheckStateContext = new HealthCheckStateContext();
 
     private final ServerMessageListener messageListener;
 
@@ -90,7 +86,7 @@ public class DefaultPinpointServer implements PinpointServer {
 
     private final StreamChannelManager streamChannelManager;
 
-    private final AtomicReference<Map<Object, Object>> properties = new AtomicReference<Map<Object, Object>>();
+    private final AtomicReference<Map<Object, Object>> properties = new AtomicReference<>();
 
     private final String objectUniqName;
 
@@ -115,7 +111,7 @@ public class DefaultPinpointServer implements PinpointServer {
         StreamChannelManager streamChannelManager = new StreamChannelManager(channel, IDGenerator.createEvenIdGenerator(), serverConfig.getServerStreamMessageHandler());
         this.streamChannelManager = streamChannelManager;
 
-        this.stateChangeEventListeners = new ArrayList<ServerStateChangeEventHandler>();
+        this.stateChangeEventListeners = new ArrayList<>();
         List<ServerStateChangeEventHandler> configuredStateChangeEventHandlers = serverConfig.getStateChangeEventHandlers();
         if (configuredStateChangeEventHandlers != null) {
             for (ServerStateChangeEventHandler configuredStateChangeEventHandler : configuredStateChangeEventHandlers) {
@@ -187,7 +183,7 @@ public class DefaultPinpointServer implements PinpointServer {
 
     @Override
     public void send(byte[] payload) {
-        Assert.requireNonNull(payload, "payload");
+        Objects.requireNonNull(payload, "payload");
         if (!isEnableDuplexCommunication()) {
             throw new IllegalStateException("Send fail. Error: Illegal State. pinpointServer:" + toString());
         }
@@ -198,7 +194,7 @@ public class DefaultPinpointServer implements PinpointServer {
 
     @Override
     public Future<ResponseMessage> request(byte[] payload) {
-        Assert.requireNonNull(payload, "payload");
+        Objects.requireNonNull(payload, "payload");
         if (!isEnableDuplexCommunication()) {
             throw new IllegalStateException("Request fail. Error: Illegal State. pinpointServer:" + toString());
         }
@@ -212,7 +208,7 @@ public class DefaultPinpointServer implements PinpointServer {
 
     @Override
     public void response(int requestId, byte[] payload) {
-        Assert.requireNonNull(payload, "payload");
+        Objects.requireNonNull(payload, "payload");
         if (!isEnableCommunication()) {
             throw new IllegalStateException("Response fail. Error: Illegal State. pinpointServer:" + toString());
         }
@@ -240,6 +236,16 @@ public class DefaultPinpointServer implements PinpointServer {
         ClientStreamChannel streamChannel = streamChannelManager.openStream(payload, streamChannelEventHandler);
 
         logger.info("{} createStream() completed.", objectUniqName);
+        return streamChannel;
+    }
+
+    @Override
+    public ClientStreamChannel openStreamAndAwait(byte[] payload, ClientStreamChannelEventHandler streamChannelEventHandler, long timeout) throws StreamException {
+        logger.info("{} createStreamAndAwait() started.", objectUniqName);
+
+        ClientStreamChannel streamChannel = streamChannelManager.openStreamAndAwait(payload, streamChannelEventHandler, timeout);
+
+        logger.info("{} createStreamAndAwait() completed.", objectUniqName);
         return streamChannel;
     }
 
@@ -377,7 +383,7 @@ public class DefaultPinpointServer implements PinpointServer {
             boolean isFirst = setChannelProperties(handshakeData);
             if (isFirst) {
                 if (HandshakeResponseCode.DUPLEX_COMMUNICATION == responseCode) {
-                    this.remoteClusterOption = getClusterOption(handshakeData);
+                    this.remoteClusterOption = ClusterOption.getClusterOption(handshakeData);
                     state.toRunDuplex();
                 } else if (HandshakeResponseCode.SIMPLEX_COMMUNICATION == responseCode || HandshakeResponseCode.SUCCESS == responseCode) {
                     state.toRunSimplex();
@@ -393,35 +399,6 @@ public class DefaultPinpointServer implements PinpointServer {
         }
     }
 
-    private ClusterOption getClusterOption(Map handshakeResponse) {
-        if (handshakeResponse == Collections.emptyMap()) {
-            return ClusterOption.DISABLE_CLUSTER_OPTION;
-        }
-
-        Map cluster = (Map) handshakeResponse.get(ControlHandshakeResponsePacket.CLUSTER);
-        if (cluster == null) {
-            return ClusterOption.DISABLE_CLUSTER_OPTION;
-        }
-
-        String id = MapUtils.getString(cluster, "id", "");
-        List<Role> roles = getRoles((List) cluster.get("roles"));
-
-        if (StringUtils.isEmpty(id)) {
-            return ClusterOption.DISABLE_CLUSTER_OPTION;
-        } else {
-            return new ClusterOption(true, id, roles);
-        }
-    }
-
-    private List<Role> getRoles(List roleNames) {
-        List<Role> roles = new ArrayList<Role>();
-        for (Object roleName : roleNames) {
-            if (roleName instanceof String && StringUtils.hasLength((String) roleName)) {
-                roles.add(Role.getValue((String) roleName));
-            }
-        }
-        return roles;
-    }
 
     private void handleClosePacket(Channel channel) {
         logger.info("{} handleClosePacket() started.", objectUniqName);
@@ -489,7 +466,7 @@ public class DefaultPinpointServer implements PinpointServer {
     private Map<String, Object> createHandshakeResponse(HandshakeResponseCode responseCode, boolean isFirst) {
         final HandshakeResponseCode createdCode = getHandshakeResponseCode(responseCode, isFirst);
 
-        Map<String, Object> result = new HashMap<String, Object>();
+        Map<String, Object> result = new HashMap<>();
         result.put(ControlHandshakeResponsePacket.CODE, createdCode.getCode());
         result.put(ControlHandshakeResponsePacket.SUB_CODE, createdCode.getSubCode());
         if (localClusterOption.isEnable()) {

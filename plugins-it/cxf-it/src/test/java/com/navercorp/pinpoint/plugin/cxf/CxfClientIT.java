@@ -27,6 +27,10 @@ import com.navercorp.pinpoint.test.plugin.JvmVersion;
 import com.navercorp.pinpoint.test.plugin.PinpointAgent;
 import com.navercorp.pinpoint.test.plugin.PinpointConfig;
 import com.navercorp.pinpoint.test.plugin.PinpointPluginTestSuite;
+import com.navercorp.pinpoint.test.plugin.ImportPlugin;
+import com.navercorp.pinpoint.test.plugin.shared.AfterSharedClass;
+import com.navercorp.pinpoint.test.plugin.shared.BeforeSharedClass;
+
 import org.apache.cxf.interceptor.LoggingInInterceptor;
 import org.apache.cxf.interceptor.LoggingMessage;
 import org.apache.cxf.interceptor.LoggingOutInterceptor;
@@ -47,26 +51,37 @@ import static com.navercorp.pinpoint.bootstrap.plugin.test.Expectations.event;
 @PinpointAgent(AgentPath.PATH)
 @JvmVersion(8)
 @Dependency({"org.apache.cxf:cxf-rt-rs-client:[3.0.0][3.0.16][3.1.0][3.1.16],[3.2.1,)", WebServer.VERSION, PluginITConstants.VERSION})
+@ImportPlugin({"com.navercorp.pinpoint:pinpoint-cxf-plugin", "com.navercorp.pinpoint:pinpoint-jdk-http-plugin"})
 @PinpointConfig("cxf/pinpoint-cxf-test.config")
 public class CxfClientIT {
 
     private static WebServer webServer;
 
-    @BeforeClass
-    public static void BeforeClass() throws Exception {
-        webServer = WebServer.newTestWebServer();
+    private static String ADDRESS;
 
+    public static String getADDRESS() {
+        return ADDRESS;
     }
 
-    @AfterClass
-    public static void AfterClass() throws Exception {
+    public static void setADDRESS(String ADDRESS) {
+        CxfClientIT.ADDRESS = ADDRESS;
+    }
+
+    @BeforeSharedClass
+    public static void BeforeClass() throws Exception {
+        webServer = WebServer.newTestWebServer();
+        setADDRESS(webServer.getCallHttpUrl());
+    }
+
+    @AfterSharedClass
+    public static void AfterClass() {
         webServer = WebServer.cleanup(webServer);
     }
 
     @Test
     public void test() throws Exception {
 
-        String address = webServer.getCallHttpUrl();
+        String address = getADDRESS();
 
         String json = "{\"id\" : 12345, \"name\" : \"victor\"}";
 

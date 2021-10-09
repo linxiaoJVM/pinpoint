@@ -32,7 +32,6 @@ import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -49,12 +48,15 @@ public class AgentEventHandlingFilter implements RouteFilter<ResponseEvent> {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private AgentEventService agentEventService;
+    private final AgentEventService agentEventService;
 
-    @Autowired
-    @Qualifier("commandHeaderTBaseDeserializerFactory")
-    private DeserializerFactory<HeaderTBaseDeserializer> commandDeserializerFactory;
+    private final DeserializerFactory<HeaderTBaseDeserializer> commandDeserializerFactory;
+
+    public AgentEventHandlingFilter(AgentEventService agentEventService,
+                                    @Qualifier("commandHeaderTBaseDeserializerFactory") DeserializerFactory<HeaderTBaseDeserializer> commandDeserializerFactory) {
+        this.agentEventService = Objects.requireNonNull(agentEventService, "agentEventService");
+        this.commandDeserializerFactory = Objects.requireNonNull(commandDeserializerFactory, "commandDeserializerFactory");
+    }
 
     @Override
     public void doEvent(ResponseEvent event) {
@@ -107,7 +109,7 @@ public class AgentEventHandlingFilter implements RouteFilter<ResponseEvent> {
 
         try {
             final Message<TBase<?, ?>> deserialize = SerializationUtils.deserialize(payload, commandDeserializerFactory);
-            final TBase tBase = deserialize.getData();
+            final TBase<?, ?> tBase = deserialize.getData();
             return tBase.getClass();
         } catch (TException e) {
             logger.warn("Error deserializing ResponseEvent payload", e);

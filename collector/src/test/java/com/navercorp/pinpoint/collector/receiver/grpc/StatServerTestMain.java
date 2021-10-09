@@ -16,6 +16,9 @@
 
 package com.navercorp.pinpoint.collector.receiver.grpc;
 
+import com.google.protobuf.GeneratedMessageV3;
+import com.navercorp.pinpoint.collector.grpc.config.GrpcStreamConfiguration;
+import com.navercorp.pinpoint.collector.receiver.BindAddress;
 import com.navercorp.pinpoint.collector.receiver.DispatchHandler;
 import com.navercorp.pinpoint.collector.receiver.grpc.service.DefaultServerRequestFactory;
 import com.navercorp.pinpoint.collector.receiver.grpc.service.StatService;
@@ -31,7 +34,7 @@ import io.grpc.ServerServiceDefinition;
 import org.springframework.beans.factory.FactoryBean;
 
 import java.net.InetAddress;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,15 +47,18 @@ public class StatServerTestMain {
     public void run() throws Exception {
         GrpcReceiver grpcReceiver = new GrpcReceiver();
         grpcReceiver.setBeanName("StatServer");
-        grpcReceiver.setBindPort(PORT);
+
+        BindAddress.Builder builder = BindAddress.newBuilder();
+        builder.setPort(PORT);
+        grpcReceiver.setBindAddress(builder.build());
 
         ExecutorService executorService = Executors.newFixedThreadPool(8);
         ServerServiceDefinition bindableService = newStatBindableService(executorService);
-        grpcReceiver.setBindableServiceList(Arrays.asList(bindableService));
+        grpcReceiver.setBindableServiceList(Collections.singletonList(bindableService));
         grpcReceiver.setAddressFilter(new MockAddressFilter());
         grpcReceiver.setExecutor(Executors.newFixedThreadPool(8));
         grpcReceiver.setEnable(true);
-        grpcReceiver.setServerOption(new ServerOption.Builder().build());
+        grpcReceiver.setServerOption(ServerOption.newBuilder().build());
 
         grpcReceiver.afterPropertiesSet();
 
@@ -61,10 +67,23 @@ public class StatServerTestMain {
     }
 
     private ServerServiceDefinition newStatBindableService(Executor executor) throws Exception {
-        FactoryBean<ServerInterceptor> interceptorFactory = new StreamExecutorServerInterceptorFactory(executor, 100, Executors.newSingleThreadScheduledExecutor(), 1000, 10);
+        GrpcStreamConfiguration streamConfiguration = newStreamConfiguration();
+
+
+        FactoryBean<ServerInterceptor> interceptorFactory = new StreamExecutorServerInterceptorFactory(executor,
+                Executors.newSingleThreadScheduledExecutor(),
+                streamConfiguration);
         ServerInterceptor interceptor = interceptorFactory.getObject();
         StatService statService = new StatService(new MockDispatchHandler(), new DefaultServerRequestFactory());
         return ServerInterceptors.intercept(statService, interceptor);
+    }
+
+    private GrpcStreamConfiguration newStreamConfiguration() {
+        GrpcStreamConfiguration.Builder builder = GrpcStreamConfiguration.newBuilder();
+        builder.setCallInitRequestCount(100);
+        builder.setSchedulerPeriodMillis(1000);
+        builder.setSchedulerRecoveryMessageCount(100);
+        return builder.build();
     }
 
     public static void main(String[] args) throws Exception {
@@ -72,18 +91,19 @@ public class StatServerTestMain {
         main.run();
     }
 
-    private static class MockDispatchHandler implements DispatchHandler {
+    private static class MockDispatchHandler implements DispatchHandler<GeneratedMessageV3, GeneratedMessageV3> {
         private static final AtomicInteger counter = new AtomicInteger(0);
 
         @Override
-        public void dispatchSendMessage(ServerRequest serverRequest) {
+        public void dispatchSendMessage(ServerRequest<GeneratedMessageV3> serverRequest) {
             System.out.println("Dispatch send message " + serverRequest);
         }
 
         @Override
-        public void dispatchRequestMessage(ServerRequest serverRequest, ServerResponse serverResponse) {
+        public void dispatchRequestMessage(ServerRequest<GeneratedMessageV3> serverRequest, ServerResponse<GeneratedMessageV3> serverResponse) {
             System.out.println("Dispatch request message " + serverRequest + ", " + serverResponse);
-            serverResponse.write(PResult.newBuilder().setMessage("Success" + counter.getAndIncrement()).build());
+            PResult pResult = PResult.newBuilder().setMessage("Success" + counter.getAndIncrement()).build();
+            serverResponse.write(pResult);
         }
     }
 

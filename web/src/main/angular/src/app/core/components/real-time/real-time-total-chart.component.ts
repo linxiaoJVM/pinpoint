@@ -1,6 +1,6 @@
 import { Component, OnInit, Input, OnChanges, SimpleChanges } from '@angular/core';
 
-import { IParsedATC } from './real-time-chart.component';
+import { IParsedARC } from './real-time-chart.component';
 
 @Component({
     selector: 'pp-real-time-total-chart',
@@ -13,7 +13,15 @@ export class RealTimeTotalChartComponent implements OnChanges, OnInit {
     @Input() applicationName: string;
     @Input() timeStamp: number;
     @Input() sum: number[];
-    @Input() activeThreadCounts: {[key: string]: IParsedATC};
+    @Input() activeRequestCounts: {[key: string]: IParsedARC};
+
+    computedStyle = getComputedStyle(document.body);
+    chartColor = {
+        one: this.computedStyle.getPropertyValue('--chart-1s'),
+        three: this.computedStyle.getPropertyValue('--chart-3s'),
+        five: this.computedStyle.getPropertyValue('--chart-5s'),
+        slow: this.computedStyle.getPropertyValue('--chart-slow'),
+    };
 
     maxChartNumberPerPage = 1;
     chartOption = {
@@ -28,7 +36,7 @@ export class RealTimeTotalChartComponent implements OnChanges, OnInit {
         chartHeight: 114,
         titleHeight: 34,
         gapBtnChart: 0,
-        chartColors: ['#33b692', '#51afdf', '#fea63e', '#e76f4b'],
+        chartColors: [this.chartColor.one, this.chartColor.three, this.chartColor.five, this.chartColor.slow],
         chartLabels: ['1s', '3s', '5s', 'Slow'],
         ellipsis: '...',
         drawHGridLine: false,

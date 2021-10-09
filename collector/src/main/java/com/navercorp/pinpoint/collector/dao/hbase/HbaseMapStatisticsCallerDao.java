@@ -17,31 +17,24 @@
 package com.navercorp.pinpoint.collector.dao.hbase;
 
 import com.navercorp.pinpoint.collector.dao.MapStatisticsCallerDao;
-import com.navercorp.pinpoint.collector.dao.hbase.statistics.BulkIncrementer;
+import com.navercorp.pinpoint.collector.dao.hbase.statistics.BulkWriter;
 import com.navercorp.pinpoint.collector.dao.hbase.statistics.CallRowKey;
 import com.navercorp.pinpoint.collector.dao.hbase.statistics.CalleeColumnName;
 import com.navercorp.pinpoint.collector.dao.hbase.statistics.ColumnName;
+import com.navercorp.pinpoint.collector.dao.hbase.statistics.MapLinkConfiguration;
 import com.navercorp.pinpoint.collector.dao.hbase.statistics.RowKey;
-import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
-import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
-import com.navercorp.pinpoint.common.hbase.TableDescriptor;
+import com.navercorp.pinpoint.common.server.util.ApplicationMapStatisticsUtils;
 import com.navercorp.pinpoint.common.server.util.AcceptedTimeService;
-import com.navercorp.pinpoint.common.trace.ServiceType;
-import com.navercorp.pinpoint.common.profiler.util.ApplicationMapStatisticsUtils;
 import com.navercorp.pinpoint.common.server.util.TimeSlot;
-
-import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
+import com.navercorp.pinpoint.common.trace.HistogramSchema;
+import com.navercorp.pinpoint.common.trace.ServiceType;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Increment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 
 /**
  * Update statistics of caller node
@@ -55,44 +48,29 @@ public class HbaseMapStatisticsCallerDao implements MapStatisticsCallerDao {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private HbaseOperations2 hbaseTemplate;
+    private final AcceptedTimeService acceptedTimeService;
 
-    @Autowired
-    private AcceptedTimeService acceptedTimeService;
+    private final TimeSlot timeSlot;
+    private final BulkWriter bulkWriter;
+    private final MapLinkConfiguration mapLinkConfiguration;
 
-    @Autowired
-    private TimeSlot timeSlot;
+    public HbaseMapStatisticsCallerDao(MapLinkConfiguration mapLinkConfiguration,
+                                       AcceptedTimeService acceptedTimeService,
+                                       TimeSlot timeSlot,
+                                       @Qualifier("callerBulkWriter") BulkWriter bulkWriter) {
+        this.mapLinkConfiguration = Objects.requireNonNull(mapLinkConfiguration, "mapLinkConfiguration");
+        this.acceptedTimeService = Objects.requireNonNull(acceptedTimeService, "acceptedTimeService");
+        this.timeSlot = Objects.requireNonNull(timeSlot, "timeSlot");
 
-    @Autowired
-    @Qualifier("callerBulkIncrementer")
-    private BulkIncrementer bulkIncrementer;
-
-    @Autowired
-    @Qualifier("statisticsCallerRowKeyDistributor")
-    private RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
-
-    private final boolean useBulk;
-
-    @Autowired
-    private TableDescriptor<HbaseColumnFamily.CalleeStatMap> descriptor;
-
-    public HbaseMapStatisticsCallerDao() {
-        this(true);
+        this.bulkWriter = Objects.requireNonNull(bulkWriter, "bulkWrtier");
     }
 
-    public HbaseMapStatisticsCallerDao(boolean useBulk) {
-        this.useBulk = useBulk;
-    }
 
     @Override
     public void update(String callerApplicationName, ServiceType callerServiceType, String callerAgentid, String calleeApplicationName, ServiceType calleeServiceType, String calleeHost, int elapsed, boolean isError) {
-        if (callerApplicationName == null) {
-            throw new NullPointerException("callerApplicationName");
-        }
-        if (calleeApplicationName == null) {
-            throw new NullPointerException("calleeApplicationName");
-        }
+        Objects.requireNonNull(callerApplicationName, "callerApplicationName");
+        Objects.requireNonNull(calleeApplicationName, "calleeApplicationName");
+
 
         if (logger.isDebugEnabled()) {
             logger.debug("[Caller] {} ({}) {} -> {} ({})[{}]", callerApplicationName, callerServiceType, callerAgentid,
@@ -108,50 +86,31 @@ public class HbaseMapStatisticsCallerDao implements MapStatisticsCallerDao {
         final RowKey callerRowKey = new CallRowKey(callerApplicationName, callerServiceType.getCode(), rowTimeSlot);
 
         final short calleeSlotNumber = ApplicationMapStatisticsUtils.getSlotNumber(calleeServiceType, elapsed, isError);
-        final ColumnName calleeColumnName = new CalleeColumnName(callerAgentid, calleeServiceType.getCode(), calleeApplicationName, calleeHost, calleeSlotNumber);
-        if (useBulk) {
-            TableName mapStatisticsCalleeTableName = descriptor.getTableName();
-            bulkIncrementer.increment(mapStatisticsCalleeTableName, callerRowKey, calleeColumnName);
-        } else {
-            final byte[] rowKey = getDistributedKey(callerRowKey.getRowKey());
-            // column name is the name of caller app.
-            byte[] columnName = calleeColumnName.getColumnName();
-            increment(rowKey, columnName, 1L);
-        }
-    }
 
-    private void increment(byte[] rowKey, byte[] columnName, long increment) {
-        if (rowKey == null) {
-            throw new NullPointerException("rowKey");
+        HistogramSchema histogramSchema = callerServiceType.getHistogramSchema();
+
+        final ColumnName calleeColumnName = new CalleeColumnName(callerAgentid, calleeServiceType.getCode(), calleeApplicationName, calleeHost, calleeSlotNumber);
+        this.bulkWriter.increment(callerRowKey, calleeColumnName);
+
+        if (mapLinkConfiguration.isEnableAvg()) {
+            final ColumnName sumColumnName = new CalleeColumnName(callerAgentid, calleeServiceType.getCode(), calleeApplicationName, calleeHost, histogramSchema.getSumStatSlot().getSlotTime());
+            this.bulkWriter.increment(callerRowKey, sumColumnName, elapsed);
         }
-        if (columnName == null) {
-            throw new NullPointerException("columnName");
+        if (mapLinkConfiguration.isEnableMax()) {
+            final ColumnName maxColumnName = new CalleeColumnName(callerAgentid, calleeServiceType.getCode(), calleeApplicationName, calleeHost, histogramSchema.getMaxStatSlot().getSlotTime());
+            this.bulkWriter.updateMax(callerRowKey, maxColumnName, elapsed);
         }
-        TableName mapStatisticsCalleeTableName = descriptor.getTableName();
-        hbaseTemplate.incrementColumnValue(mapStatisticsCalleeTableName, rowKey, descriptor.getColumnFamilyName(), columnName, increment);
+
     }
 
     @Override
-    public void flushAll() {
-        if (!useBulk) {
-            throw new IllegalStateException();
-        }
-        // update statistics by rowkey and column for now. need to update it by rowkey later.
-        Map<TableName, List<Increment>> incrementMap = bulkIncrementer.getIncrements(rowKeyDistributorByHashPrefix);
-
-        for (Map.Entry<TableName, List<Increment>> e : incrementMap.entrySet()) {
-            TableName tableName = e.getKey();
-            List<Increment> increments = e.getValue();
-            if (logger.isDebugEnabled()) {
-                logger.debug("flush {} to [{}] Increment:{}", this.getClass().getSimpleName(), tableName.getNameAsString(), increments.size());
-            }
-            hbaseTemplate.increment(tableName, increments);
-        }
+    public void flushLink() {
+        this.bulkWriter.flushLink();
     }
 
-    private byte[] getDistributedKey(byte[] rowKey) {
-        return rowKeyDistributorByHashPrefix.getDistributedKey(rowKey);
+    @Override
+    public void flushAvgMax() {
+        this.bulkWriter.flushAvgMax();
     }
-
 
 }

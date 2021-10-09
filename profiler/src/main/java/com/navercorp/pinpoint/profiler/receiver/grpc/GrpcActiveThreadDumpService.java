@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.profiler.receiver.grpc;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.common.util.JvmUtils;
 import com.navercorp.pinpoint.grpc.trace.PActiveThreadDump;
 import com.navercorp.pinpoint.grpc.trace.PCmdActiveThreadDump;
@@ -30,11 +30,11 @@ import com.navercorp.pinpoint.profiler.context.active.ActiveTraceRepository;
 import com.navercorp.pinpoint.profiler.context.active.ActiveTraceSnapshot;
 import com.navercorp.pinpoint.profiler.context.grpc.GrpcThreadDumpMessageConverter;
 import com.navercorp.pinpoint.profiler.monitor.metric.deadlock.ThreadDumpMetricSnapshot;
-import com.navercorp.pinpoint.profiler.receiver.ProfilerSimpleCommandService;
 import com.navercorp.pinpoint.profiler.receiver.service.ActiveThreadDumpCoreService;
 import com.navercorp.pinpoint.profiler.receiver.service.ThreadDump;
 import com.navercorp.pinpoint.profiler.receiver.service.ThreadDumpRequest;
 import com.navercorp.pinpoint.profiler.util.ThreadDumpUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +46,7 @@ import java.util.List;
 /**
  * @author Taejin Koo
  */
-public class GrpcActiveThreadDumpService implements ProfilerSimpleCommandService<PCmdRequest> {
+public class GrpcActiveThreadDumpService implements ProfilerGrpcCommandService {
 
     static final String JAVA = "JAVA";
 
@@ -56,17 +56,14 @@ public class GrpcActiveThreadDumpService implements ProfilerSimpleCommandService
 
     private final ActiveThreadDumpCoreService activeThreadDump;
 
-    private final ProfilerCommandServiceGrpc.ProfilerCommandServiceStub profilerCommandServiceStub;
-
-    public GrpcActiveThreadDumpService(ProfilerCommandServiceGrpc.ProfilerCommandServiceStub profilerCommandServiceStub, ActiveTraceRepository activeTraceRepository) {
-        this.profilerCommandServiceStub = Assert.requireNonNull(profilerCommandServiceStub, "profilerCommandServiceStub");
-        Assert.requireNonNull(activeTraceRepository, "activeTraceRepository");
+    public GrpcActiveThreadDumpService(ActiveTraceRepository activeTraceRepository) {
+        Objects.requireNonNull(activeTraceRepository, "activeTraceRepository");
 
         this.activeThreadDump = new ActiveThreadDumpCoreService(activeTraceRepository);
     }
 
     @Override
-    public void simpleCommandService(PCmdRequest request) {
+    public void handle(PCmdRequest request, ProfilerCommandServiceGrpc.ProfilerCommandServiceStub profilerCommandServiceStub) {
         logger.info("simpleCommandService:{}", request);
 
         PCmdActiveThreadDump commandActiveThreadDump = request.getCommandActiveThreadDump();
@@ -122,6 +119,7 @@ public class GrpcActiveThreadDumpService implements ProfilerSimpleCommandService
         }
         return builder.build();
     }
+
     @Override
     public short getCommandServiceCode() {
         return PCommandType.ACTIVE_THREAD_DUMP_VALUE;

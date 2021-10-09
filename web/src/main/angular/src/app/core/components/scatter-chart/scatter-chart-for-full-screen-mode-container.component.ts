@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Renderer2, ComponentFactoryResolver, Injector } from '@angular/core';
-import { Observable, Subject, of, forkJoin, Subscription } from 'rxjs';
-import { takeUntil, delay } from 'rxjs/operators';
+import { Observable, Subject, of, forkJoin, Subscription, fromEvent } from 'rxjs';
+import { takeUntil, delay, tap, filter } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 
 import {
@@ -14,7 +14,8 @@ import {
     MessageQueueService,
     MESSAGE_TO
 } from 'app/shared/services';
-import { UrlPath, UrlPathId } from 'app/shared/models';
+import { UrlPath, UrlPathId, UrlQuery } from 'app/shared/models';
+import { EndTime } from 'app/core/models';
 import { ScatterChartDataService } from './scatter-chart-data.service';
 import { ScatterChart } from './class/scatter-chart.class';
 import { ScatterChartInteractionService } from './scatter-chart-interaction.service';
@@ -33,6 +34,10 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
     instanceKey = 'full-screen-mode';
     addWindow = true;
     i18nText: { [key: string]: string };
+    currentRange: {from: number, to: number} = {
+        from: 0,
+        to: 0
+    };
     selectedTarget: ISelectedTarget;
     selectedApplication: string;
     scatterDataServiceSubscription: Subscription;
@@ -51,6 +56,7 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
     timezone$: Observable<string>;
     dateFormat: string[];
     showBlockMessagePopup = false;
+    enableServerSideScan: boolean;
 
     constructor(
         private renderer: Renderer2,
@@ -68,6 +74,7 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
         private messageQueueService: MessageQueueService
     ) {}
     ngOnInit() {
+        this.enableServerSideScan = this.webAppSettingDataService.getExperimentalOption('scatterScan');
         this.setScatterY();
         this.getI18NText();
         this.newUrlStateNotificationService.onUrlStateChange$.pipe(
@@ -76,10 +83,10 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
             this.scatterChartMode = urlService.isRealTimeMode() ? ScatterChart.MODE.REALTIME : ScatterChart.MODE.STATIC;
             this.selectedApplication = this.application = urlService.getPathValue(UrlPathId.APPLICATION).getKeyStr();
             this.selectedAgent = urlService.hasValue(UrlPathId.AGENT_ID) ? urlService.getPathValue(UrlPathId.AGENT_ID) : '';
-            this.fromX = urlService.getStartTimeToNumber();
-            this.toX = urlService.getEndTimeToNumber();
+            this.currentRange.from = this.fromX = urlService.getStartTimeToNumber();
+            this.currentRange.to = this.toX = urlService.getEndTimeToNumber();
             of(1).pipe(delay(1)).subscribe(() => {
-                this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+                this.reset({fromX: this.fromX, toX: this.toX});
                 this.getScatterData();
             });
         });
@@ -101,17 +108,17 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
         this.scatterChartDataService.outRealTimeScatterData$.pipe(
             takeUntil(this.unsubscribe)
         ).subscribe((scatterData: IScatterData) => {
-            if (scatterData.reset === true) {
-                this.fromX = scatterData.currentServerTime - this.webAppSettingDataService.getSystemDefaultPeriod().getMiliSeconds();
-                this.toX = scatterData.currentServerTime;
-                this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
-                of(1).pipe(delay(1000)).subscribe((useless: number) => {
-                    this.getScatterData();
-                });
-            } else {
-                this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
-            }
+            this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
         });
+
+        this.scatterChartDataService.onReset$.pipe(
+            takeUntil(this.unsubscribe),
+            tap(() => this.reset()),
+            delay(1000)
+        ).subscribe(() => {
+            this.getScatterData();
+        });
+
         this.scatterChartDataService.outScatterErrorData$.pipe(
             takeUntil(this.unsubscribe)
         ).subscribe((error: IServerErrorFormat) => {
@@ -122,6 +129,7 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
         ).subscribe((error: IServerErrorFormat) => {
         });
         this.connectStore();
+        this.addEventListener();
     }
 
     ngOnDestroy() {
@@ -130,6 +138,39 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
         }
         this.unsubscribe.next();
         this.unsubscribe.complete();
+    }
+
+    private reset(range?: {[key: string]: number}): void {
+        this.toX = range ? range.toX : Date.now();
+        this.fromX = range ? range.fromX : this.toX - this.webAppSettingDataService.getSystemDefaultPeriod().getMiliSeconds();
+
+        this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+    }
+
+    private addEventListener(): void {
+        const visibility$ = fromEvent(document, 'visibilitychange').pipe(
+            takeUntil(this.unsubscribe),
+            filter(() => this.scatterChartMode === ScatterChart.MODE.REALTIME)
+        );
+
+        // visible
+        visibility$.pipe(
+            filter(() => !document.hidden),
+            filter(() => !this.scatterChartDataService.isConnected()),
+            tap(() => this.reset()),
+            delay(1000)
+        ).subscribe(() => {
+            this.getScatterData();
+        });
+
+        // hidden
+        visibility$.pipe(
+            filter(() => document.hidden),
+            delay(10000),
+            filter(() => document.hidden),
+        ).subscribe(() => {
+            this.scatterChartDataService.stopLoad();
+        });
     }
 
     private setScatterY(): void {
@@ -199,6 +240,8 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
         });
         this.onHideSetting();
         this.webAppSettingDataService.setScatterY(this.instanceKey, { min: params.min, max: params.max });
+        this.reset({fromX: this.fromX, toX: this.toX});
+        this.getScatterData();
     }
 
     onHideSetting(): void {
@@ -244,6 +287,8 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
     }
 
     onChangeRangeX(params: IScatterXRange): void {
+        this.currentRange.from = params.from;
+        this.currentRange.to = params.to;
         this.messageQueueService.sendMessage({
             to: MESSAGE_TO.REAL_TIME_SCATTER_CHART_X_RANGE,
             param: params
@@ -251,15 +296,34 @@ export class ScatterChartForFullScreenModeContainerComponent implements OnInit, 
     }
 
     onSelectArea(params: any): void {
-        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_TRANSACTION_LIST);
+        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.SELECT_AREA_ON_SCATTER);
+        const {period, endTime} = this.newUrlStateNotificationService.isRealTimeMode() ?
+            {
+                period: this.webAppSettingDataService.getSystemDefaultPeriod().getValueWithTime(),
+                endTime: EndTime.newByNumber(this.currentRange.to).getEndTime()
+            } :
+            {
+                period: this.newUrlStateNotificationService.getPathValue(UrlPathId.PERIOD).getValueWithTime(),
+                endTime: this.newUrlStateNotificationService.getPathValue(UrlPathId.END_TIME).getEndTime()
+            };
+
         const returnOpenWindow = this.urlRouteManagerService.openPage({
             path: [
                 UrlPath.TRANSACTION_LIST,
-                this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).getUrlStr(),
-                this.newUrlStateNotificationService.getPathValue(UrlPathId.PERIOD).getValueWithTime(),
-                this.newUrlStateNotificationService.getPathValue(UrlPathId.END_TIME).getEndTime()
+                `${this.selectedApplication.replace('^', '@')}`,
+                period,
+                endTime
             ],
-            metaInfo: `${this.selectedApplication}|${params.x.from}|${params.x.to}|${params.y.from}|${params.y.to}|${this.selectedAgent}|${params.type.join(',')}`
+            queryParams: {
+                [UrlQuery.DRAG_INFO]: {
+                    x1: params.x.from,
+                    x2: params.x.to,
+                    y1: params.y.from,
+                    y2: params.y.to,
+                    agentId: this.selectedAgent,
+                    dotStatus: params.type
+                }
+            },
         });
 
         if (returnOpenWindow === null || returnOpenWindow === undefined) {

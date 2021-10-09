@@ -17,55 +17,66 @@
 package com.navercorp.pinpoint.collector.dao.hbase.stat;
 
 import com.navercorp.pinpoint.collector.dao.AgentStatDaoV2;
+import com.navercorp.pinpoint.collector.util.CollectorUtils;
 import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
 import com.navercorp.pinpoint.common.hbase.HbaseTable;
 import com.navercorp.pinpoint.common.hbase.TableNameProvider;
 import com.navercorp.pinpoint.common.server.bo.serializer.stat.AgentStatHbaseOperationFactory;
 import com.navercorp.pinpoint.common.server.bo.serializer.stat.TransactionSerializer;
+import com.navercorp.pinpoint.common.server.bo.stat.AgentStatBo;
 import com.navercorp.pinpoint.common.server.bo.stat.AgentStatType;
 import com.navercorp.pinpoint.common.server.bo.stat.TransactionBo;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Put;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
  */
 @Repository
 public class HbaseTransactionDao implements AgentStatDaoV2<TransactionBo> {
+    private final HbaseOperations2 hbaseTemplate;
 
-    @Autowired
-    private HbaseOperations2 hbaseTemplate;
+    private final TableNameProvider tableNameProvider;
 
-    @Autowired
-    private TableNameProvider tableNameProvider;
+    private final AgentStatHbaseOperationFactory agentStatHbaseOperationFactory;
 
-    @Autowired
-    private AgentStatHbaseOperationFactory agentStatHbaseOperationFactory;
+    private final TransactionSerializer transactionSerializer;
 
-    @Autowired
-    private TransactionSerializer transactionSerializer;
+    public HbaseTransactionDao(@Qualifier("asyncPutHbaseTemplate") HbaseOperations2 hbaseTemplate,
+                               TableNameProvider tableNameProvider,
+                               AgentStatHbaseOperationFactory agentStatHbaseOperationFactory,
+                               TransactionSerializer transactionSerializer) {
+        this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
+        this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
+        this.agentStatHbaseOperationFactory = Objects.requireNonNull(agentStatHbaseOperationFactory, "agentStatHbaseOperationFactory");
+        this.transactionSerializer = Objects.requireNonNull(transactionSerializer, "transactionSerializer");
+    }
 
     @Override
     public void insert(String agentId, List<TransactionBo> transactionBos) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        // Assert agentId
+        CollectorUtils.checkAgentId(agentId);
+
         if (CollectionUtils.isEmpty(transactionBos)) {
             return;
         }
         List<Put> transactionPuts = this.agentStatHbaseOperationFactory.createPuts(agentId, AgentStatType.TRANSACTION, transactionBos, this.transactionSerializer);
         if (!transactionPuts.isEmpty()) {
             TableName agentStatTableName = tableNameProvider.getTableName(HbaseTable.AGENT_STAT_VER2);
-            List<Put> rejectedPuts = this.hbaseTemplate.asyncPut(agentStatTableName, transactionPuts);
-            if (CollectionUtils.isNotEmpty(rejectedPuts)) {
-                this.hbaseTemplate.put(agentStatTableName, rejectedPuts);
-            }
+            this.hbaseTemplate.asyncPut(agentStatTableName, transactionPuts);
         }
+    }
+
+    @Override
+    public void dispatch(AgentStatBo agentStatBo) {
+        insert(agentStatBo.getAgentId(), agentStatBo.getTransactionBos());
     }
 }

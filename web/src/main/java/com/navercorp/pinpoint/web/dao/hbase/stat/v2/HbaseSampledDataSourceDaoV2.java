@@ -26,10 +26,10 @@ import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.DataSourceSampler
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.SampledDataSourceList;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -37,20 +37,22 @@ import java.util.List;
 @Repository("sampledDataSourceDaoV2")
 public class HbaseSampledDataSourceDaoV2 implements SampledDataSourceDao {
 
-    @Autowired
-    private DataSourceDecoder dataSourceDecoder;
+    private final HbaseAgentStatDaoOperationsV2 operations;
 
-    @Autowired
-    private DataSourceSampler dataSourceSampler;
+    private final DataSourceDecoder dataSourceDecoder;
+    private final DataSourceSampler dataSourceSampler;
 
-    @Autowired
-    private HbaseAgentStatDaoOperationsV2 operations;
+    public HbaseSampledDataSourceDaoV2(HbaseAgentStatDaoOperationsV2 operations, DataSourceDecoder dataSourceDecoder, DataSourceSampler dataSourceSampler) {
+        this.operations = Objects.requireNonNull(operations, "operations");
+        this.dataSourceDecoder = Objects.requireNonNull(dataSourceDecoder, "dataSourceDecoder");
+        this.dataSourceSampler = Objects.requireNonNull(dataSourceSampler, "dataSourceSampler");
+    }
 
     @Override
     public List<SampledDataSourceList> getSampledAgentStatList(String agentId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         AgentStatMapperV2<DataSourceListBo> mapper = operations.createRowMapper(dataSourceDecoder, range);
 
         SampledDataSourceResultExtractor resultExtractor = new SampledDataSourceResultExtractor(timeWindow, mapper, dataSourceSampler);

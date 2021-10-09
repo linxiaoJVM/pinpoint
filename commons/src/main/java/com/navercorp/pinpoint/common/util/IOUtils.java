@@ -23,6 +23,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.DatagramSocket;
 import java.net.Socket;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * @author Woonduk Kang(emeroad)
@@ -30,7 +32,10 @@ import java.net.Socket;
 public final class IOUtils {
 
     public static final int DEFAULT_BUFFER_SIZE = 4096;
+    private static final int MAX_BUFFER_SIZE = 1024 * 1024;
+
     public static final int EOF = -1;
+    private static final byte[] EMPTY_BUFFER = new byte[0];
 
     private IOUtils() {
     }
@@ -44,17 +49,26 @@ public final class IOUtils {
     }
 
     public static byte[] toByteArray(final InputStream inputStream, int bufferSize, boolean close) throws IOException {
-        if (inputStream == null) {
-            throw new NullPointerException("inputStream");
-        }
+        Objects.requireNonNull(inputStream, "inputStream");
         if (bufferSize < 0) {
             throw new IllegalArgumentException("negative bufferSize");
         }
 
-        final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        bufferSize = calculateBufferSize(inputStream, bufferSize);
+        final byte[] buffer = new byte[bufferSize];
+
+        final byte[] readBuffer = bufferRead(inputStream, buffer);
+        if (readBuffer != null) {
+            return readBuffer;
+        }
+
+        ByteArrayOutputStream outputStream;
         try {
-            final byte[] buffer = new byte[bufferSize];
+            outputStream = new ByteArrayOutputStream(buffer.length * 2);
+            outputStream.write(buffer, 0, buffer.length);
+
             copy(inputStream, outputStream, buffer);
+
             outputStream.flush();
             return outputStream.toByteArray();
         } finally {
@@ -64,12 +78,44 @@ public final class IOUtils {
         }
     }
 
+    private static byte[] bufferRead(InputStream inputStream, byte[] buffer) throws IOException {
+        int bufferWriteIdx = 0;
+        int bufferReadBytes;
+        final int bufferLength = buffer.length;
+        while (bufferLength >= bufferWriteIdx) {
+            // OS buffer optimization
+            bufferReadBytes = inputStream.read(buffer, bufferWriteIdx, bufferLength - bufferWriteIdx);
+            if (bufferReadBytes == EOF) {
+                if (bufferLength == bufferWriteIdx) {
+                    return buffer;
+                } else {
+                    return Arrays.copyOf(buffer, bufferWriteIdx);
+                }
+            }
+            if (bufferReadBytes == 0) {
+                // buffer is full
+                break;
+            }
+            bufferWriteIdx += bufferReadBytes;
+        }
+        return null;
+    }
+
+    private static int calculateBufferSize(final InputStream inputStream, int defaultBufferSize) throws IOException {
+        final int expectedLength = inputStream.available();
+        if (expectedLength < 256) {
+            return defaultBufferSize;
+        }
+        return Math.min(expectedLength, MAX_BUFFER_SIZE);
+    }
+
     public static void copy(InputStream inputStream, OutputStream outputStream, byte[] buffer) throws IOException {
-        int readCount;
-        while ((readCount = inputStream.read(buffer, 0, buffer.length)) != EOF) {
-            outputStream.write(buffer, 0, readCount);
+        int bytesRead;
+        while ((bytesRead = inputStream.read(buffer, 0, buffer.length)) != EOF) {
+            outputStream.write(buffer, 0, bytesRead);
         }
     }
+
 
     public static void closeQuietly(Closeable closeable) {
         if (closeable != null) {

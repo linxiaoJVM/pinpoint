@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.grpc.server;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import com.navercorp.pinpoint.grpc.Header;
 import com.navercorp.pinpoint.grpc.HeaderReader;
 import io.grpc.Context;
 import io.grpc.Contexts;
@@ -28,23 +28,29 @@ import io.grpc.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 /**
  * @author Woonduk Kang(emeroad)
  */
-public class HeaderPropagationInterceptor<H> implements ServerInterceptor {
+public class HeaderPropagationInterceptor implements ServerInterceptor {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private final HeaderReader<H> headerReader;
-    private final Context.Key<H> contextKey;
+    private final HeaderReader<Header> headerReader;
+    private final Context.Key<Header> contextKey;
 
-    public HeaderPropagationInterceptor(HeaderReader<H> headerReader, Context.Key<H> contextKey) {
-        this.headerReader = Assert.requireNonNull(headerReader, "headerReader");
-        this.contextKey = Assert.requireNonNull(contextKey, "contextKey");
+    public HeaderPropagationInterceptor(HeaderReader<Header> headerReader) {
+        this(headerReader, ServerContext.getAgentInfoKey());
+    }
+
+    public HeaderPropagationInterceptor(HeaderReader<Header> headerReader, Context.Key<Header> contextKey) {
+        this.headerReader = Objects.requireNonNull(headerReader, "headerReader");
+        this.contextKey = Objects.requireNonNull(contextKey, "contextKey");
     }
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(final ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
-        H headerObject;
+        Header headerObject;
         try {
             headerObject = headerReader.extract(headers);
         } catch (Exception e) {

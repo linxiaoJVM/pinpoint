@@ -21,11 +21,15 @@ import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifierHolder;
 import com.navercorp.pinpoint.pluginit.jdbc.DefaultJDBCApi;
 import com.navercorp.pinpoint.pluginit.jdbc.JDBCApi;
 import com.navercorp.pinpoint.pluginit.jdbc.JDBCDriverClass;
+import com.navercorp.pinpoint.pluginit.jdbc.JDBCTestConstants;
 import com.navercorp.pinpoint.pluginit.utils.AgentPath;
 
+import com.navercorp.pinpoint.pluginit.utils.TestcontainersOption;
 import com.navercorp.pinpoint.test.plugin.Dependency;
+import com.navercorp.pinpoint.test.plugin.ImportPlugin;
 import com.navercorp.pinpoint.test.plugin.JvmVersion;
 import com.navercorp.pinpoint.test.plugin.PinpointAgent;
+import com.navercorp.pinpoint.test.plugin.PinpointLogLocationConfig;
 import com.navercorp.pinpoint.test.plugin.PinpointPluginTestSuite;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,8 +43,11 @@ import static com.navercorp.pinpoint.bootstrap.plugin.test.Expectations.*;
  */
 @RunWith(PinpointPluginTestSuite.class)
 @PinpointAgent(AgentPath.PATH)
-@JvmVersion(7)
-@Dependency({"org.mariadb.jdbc:mariadb-java-client:[1.3.0,1.3.max]", "ch.vorburger.mariaDB4j:mariaDB4j:2.2.2"})
+@JvmVersion(8)
+@PinpointLogLocationConfig(".")
+@ImportPlugin("com.navercorp.pinpoint:pinpoint-mariadb-jdbc-driver-plugin")
+@Dependency({"org.mariadb.jdbc:mariadb-java-client:[1.3.0,1.3.max]",
+        JDBCTestConstants.VERSION, TestcontainersOption.TEST_CONTAINER, TestcontainersOption.MARIADB})
 public class MariaDB_1_3_x_IT extends MariaDB_IT_Base {
 
     // see CallableParameterMetaData#queryMetaInfos

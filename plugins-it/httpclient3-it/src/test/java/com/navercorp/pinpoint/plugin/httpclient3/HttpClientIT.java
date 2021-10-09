@@ -18,6 +18,7 @@ package com.navercorp.pinpoint.plugin.httpclient3;
 import com.navercorp.pinpoint.pluginit.utils.AgentPath;
 import com.navercorp.pinpoint.pluginit.utils.PluginITConstants;
 import com.navercorp.pinpoint.pluginit.utils.WebServer;
+import com.navercorp.pinpoint.test.plugin.ImportPlugin;
 import com.navercorp.pinpoint.test.plugin.PinpointAgent;
 import org.apache.commons.httpclient.DefaultHttpMethodRetryHandler;
 import org.apache.commons.httpclient.HostConfiguration;
@@ -34,24 +35,40 @@ import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifier;
 import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifierHolder;
 import com.navercorp.pinpoint.test.plugin.Dependency;
 import com.navercorp.pinpoint.test.plugin.PinpointPluginTestSuite;
+import com.navercorp.pinpoint.test.plugin.shared.AfterSharedClass;
+import com.navercorp.pinpoint.test.plugin.shared.BeforeSharedClass;
 
 /**
  * @author jaehong.kim
  */
 @RunWith(PinpointPluginTestSuite.class)
 @PinpointAgent(AgentPath.PATH)
+@ImportPlugin("com.navercorp.pinpoint:pinpoint-httpclient3-plugin")
 @Dependency({ "commons-httpclient:commons-httpclient:[3.0],[3.0.1],[3.1]", WebServer.VERSION, PluginITConstants.VERSION})
 public class HttpClientIT {
 
     private static com.navercorp.pinpoint.pluginit.utils.WebServer webServer;
 
-    @BeforeClass
-    public static void BeforeClass() throws Exception {
-        webServer = WebServer.newTestWebServer();
+    // ---------- For @BeforeSharedClass, @AfterSharedClass   //
+    private static String CALL_URL;
+
+    public static String getCallUrl() {
+        return CALL_URL;
     }
 
-    @AfterClass
-    public static void AfterClass() throws Exception {
+    public static void setCallUrl(String callUrl) {
+        CALL_URL = callUrl;
+    }
+    // ---------- //
+
+    @BeforeSharedClass
+    public static void sharedSetUp() throws Exception {
+        webServer = WebServer.newTestWebServer();
+        setCallUrl(webServer.getCallHttpUrl());
+    }
+
+    @AfterSharedClass
+    public static void AfterClass() {
         webServer = WebServer.cleanup(webServer);
     }
 
@@ -59,12 +76,12 @@ public class HttpClientIT {
     private static final int SO_TIMEOUT = 10000;
 
     @Test
-    public void test() throws Exception {
+    public void test() {
         HttpClient client = new HttpClient();
         client.getParams().setConnectionManagerTimeout(CONNECTION_TIMEOUT);
         client.getParams().setSoTimeout(SO_TIMEOUT);
 
-        GetMethod method = new GetMethod(webServer.getCallHttpUrl());
+        GetMethod method = new GetMethod(getCallUrl());
 
         // Provide custom retry handler is necessary
         method.getParams().setParameter(HttpMethodParams.RETRY_HANDLER, new DefaultHttpMethodRetryHandler(3, false));
@@ -83,7 +100,7 @@ public class HttpClientIT {
     }
 
     @Test
-    public void hostConfig() throws Exception {
+    public void hostConfig() {
         HttpClient client = new HttpClient();
         client.getParams().setConnectionManagerTimeout(CONNECTION_TIMEOUT);
         client.getParams().setSoTimeout(SO_TIMEOUT);

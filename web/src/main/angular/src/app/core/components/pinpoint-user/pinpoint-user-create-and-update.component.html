@@ -1,4 +1,4 @@
-<div [hidden]="!showCreate" class="l-wrapper">
+<div class="l-wrapper">
     <button class="btn btn-black l-close" (click)="onClose(); formDir.resetForm();"><i class="fas fa-times"></i></button>
     <h1 class="l-title">Pinpoint User</h1> 
     <form class="l-form" [formGroup]="pinpointUserForm" #formDir="ngForm" (ngSubmit)="onCreateOrUpdate()">
@@ -12,7 +12,7 @@
         </div>
         <div class="l-field-wrapper">
             <label class="l-label" for="name">{{i18nLabel.NAME_LABEL}} <span class="l-required-icon">*</span></label>
-            <input type="text" class="l-input" id="name" formControlName="name" required>
+            <input type="text" class="l-input" id="name" formControlName="name" [readonly]="!allowedUserEdit" required>
             <pp-form-field-error-message
                 [control]="pinpointUserForm.get('name')"
                 [errorMessage]="i18nGuide['name']">
@@ -20,7 +20,7 @@
         </div>
         <div class="l-field-wrapper">
             <label class="l-label" for="department">{{i18nLabel.DEPARTMENT_LABEL}}</label>
-            <input type="text" class="l-input" id="department" formControlName="department">
+            <input type="text" class="l-input" id="department" formControlName="department" [readonly]="!allowedUserEdit">
             <pp-form-field-error-message
                 [control]="pinpointUserForm.get('department')"
                 [errorMessage]="i18nGuide['department']">
@@ -28,7 +28,12 @@
         </div>
         <div class="l-field-wrapper">
             <label class="l-label" for="phoneNumber">{{i18nLabel.PHONE_LABEL}}</label>
-            <input type="text" class="l-input" id="phoneNumber" formControlName="phoneNumber">
+            <input type="text" class="l-input" id="phoneNumber" formControlName="phoneNumber"
+                (keyup)="onKeyup()"
+                (countrychange)="onCountryChange()"
+                [readonly]="!allowedUserEdit"
+                #telInput>
+            <input type="hidden" formControlName="phoneCountryCode">
             <pp-form-field-error-message
                 [control]="pinpointUserForm.get('phoneNumber')"
                 [errorMessage]="i18nGuide['phoneNumber']">
@@ -36,12 +41,12 @@
         </div>
         <div class="l-field-wrapper">
             <label class="l-label" for="email">{{i18nLabel.EMAIL_LABEL}}</label>
-            <input type="text" class="l-input" id="email" formControlName="email">
+            <input type="text" class="l-input" id="email" formControlName="email" [readonly]="!allowedUserEdit">
             <pp-form-field-error-message
                 [control]="pinpointUserForm.get('email')"
                 [errorMessage]="i18nGuide['email']">
             </pp-form-field-error-message>
         </div>
-        <button type="submit" class="btn btn-blue l-create" [class.btn-gray]="pinpointUserForm.invalid" [disabled]="pinpointUserForm.invalid">OK</button>
+        <button type="submit" class="btn btn-blue l-create" [disabled]="!allowedUserEdit">OK</button>
     </form>
 </div>

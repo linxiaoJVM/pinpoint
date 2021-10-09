@@ -39,7 +39,7 @@ public class ApplicationStatBoWindow extends RichWindowFunction<Tuple3<String, J
     public static final int WINDOW_SIZE = 10000;
     public static final int ALLOWED_LATENESS = 45000;
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final transient Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private transient ApplicationStatBoWindowInterceptor applicationStatBoWindowInterceptor;
 
@@ -89,7 +89,7 @@ public class ApplicationStatBoWindow extends RichWindowFunction<Tuple3<String, J
     }
 
     private JoinApplicationStatBo join(Iterable<Tuple3<String, JoinStatBo, Long>> values) {
-        List<JoinApplicationStatBo> joinApplicaitonStatBoList = new ArrayList<JoinApplicationStatBo>();
+        List<JoinApplicationStatBo> joinApplicaitonStatBoList = new ArrayList<>();
 
         for (Tuple3<String, JoinStatBo, Long> value : values) {
             joinApplicaitonStatBoList.add((JoinApplicationStatBo) value.f1);

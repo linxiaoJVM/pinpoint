@@ -33,11 +33,11 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
+import java.util.Objects;
+
 
 /**
  * @author emeroad
@@ -47,12 +47,14 @@ public class ResponseTimeMapper implements RowMapper<ResponseTime> {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private ServiceTypeRegistryService registry;
+    private final ServiceTypeRegistryService registry;
 
-    @Autowired
-    @Qualifier("statisticsSelfRowKeyDistributor")
-    private RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
+    private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
+
+    public ResponseTimeMapper(ServiceTypeRegistryService registry, @Qualifier("statisticsSelfRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix) {
+        this.registry = Objects.requireNonNull(registry, "registry");
+        this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
+    }
 
     @Override
     public ResponseTime mapRow(Result result, int rowNum) throws Exception {
@@ -68,8 +70,9 @@ public class ResponseTimeMapper implements RowMapper<ResponseTime> {
                 recordColumn(responseTime, cell);
             }
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("unknown column family:{}", Arrays.toString(CellUtil.cloneFamily(cell)));
+            if (logger.isTraceEnabled()) {
+                String columnFamily = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
+                logger.trace("unknown column family:{}", columnFamily);
             }
         }
         return responseTime;

@@ -17,6 +17,7 @@
 package com.navercorp.pinpoint.collector.dao.hbase;
 
 import com.navercorp.pinpoint.collector.dao.ApplicationIndexDao;
+import com.navercorp.pinpoint.collector.util.CollectorUtils;
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
 import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
 import com.navercorp.pinpoint.common.hbase.TableDescriptor;
@@ -27,8 +28,9 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+
+import java.util.Objects;
 
 /**
  * application names list.
@@ -41,17 +43,23 @@ public class HbaseApplicationIndexDao implements ApplicationIndexDao {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private HbaseOperations2 hbaseTemplate;
+    private final HbaseOperations2 hbaseTemplate;
 
-    @Autowired
-    private TableDescriptor<HbaseColumnFamily.ApplicationIndex> descriptor;
+    private final TableDescriptor<HbaseColumnFamily.ApplicationIndex> descriptor;
+
+    public HbaseApplicationIndexDao(HbaseOperations2 hbaseTemplate, TableDescriptor<HbaseColumnFamily.ApplicationIndex> descriptor) {
+        this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
+        this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
+    }
 
     @Override
     public void insert(final AgentInfoBo agentInfo) {
-        if (agentInfo == null) {
-            throw new NullPointerException("agentInfo");
-        }
+        Objects.requireNonNull(agentInfo, "agentInfo");
+
+        // Assert agentId
+        CollectorUtils.checkAgentId(agentInfo.getAgentId());
+        // Assert applicationName
+        CollectorUtils.checkApplicationName(agentInfo.getApplicationName());
 
         final Put put = new Put(Bytes.toBytes(agentInfo.getApplicationName()));
         final byte[] qualifier = Bytes.toBytes(agentInfo.getAgentId());
@@ -63,7 +71,4 @@ public class HbaseApplicationIndexDao implements ApplicationIndexDao {
 
         logger.debug("Insert ApplicationIndex: {}", agentInfo);
     }
-
-
-
 }

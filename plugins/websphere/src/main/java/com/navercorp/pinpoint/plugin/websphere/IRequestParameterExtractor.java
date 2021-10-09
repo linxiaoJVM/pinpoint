@@ -68,12 +68,14 @@ public class IRequestParameterExtractor implements ParameterExtractor<IRequest> 
     }
 
     private Map<String, String> splitQuery(String query) throws UnsupportedEncodingException {
-        Map<String, String> query_pairs = new LinkedHashMap<String, String>();
+        Map<String, String> query_pairs = new LinkedHashMap<>();
         if (query != null) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
                 int idx = pair.indexOf('=');
-                query_pairs.put(URLDecoder.decode(pair.substring(0, idx), "UTF-8"), URLDecoder.decode(pair.substring(idx + 1), "UTF-8"));
+                if (idx > 0) {
+                    query_pairs.put(URLDecoder.decode(pair.substring(0, idx), "UTF-8"), URLDecoder.decode(pair.substring(idx + 1), "UTF-8"));
+                }
             }
         }
         return query_pairs;

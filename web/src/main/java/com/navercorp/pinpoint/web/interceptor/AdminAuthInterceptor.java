@@ -19,13 +19,13 @@ package com.navercorp.pinpoint.web.interceptor;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.navercorp.pinpoint.common.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.util.StringUtils;
-import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
+import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -36,7 +36,7 @@ import java.nio.charset.StandardCharsets;
  * 
  * @author hyungil.jeong
  */
-public class AdminAuthInterceptor extends HandlerInterceptorAdapter {
+public class AdminAuthInterceptor implements HandlerInterceptor {
 
     private static final Charset UTF_8 = StandardCharsets.UTF_8;
 

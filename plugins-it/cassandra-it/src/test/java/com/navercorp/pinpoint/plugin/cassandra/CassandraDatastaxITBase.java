@@ -27,17 +27,15 @@ import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifier;
 import com.navercorp.pinpoint.bootstrap.plugin.test.PluginTestVerifierHolder;
 import com.navercorp.pinpoint.common.profiler.sql.DefaultSqlParser;
 import com.navercorp.pinpoint.common.profiler.sql.SqlParser;
-import com.navercorp.pinpoint.pluginit.utils.SocketUtils;
-import org.junit.After;
+import com.navercorp.pinpoint.test.plugin.shared.AfterSharedClass;
+
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.scassandra.Scassandra;
-import org.scassandra.ScassandraFactory;
-import org.scassandra.http.client.ActivityClient;
-import org.scassandra.http.client.CurrentClient;
-import org.scassandra.http.client.PrimingClient;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.CassandraContainer;
 
 import java.lang.reflect.Method;
 
@@ -65,51 +63,86 @@ public abstract class CassandraDatastaxITBase {
     private static final SqlParser SQL_PARSER = new DefaultSqlParser();
 
     private static String HOST = "127.0.0.1";
-    private static final int DEFAULT_PORT = 9042;
-    private static final int DEFAULT_ADMIN_PORT = 9043;
-    private static final int PORT = CassandraTestHelper.findAvailablePortOrDefault(DEFAULT_PORT);
-    private static final int ADMIN_PORT = CassandraTestHelper.findAvailablePortOrDefault(DEFAULT_ADMIN_PORT);
-    private static final String CASSANDRA_ADDRESS = HOST + ":" + PORT;
 
-    private static final Scassandra SERVER = ScassandraFactory.createServer(HOST, PORT, HOST, ADMIN_PORT);
+    private static String CASSANDRA_ADDRESS = HOST + ":" + CassandraContainer.CQL_PORT;
 
-    private Cluster cluster;
+    public static CassandraContainer cassandra;
 
-    private final PrimingClient primingClient = SERVER.primingClient();
-    private final ActivityClient activityClient = SERVER.activityClient();
-    private final CurrentClient currentClient = SERVER.currentClient();
+    private static Cluster cluster;
+
+    public static int getPORT() {
+        return PORT;
+    }
+
+    public static void setPORT(int port) {
+        CassandraDatastaxITBase.PORT = port;
+    }
+
+    private static int PORT;
+
+    public static void startCassandra(String dockerImageVersion) {
+        Assume.assumeTrue("Docker not enabled", DockerClientFactory.instance().isDockerAvailable());
+
+        cassandra = new CassandraContainer(dockerImageVersion);
+        cassandra.start();
+
+//        String containerIpAddress = cassandra.getContainerIpAddress();
+        final int port = cassandra.getMappedPort(CassandraContainer.CQL_PORT);
+        setPORT(port);
+
+        cluster = newCluster(HOST, getPORT());
+        init(cluster);
+    }
+
+    @AfterSharedClass
+    public static void sharedTearDown() {
+        if (cassandra != null) {
+            cassandra.stop();
+        }
+    }
 
     @BeforeClass
-    public static void startUpBeforeClass() {
-        SERVER.start();
+    public static void setup() {
+        CASSANDRA_ADDRESS = HOST + ":" + getPORT();
+        cluster = newCluster(HOST, getPORT());
+    }
+
+    @AfterClass
+    public static void tearDown() {
+        if (cluster == null) {
+            cluster.close();
+        }
+    }
+
+    private static Cluster newCluster(String host, int port) {
+        Cluster.Builder builder = Cluster.builder();
+        builder.addContactPoint(host);
+        builder.withPort(port);
+        builder.withoutMetrics();
+        return builder.build();
+    }
+
+    public static void init(Cluster cluster) {
+        try (Session systemSession = cluster.connect()) {
+            String createKeyspace = String.format("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = " +
+                    "{'class':'SimpleStrategy','replication_factor':'1'};", TEST_KEYSPACE);
+            systemSession.execute(createKeyspace);
+            String createTable = String.format("CREATE TABLE %s.%s (id text, value text, PRIMARY KEY(id))", TEST_KEYSPACE, TEST_TABLE);
+            systemSession.execute(createTable);
+        }
+    }
+
+    private static Session openSession(Cluster cluster) {
+        return cluster.connect(TEST_KEYSPACE);
     }
 
     @Before
     public void setUp() {
-        cluster = Cluster.builder().addContactPoint(HOST).withPort(PORT).withoutMetrics().build();
-
         // scassandra uses http client 4 for stub calls
         PluginTestVerifier verifier = PluginTestVerifierHolder.getInstance();
         verifier.ignoreServiceType("HTTP_CLIENT_4", "HTTP_CLIENT_4_INTERNAL");
     }
 
-    @After
-    public void tearDown() {
-        if (primingClient != null) {
-            primingClient.clearAllPrimes();
-        }
-        if (activityClient != null) {
-            activityClient.clearAllRecordedActivity();
-        }
-        if (cluster != null) {
-            cluster.close();
-        }
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() {
-        SERVER.stop();
-    }
 
     @Test
     public void testBoundStatement() throws Exception {
@@ -118,17 +151,14 @@ public abstract class CassandraDatastaxITBase {
 
         PluginTestVerifier verifier = PluginTestVerifierHolder.getInstance();
 
-        Session myKeyspaceSession = null;
-
-        try {
-            myKeyspaceSession = cluster.connect(TEST_KEYSPACE);
+        try (Session session = openSession(cluster)){
 
             // ===============================================
             // Insert Data (PreparedStatement, BoundStatement)
-            PreparedStatement preparedStatement = myKeyspaceSession.prepare(CQL_INSERT);
+            PreparedStatement preparedStatement = session.prepare(CQL_INSERT);
             BoundStatement boundStatement = new BoundStatement(preparedStatement);
             boundStatement.bind(testId, testValue);
-            myKeyspaceSession.execute(boundStatement);
+            session.execute(boundStatement);
 
             verifier.printCache();
             // Cluster#connect(String)
@@ -150,9 +180,9 @@ public abstract class CassandraDatastaxITBase {
 
             // ====================
             // Select Data (String)
-            final String cqlSelect = String.format("SELECT %s, %s FROM %s WHERE %s = %s",
+            final String cqlSelect = String.format("SELECT %s, %s FROM %s WHERE %s = '%s'",
                     TEST_COL_ID, TEST_COL_VALUE, TEST_TABLE, TEST_COL_ID, testId);
-            myKeyspaceSession.execute(cqlSelect);
+            session.execute(cqlSelect);
             // SessionManager#execute(String) OR AbstractSession#execute(String)
             execute = sessionClass.getDeclaredMethod("execute", String.class);
             String normalizedSelectSql = SQL_PARSER.normalizedSql(cqlSelect).getNormalizedSql();
@@ -161,15 +191,13 @@ public abstract class CassandraDatastaxITBase {
             // ====================
             // Delete Data (String)
             final String cqlDelete = String.format("DELETE FROM %s.%s WHERE %s = ?", TEST_KEYSPACE, TEST_TABLE, TEST_COL_ID);
-            myKeyspaceSession.execute(cqlDelete, testId);
+            session.execute(cqlDelete, testId);
 
             verifier.printCache();
             // SessionManager#execute(String, Object[]) OR AbstractSession#execute(String, Object[])
             execute = sessionClass.getDeclaredMethod("execute", String.class, Object[].class);
             String normalizedDeleteSql = SQL_PARSER.normalizedSql(cqlDelete).getNormalizedSql();
             verifier.verifyTrace(event(CASSANDRA_EXECUTE_QUERY, execute, null, CASSANDRA_ADDRESS, TEST_KEYSPACE, sql(normalizedDeleteSql, null)));
-        } finally {
-            closeSession(myKeyspaceSession);
         }
     }
 
@@ -182,14 +210,11 @@ public abstract class CassandraDatastaxITBase {
 
         PluginTestVerifier verifier = PluginTestVerifierHolder.getInstance();
 
-        Session myKeyspaceSession = null;
-
-        try {
-            myKeyspaceSession = cluster.connect(TEST_KEYSPACE);
+        try (Session session = openSession(cluster)){
 
             // ===============================================
             // Insert Data 2 x (PreparedStatement, BoundStatement)
-            PreparedStatement preparedStatement = myKeyspaceSession.prepare(CQL_INSERT);
+            PreparedStatement preparedStatement = session.prepare(CQL_INSERT);
             BoundStatement boundStatement1 = new BoundStatement(preparedStatement);
             boundStatement1.bind(testId1, testValue1);
             BoundStatement boundStatement2 = new BoundStatement(preparedStatement);
@@ -199,7 +224,7 @@ public abstract class CassandraDatastaxITBase {
             batchStatement.add(boundStatement1);
             batchStatement.add(boundStatement2);
 
-            myKeyspaceSession.execute(batchStatement);
+            session.execute(batchStatement);
 
             verifier.printCache();
             // Cluster#connect(String)
@@ -221,25 +246,17 @@ public abstract class CassandraDatastaxITBase {
 
             // ====================
             final String cqlDelete = String.format("DELETE FROM %s.%s WHERE %s IN (? , ?)", TEST_KEYSPACE, TEST_TABLE, TEST_COL_ID);
-            PreparedStatement deletePreparedStatement = myKeyspaceSession.prepare(cqlDelete);
+            PreparedStatement deletePreparedStatement = session.prepare(cqlDelete);
             BoundStatement deleteBoundStatement = new BoundStatement(deletePreparedStatement);
             deleteBoundStatement.bind(testId1, testId2);
             Statement wrappedDeleteStatement = new StatementWrapper(deleteBoundStatement) {};
-            myKeyspaceSession.execute(wrappedDeleteStatement);
+            session.execute(wrappedDeleteStatement);
 
             verifier.printCache();
             // SessionManager#prepare(String) OR AbstractSession#prepare(String)
             verifier.verifyTrace(event(CASSANDRA, prepare, null, CASSANDRA_ADDRESS, TEST_KEYSPACE, sql(cqlDelete, null)));
             // SessionManager#execute(String, Object[]) OR AbstractSession#execute(String, Object[])
             verifier.verifyTrace(event(CASSANDRA_EXECUTE_QUERY, execute, null, CASSANDRA_ADDRESS, TEST_KEYSPACE, sql(cqlDelete, null)));
-        } finally {
-            closeSession(myKeyspaceSession);
-        }
-    }
-
-    private static void closeSession(Session session) {
-        if (session != null) {
-            session.close();
         }
     }
 

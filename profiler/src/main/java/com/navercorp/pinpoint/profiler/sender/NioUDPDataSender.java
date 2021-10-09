@@ -16,6 +16,8 @@
 
 package com.navercorp.pinpoint.profiler.sender;
 
+import java.util.Objects;
+
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
 import com.navercorp.pinpoint.common.util.IOUtils;
@@ -40,7 +42,7 @@ import java.nio.channels.DatagramChannel;
 /**
  * @author Taejin Koo
  */
-public class NioUDPDataSender implements DataSender {
+public class NioUDPDataSender<T> implements DataSender<T> {
 
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
     protected final boolean isDebug = logger.isDebugEnabled();
@@ -53,21 +55,21 @@ public class NioUDPDataSender implements DataSender {
     private final HeaderTBaseSerializer2 serializer;
     private final ByteBufferOutputStream byteBufferOutputStream;
 
-    private final AsyncQueueingExecutor<Object> executor;
-    private final MessageConverter<TBase<?, ?>> messageConverter;
+    private final AsyncQueueingExecutor<T> executor;
+    private final MessageConverter<T, TBase<?, ?>> messageConverter;
 
     private volatile boolean closed = false;
 
 
     public NioUDPDataSender(String host, int port, String threadName, int queueSize, int timeout, int sendBufferSize,
-                            MessageConverter<TBase<?, ?>> messageConverter) {
-        Assert.requireNonNull(host, "host");
-        Assert.requireNonNull(threadName, "threadName");
+                            MessageConverter<T, TBase<?, ?>> messageConverter) {
+        Objects.requireNonNull(host, "host");
+        Objects.requireNonNull(threadName, "threadName");
         Assert.isTrue(queueSize > 0, "queueSize");
         Assert.isTrue(timeout > 0, "timeout");
         Assert.isTrue(sendBufferSize > 0, "sendBufferSize");
 
-        this.messageConverter = Assert.requireNonNull(messageConverter, "messageConverter");
+        this.messageConverter = Objects.requireNonNull(messageConverter, "messageConverter");
 
         // TODO If fail to create socket, stop agent start
         logger.info("NioUDPDataSender initialized. host={}, port={}", host, port);
@@ -83,14 +85,14 @@ public class NioUDPDataSender implements DataSender {
         this.executor = createAsyncQueueingExecutor(queueSize, threadName);
     }
 
-    private AsyncQueueingExecutor<Object> createAsyncQueueingExecutor(int queueSize, String executorName) {
-        AsyncQueueingExecutorListener<Object> listener = new DefaultAsyncQueueingExecutorListener() {
+    private AsyncQueueingExecutor<T> createAsyncQueueingExecutor(int queueSize, String executorName) {
+        AsyncQueueingExecutorListener<T> listener = new DefaultAsyncQueueingExecutorListener<T>() {
             @Override
-            public void execute(Object message) {
+            public void execute(T message) {
                 NioUDPDataSender.this.sendPacket(message);
             }
         };
-        final AsyncQueueingExecutor<Object> executor = new AsyncQueueingExecutor<Object>(queueSize, executorName, listener);
+        final AsyncQueueingExecutor<T> executor = new AsyncQueueingExecutor<T>(queueSize, executorName, listener);
         return executor;
     }
 
@@ -125,7 +127,7 @@ public class NioUDPDataSender implements DataSender {
     }
 
     @Override
-    public boolean send(Object data) {
+    public boolean send(T data) {
         return executor.execute(data);
     }
 
@@ -143,13 +145,13 @@ public class NioUDPDataSender implements DataSender {
         }
     }
 
-    private void sendPacket(Object message) {
+    private void sendPacket(T message) {
         if (closed) {
             throw new PinpointSocketException("NioUDPDataSender already closed.");
         }
 
         if (message instanceof TBase) {
-            final TBase tBase = (TBase) message;
+            final TBase<?, ?> tBase = (TBase<?, ?>) message;
             sendPacket(tBase);
             return;
         }
@@ -164,7 +166,7 @@ public class NioUDPDataSender implements DataSender {
         }
     }
 
-    private void sendPacket(TBase tBase) {
+    private void sendPacket(TBase<?, ?> tBase) {
         byteBufferOutputStream.clear();
         // do not copy bytes because it's single threaded
         try {

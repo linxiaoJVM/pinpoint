@@ -22,7 +22,7 @@ import com.navercorp.pinpoint.thrift.io.FlinkHeaderTBaseSerializer;
 import org.apache.thrift.TBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.StringUtils;
+import org.springframework.util.Assert;
 
 import java.util.HashMap;
 import java.util.Objects;
@@ -30,7 +30,7 @@ import java.util.Objects;
 /**
  * @author minwoo.jung
  */
-public class FlinkTcpDataSender extends TcpDataSender {
+public class FlinkTcpDataSender extends TcpDataSender<TBase<?, ?>> {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -40,25 +40,17 @@ public class FlinkTcpDataSender extends TcpDataSender {
     public FlinkTcpDataSender(String name, String host, int port, PinpointClientFactory clientFactory, FlinkHeaderTBaseSerializer serializer, FlinkRequestFactory flinkRequestFactory) {
         super(name, host, port, clientFactory);
 
-        if (StringUtils.isEmpty(name)) {
-            throw new IllegalArgumentException("name must not be empty.");
-        }
-        if (StringUtils.isEmpty(host)) {
-            throw new IllegalArgumentException("host must not be empty.");
-        }
+        Assert.hasLength(name, "name");
+        Assert.hasLength(host, "host");
         Objects.requireNonNull(clientFactory, "clientFactory");
+
         this.flinkHeaderTBaseSerializer = Objects.requireNonNull(serializer, "serializer");
         this.flinkRequestFactory = Objects.requireNonNull(flinkRequestFactory, "clientFactory");
     }
 
     @Override
-    public boolean send(Object data) {
-        if (!(data instanceof TBase<?, ?>)) {
-            logger.info("unknown message:{}", data);
-            return false;
-        }
-        TBase<?, ?> message = (TBase<?, ?>) data;
-        FlinkRequest flinkRequest = flinkRequestFactory.createFlinkRequest(message, new HashMap<String, String>(0));
+    public boolean send(TBase<?, ?> data) {
+        FlinkRequest flinkRequest = flinkRequestFactory.createFlinkRequest(data, new HashMap<>(0));
         return executor.execute(flinkRequest);
     }
 
@@ -73,7 +65,6 @@ public class FlinkTcpDataSender extends TcpDataSender {
                 doSend(copy);
             } else {
                 logger.error("sendPacket fail. invalid dto type:{}", flinkRequest.getClass());
-                return;
             }
         } catch (Exception e) {
             logger.warn("tcp send fail. Caused:{}", e.getMessage(), e);

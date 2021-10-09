@@ -118,6 +118,8 @@ struct TFAgentStat {
     60: optional TFResponseTime responseTime
     80: optional TFFileDescriptor fileDescriptor
     90: optional TFDirectBuffer directBuffer
+    100: optional TFTotalThreadCount totalThreadCount
+    110: optional TFLoadedClass loadedClass
     200: optional string    metadata
 }
 
@@ -142,4 +144,13 @@ struct TFDataSourceList {
 
 struct TFFileDescriptor {
     1: i64                      openFileDescriptorCount
+}
+
+struct TFTotalThreadCount {
+    1: i64                      totalThreadCount
+}
+
+struct TFLoadedClass {
+    1: i64                      loadedClassCount
+    2: i64                      unloadedClassCount
 }

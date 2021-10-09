@@ -19,6 +19,7 @@ import com.navercorp.pinpoint.web.vo.scatter.Dot;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -26,12 +27,13 @@ import java.util.List;
 public class DotGroup {
 
     private final Coordinates coordinates;
-    private final List<Dot> dotList = new ArrayList<>();
+    private final List<Dot> dotList;
 
     private Dot dotLeader;
 
     public DotGroup(Coordinates coordinates) {
-        this.coordinates = coordinates;
+        this.coordinates = Objects.requireNonNull(coordinates, "coordinates");
+        this.dotList = new ArrayList<>();
     }
 
     public Coordinates getCoordinates() {
@@ -44,14 +46,6 @@ public class DotGroup {
         if (dotLeader == null) {
             dotLeader = dot;
         }
-    }
-
-    void merge(DotGroup dotGroup) {
-        if (dotGroup == null) {
-            return;
-        }
-
-        this.dotList.addAll(dotGroup.getDotList());
     }
 
     public List<Dot> getDotList() {

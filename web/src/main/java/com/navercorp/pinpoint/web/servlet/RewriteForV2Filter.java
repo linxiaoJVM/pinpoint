@@ -16,8 +16,8 @@
 
 package com.navercorp.pinpoint.web.servlet;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -35,14 +35,17 @@ import java.io.IOException;
  */
 public class RewriteForV2Filter implements Filter {
 
-    private static final Log logger = LogFactory.getLog(RewriteForV2Filter.class);
     public static final String DEFAULT_INDEX = "/index.html";
-    private static boolean isDebug = logger.isDebugEnabled();
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final boolean isDebug = logger.isDebugEnabled();
 
     private static final char PATH_DELIMITER = '/';
 
     private final String[] rewriteTargetArray = {
-            "/admin",
+            "/auth",
+            "/browserNotSupported",
+            "/config",
             "/error",
             "/filteredMap",
             "/inspector",
@@ -53,8 +56,7 @@ public class RewriteForV2Filter implements Filter {
             "/transactionDetail",
             "/transactionList",
             "/transactionView",
-            "/browserNotSupported",
-            "/config"
+            "/urlStatistic"
     };
 
     private final String PINPOINT_REST_API_SUFFIX = ".pinpoint";

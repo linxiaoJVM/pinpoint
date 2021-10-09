@@ -354,7 +354,7 @@ public class SpanDecoderV0 implements SpanDecoder {
 
     private List<AnnotationBo> readAnnotationList(Buffer buffer, SpanDecodingContext decodingContext) {
         int annotationListSize = buffer.readVInt();
-        List<AnnotationBo> annotationBoList = new ArrayList<AnnotationBo>(annotationListSize);
+        List<AnnotationBo> annotationBoList = new ArrayList<>(annotationListSize);
 
 //        AnnotationBo prev = decodingContext.getPrevFirstAnnotationBo();
         AnnotationBo prev = null;
@@ -424,7 +424,6 @@ public class SpanDecoderV0 implements SpanDecoder {
             logger.warn("sequence overflow. firstSpanEventSequence:{} basicSpan:{}", firstSpanEventSequence, basicSpan);
         }
         setLocalAsyncId(basicSpan, buffer);
-        return;
     }
 
     private void setLocalAsyncId(BasicSpan basicSpan, Buffer buffer) {

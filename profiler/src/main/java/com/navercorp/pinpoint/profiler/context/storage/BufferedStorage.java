@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.profiler.context.storage;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.profiler.context.*;
 import com.navercorp.pinpoint.profiler.sender.DataSender;
@@ -41,13 +41,13 @@ public class BufferedStorage implements Storage {
 
     private final SpanChunkFactory spanChunkFactory;
     private List<SpanEvent> storage;
-    private final DataSender<Object> dataSender;
+    private final DataSender<SpanType> dataSender;
 
 
 
-    public BufferedStorage(SpanChunkFactory spanChunkFactory, DataSender<Object> dataSender, int bufferSize) {
-        this.spanChunkFactory = Assert.requireNonNull(spanChunkFactory, "spanChunkFactory");
-        this.dataSender = Assert.requireNonNull(dataSender, "dataSender");
+    public BufferedStorage(SpanChunkFactory spanChunkFactory, DataSender<SpanType> dataSender, int bufferSize) {
+        this.spanChunkFactory = Objects.requireNonNull(spanChunkFactory, "spanChunkFactory");
+        this.dataSender = Objects.requireNonNull(dataSender, "dataSender");
         this.bufferSize = bufferSize;
         this.storage = allocateBuffer();
     }

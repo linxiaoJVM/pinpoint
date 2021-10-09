@@ -45,6 +45,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpMessage;
 
+import java.util.Objects;
+
 /**
  * @author Taejin Koo
  */
@@ -60,21 +62,15 @@ public class HttpEncoderInterceptor implements AroundInterceptor {
     private final RequestTraceWriter<HttpMessage> requestTraceWriter;
 
     public HttpEncoderInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor) {
-        if (traceContext == null) {
-            throw new NullPointerException("traceContext");
-        }
-        if (methodDescriptor == null) {
-            throw new NullPointerException("methodDescriptor");
-        }
+        this.traceContext = Objects.requireNonNull(traceContext, "traceContext");
+        this.methodDescriptor = Objects.requireNonNull(methodDescriptor, "methodDescriptor");
 
-        this.traceContext = traceContext;
-        this.methodDescriptor = methodDescriptor;
         final NettyConfig config = new NettyConfig(traceContext.getProfilerConfig());
 
         ClientRequestAdaptor<ClientRequestWrapper> clientRequestAdaptor = ClientRequestWrapperAdaptor.INSTANCE;
-        this.clientRequestRecorder = new ClientRequestRecorder<ClientRequestWrapper>(config.isParam(), clientRequestAdaptor);
+        this.clientRequestRecorder = new ClientRequestRecorder<>(config.isParam(), clientRequestAdaptor);
         ClientHeaderAdaptor<HttpMessage> clientHeaderAdaptor = new HttpMessageClientHeaderAdaptor();
-        this.requestTraceWriter = new DefaultRequestTraceWriter<HttpMessage>(clientHeaderAdaptor, traceContext);
+        this.requestTraceWriter = new DefaultRequestTraceWriter<>(clientHeaderAdaptor, traceContext);
     }
 
     @Override

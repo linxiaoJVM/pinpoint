@@ -16,23 +16,32 @@
 
 package com.navercorp.pinpoint.collector.monitor;
 
+import com.navercorp.pinpoint.collector.config.CollectorConfiguration;
+import com.navercorp.pinpoint.collector.util.LoggerUtils;
+
+import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.JvmAttributeGaugeSet;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.Reporter;
 import com.codahale.metrics.Slf4jReporter;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
-import com.navercorp.pinpoint.collector.util.LoggerUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,15 +54,26 @@ public class CollectorMetric {
 
     private final Logger reporterLogger = LoggerFactory.getLogger(REPORTER_LOGGER_NAME);
 
-    @Autowired
-    private MetricRegistry metricRegistry;
+    private final CollectorConfiguration collectorConfiguration;
 
-    @Autowired(required = false)
-    private HBaseAsyncOperationMetrics hBaseAsyncOperationMetrics;
+    private final MetricRegistry metricRegistry;
 
-    private ScheduledReporter reporter;
+    private final HBaseAsyncOperationMetrics hBaseAsyncOperationMetrics;
+    private final BulkOperationMetrics bulkOperationMetrics;
+
+    private List<Reporter> reporterList = new ArrayList<>(2);
 
     private final boolean isEnable = isEnable0(REPORTER_LOGGER_NAME);
+
+    public CollectorMetric(CollectorConfiguration collectorConfiguration,
+                           MetricRegistry metricRegistry,
+                           Optional<HBaseAsyncOperationMetrics> hBaseAsyncOperationMetrics,
+                           Optional<BulkOperationMetrics> cachedStatisticsDaoMetrics) {
+        this.collectorConfiguration = Objects.requireNonNull(collectorConfiguration, "collectorConfiguration");
+        this.metricRegistry = Objects.requireNonNull(metricRegistry, "metricRegistry");
+        this.hBaseAsyncOperationMetrics = hBaseAsyncOperationMetrics.orElse(null);
+        this.bulkOperationMetrics = cachedStatisticsDaoMetrics.orElse(null);
+    }
 
     @PostConstruct
     public void start() {
@@ -87,27 +107,62 @@ public class CollectorMetric {
                 metricRegistry.register(metric.getKey(), metric.getValue());
             }
         }
+
+        if (bulkOperationMetrics != null) {
+            Map<String, Metric> metrics = bulkOperationMetrics.getMetrics();
+            for (Map.Entry<String, Metric> metric : metrics.entrySet()) {
+                metricRegistry.register(metric.getKey(), metric.getValue());
+            }
+        }
     }
 
     private void initReporters() {
+        Slf4jReporter slf4jReporter = createSlf4jReporter();
+        slf4jReporter.start(60, TimeUnit.SECONDS); // print every 1 min.
+
+        reporterList.add(slf4jReporter);
+
+        if (collectorConfiguration.isMetricJmxEnable()) {
+
+            final String metricJmxDomainName = collectorConfiguration.getMetricJmxDomainName();
+            Assert.hasLength(metricJmxDomainName, "metricJmxDomainName must not be empty");
+
+            final JmxReporter jmxReporter = createJmxReporter(metricJmxDomainName);
+            jmxReporter.start();
+            reporterList.add(jmxReporter);
+        }
+    }
+
+    private Slf4jReporter createSlf4jReporter() {
         Slf4jReporter.Builder builder = Slf4jReporter.forRegistry(metricRegistry);
         builder.convertRatesTo(TimeUnit.SECONDS);
         builder.convertDurationsTo(TimeUnit.MILLISECONDS);
 
         builder.outputTo(reporterLogger);
-        reporter = builder.build();
-
-        reporter.start(60, TimeUnit.SECONDS); // print every 1 min.
+        return builder.build();
     }
 
+    private JmxReporter createJmxReporter(String metricJmxDomainName) {
+        final JmxReporter.Builder builder = JmxReporter.forRegistry(metricRegistry);
+        builder.convertRatesTo(TimeUnit.SECONDS);
+        builder.convertDurationsTo(TimeUnit.MILLISECONDS);
+        builder.inDomain(metricJmxDomainName);
+
+        return builder.build();
+    }
 
     @PreDestroy
     private void shutdown() {
-        if (reporter == null) {
-            return;
+        for (Reporter reporter : reporterList) {
+            if (reporter instanceof Closeable) {
+                try {
+                    ((Closeable) reporter).close();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
         }
-        reporter.stop();
-        reporter = null;
+        reporterList = null;
     }
 
 }

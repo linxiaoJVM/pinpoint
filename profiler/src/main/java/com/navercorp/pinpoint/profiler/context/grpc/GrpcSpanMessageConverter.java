@@ -20,7 +20,6 @@ import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.StringValue;
 import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.common.annotations.VisibleForTesting;
-import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.common.util.IntStringValue;
 import com.navercorp.pinpoint.grpc.trace.PAcceptEvent;
@@ -35,6 +34,7 @@ import com.navercorp.pinpoint.grpc.trace.PSpan;
 import com.navercorp.pinpoint.grpc.trace.PSpanChunk;
 import com.navercorp.pinpoint.grpc.trace.PSpanEvent;
 import com.navercorp.pinpoint.grpc.trace.PTransactionId;
+import com.navercorp.pinpoint.io.SpanVersion;
 import com.navercorp.pinpoint.profiler.context.Annotation;
 import com.navercorp.pinpoint.profiler.context.AsyncId;
 import com.navercorp.pinpoint.profiler.context.AsyncSpanChunk;
@@ -42,21 +42,22 @@ import com.navercorp.pinpoint.profiler.context.LocalAsyncId;
 import com.navercorp.pinpoint.profiler.context.Span;
 import com.navercorp.pinpoint.profiler.context.SpanChunk;
 import com.navercorp.pinpoint.profiler.context.SpanEvent;
+import com.navercorp.pinpoint.profiler.context.SpanType;
 import com.navercorp.pinpoint.profiler.context.compress.SpanProcessor;
 import com.navercorp.pinpoint.profiler.context.id.Shared;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
 import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
-import com.navercorp.pinpoint.io.SpanVersion;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Not thread safe
  *
  * @author Woonduk Kang(emeroad)
  */
-public class GrpcSpanMessageConverter implements MessageConverter<GeneratedMessageV3> {
+public class GrpcSpanMessageConverter implements MessageConverter<SpanType, GeneratedMessageV3> {
 
     private final String agentId;
     private final short applicationServiceType;
@@ -71,14 +72,14 @@ public class GrpcSpanMessageConverter implements MessageConverter<GeneratedMessa
 
     public GrpcSpanMessageConverter(String agentId, short applicationServiceType,
                                     SpanProcessor<PSpan.Builder, PSpanChunk.Builder> spanProcessor) {
-        this.agentId = Assert.requireNonNull(agentId, "agentId");
+        this.agentId = Objects.requireNonNull(agentId, "agentId");
         this.applicationServiceType = applicationServiceType;
-        this.spanProcessor = Assert.requireNonNull(spanProcessor, "spanProcessor");
+        this.spanProcessor = Objects.requireNonNull(spanProcessor, "spanProcessor");
 
     }
 
     @Override
-    public GeneratedMessageV3 toMessage(Object message) {
+    public GeneratedMessageV3 toMessage(SpanType message) {
         if (message instanceof SpanChunk) {
             final SpanChunk spanChunk = (SpanChunk) message;
             final PSpanChunk pSpanChunk = buildPSpanChunk(spanChunk);
@@ -129,7 +130,7 @@ public class GrpcSpanMessageConverter implements MessageConverter<GeneratedMessa
 
         pSpan.setLoggingTransactionInfo(shared.getLoggingInfo());
 
-        final List<Annotation> annotations = span.getAnnotations();
+        final List<Annotation<?>> annotations = span.getAnnotations();
         if (CollectionUtils.hasLength(annotations)) {
             final List<PAnnotation> tAnnotations = buildPAnnotation(annotations);
             pSpan.addAllAnnotation(tAnnotations);
@@ -210,7 +211,7 @@ public class GrpcSpanMessageConverter implements MessageConverter<GeneratedMessa
 
     private List<PSpanEvent> buildPSpanEventList(List<SpanEvent> spanEventList) {
         final int eventSize = spanEventList.size();
-        final List<PSpanEvent> pSpanEventList = new ArrayList<PSpanEvent>(eventSize);
+        final List<PSpanEvent> pSpanEventList = new ArrayList<>(eventSize);
         for (SpanEvent spanEvent : spanEventList) {
             final PSpanEvent.Builder pSpanEvent = buildPSpanEvent(spanEvent);
             pSpanEventList.add(pSpanEvent.build());
@@ -301,7 +302,7 @@ public class GrpcSpanMessageConverter implements MessageConverter<GeneratedMessa
         }
 
 
-        final List<Annotation> annotations = spanEvent.getAnnotations();
+        final List<Annotation<?>> annotations = spanEvent.getAnnotations();
         if (CollectionUtils.hasLength(annotations)) {
             final List<PAnnotation> pAnnotations = buildPAnnotation(annotations);
             pSpanEvent.addAllAnnotation(pAnnotations);
@@ -356,12 +357,12 @@ public class GrpcSpanMessageConverter implements MessageConverter<GeneratedMessa
     }
 
     @VisibleForTesting
-    List<PAnnotation> buildPAnnotation(List<Annotation> annotations) {
-        final List<PAnnotation> tAnnotationList = new ArrayList<PAnnotation>(annotations.size());
-        for (Annotation annotation : annotations) {
+    List<PAnnotation> buildPAnnotation(List<Annotation<?>> annotations) {
+        final List<PAnnotation> tAnnotationList = new ArrayList<>(annotations.size());
+        for (Annotation<?> annotation : annotations) {
             final PAnnotation.Builder builder = getAnnotationBuilder();
-            builder.setKey(annotation.getAnnotationKey());
-            final PAnnotationValue pAnnotationValue = grpcAnnotationValueMapper.buildPAnnotationValue(annotation.getValue());
+            builder.setKey(annotation.getKey());
+            final PAnnotationValue pAnnotationValue = grpcAnnotationValueMapper.buildPAnnotationValue(annotation);
             if (pAnnotationValue != null) {
                 builder.setValue(pAnnotationValue);
             }

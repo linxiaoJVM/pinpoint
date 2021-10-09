@@ -15,6 +15,7 @@
 package com.navercorp.pinpoint.common.trace;
 
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -33,7 +34,7 @@ public enum ServiceTypeCategory {
     
     private final short minCode;
     private final short maxCode;
-    private HistogramSchema histogramSchema;
+    private final HistogramSchema histogramSchema;
 
     private static final Set<ServiceTypeCategory> SERVICE_TYPE_CATEGORIES = EnumSet.allOf(ServiceTypeCategory.class);
 
@@ -44,10 +45,7 @@ public enum ServiceTypeCategory {
     ServiceTypeCategory(short minCode, short maxCode, HistogramSchema histogramSchema) {
         this.minCode = minCode;
         this.maxCode = maxCode;
-        if (histogramSchema == null) {
-            throw new NullPointerException("histogramSchema");
-        }
-        this.histogramSchema = histogramSchema;
+        this.histogramSchema = Objects.requireNonNull(histogramSchema, "histogramSchema");
     }
     
     public boolean contains(short code) {

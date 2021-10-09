@@ -22,12 +22,12 @@ import com.navercorp.pinpoint.grpc.Header;
 import com.navercorp.pinpoint.grpc.trace.PAgentStat;
 import com.navercorp.pinpoint.grpc.trace.PAgentStatBatch;
 import com.navercorp.pinpoint.grpc.trace.PDeadlock;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -35,8 +35,11 @@ import java.util.List;
 @Component
 public class GrpcAgentEventBatchMapper {
 
-    @Autowired
-    private GrpcDeadlockEventBoMapper deadlockEventBoMapper;
+    private final GrpcDeadlockEventBoMapper deadlockEventBoMapper;
+
+    public GrpcAgentEventBatchMapper(GrpcDeadlockEventBoMapper deadlockEventBoMapper) {
+        this.deadlockEventBoMapper = Objects.requireNonNull(deadlockEventBoMapper, "deadlockEventBoMapper");
+    }
 
     public List<AgentEventBo> map(final PAgentStatBatch agentStatBatch, final Header header) {
         final String agentId = header.getAgentId();

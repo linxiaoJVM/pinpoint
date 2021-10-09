@@ -16,12 +16,14 @@
 
 package com.navercorp.pinpoint.web.vo.stat.chart.application;
 
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinLongFieldBo;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.chart.Chart;
 import com.navercorp.pinpoint.web.vo.chart.Point;
 import com.navercorp.pinpoint.web.vo.stat.AggreJoinFileDescriptorBo;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChartGroup;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,7 +40,7 @@ public class ApplicationFileDescriptorChartGroupTest {
     @Test
     public void createApplicationFileDescriptorChartGroupTest() {
         long time = 1495418083250L;
-        Range range = new Range(time - 240000, time);
+        Range range = Range.newRange(time - 240000, time);
         TimeWindow timeWindow = new TimeWindow(range);
 
         List<AggreJoinFileDescriptorBo> aggreFileDescriptorList = new ArrayList<>(5);
@@ -63,16 +65,17 @@ public class ApplicationFileDescriptorChartGroupTest {
         int index = fileDescriptorPoints.size();
 
         for (Point point : fileDescriptorPoints) {
-            testOpenFileDescriptor((FileDescriptorPoint)point, aggreFileDescriptorList.get(--index));
+            testOpenFileDescriptor((LongApplicationStatPoint) point, aggreFileDescriptorList.get(--index));
         }
     }
 
-    private void testOpenFileDescriptor(FileDescriptorPoint fileDescriptorPoint, AggreJoinFileDescriptorBo aggreJoinFileDescriptorBo) {
+    private void testOpenFileDescriptor(LongApplicationStatPoint fileDescriptorPoint, AggreJoinFileDescriptorBo aggreJoinFileDescriptorBo) {
         assertEquals(fileDescriptorPoint.getXVal(), aggreJoinFileDescriptorBo.getTimestamp());
-        assertEquals(fileDescriptorPoint.getYValForAvg(), aggreJoinFileDescriptorBo.getAvgOpenFDCount(), 0);
-        assertEquals(fileDescriptorPoint.getYValForMin(), aggreJoinFileDescriptorBo.getMinOpenFDCount(), 0);
-        assertEquals(fileDescriptorPoint.getYValForMax(), aggreJoinFileDescriptorBo.getMaxOpenFDCount(), 0);
-        assertEquals(fileDescriptorPoint.getAgentIdForMin(), aggreJoinFileDescriptorBo.getMinOpenFDCountAgentId());
-        assertEquals(fileDescriptorPoint.getAgentIdForMax(), aggreJoinFileDescriptorBo.getMaxOpenFDCountAgentId());
+        final JoinLongFieldBo openFdCountJoinValue = aggreJoinFileDescriptorBo.getOpenFdCountJoinValue();
+        assertEquals(fileDescriptorPoint.getYValForAvg(), openFdCountJoinValue.getAvg(), 0);
+        assertEquals(fileDescriptorPoint.getYValForMin(), openFdCountJoinValue.getMin(), 0);
+        assertEquals(fileDescriptorPoint.getYValForMax(), openFdCountJoinValue.getMax(), 0);
+        assertEquals(fileDescriptorPoint.getAgentIdForMin(), openFdCountJoinValue.getMinAgentId());
+        assertEquals(fileDescriptorPoint.getAgentIdForMax(), openFdCountJoinValue.getMaxAgentId());
     }
 }

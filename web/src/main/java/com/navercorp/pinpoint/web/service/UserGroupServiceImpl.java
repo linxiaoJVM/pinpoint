@@ -15,6 +15,8 @@
  */
 package com.navercorp.pinpoint.web.service;
 
+import com.navercorp.pinpoint.common.util.CollectionUtils;
+import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.web.config.ConfigProperties;
 import com.navercorp.pinpoint.web.dao.UserGroupDao;
 import com.navercorp.pinpoint.web.util.DefaultUserInfoDecoder;
@@ -22,13 +24,16 @@ import com.navercorp.pinpoint.web.util.UserInfoDecoder;
 import com.navercorp.pinpoint.web.vo.User;
 import com.navercorp.pinpoint.web.vo.UserGroup;
 import com.navercorp.pinpoint.web.vo.UserGroupMember;
+import com.navercorp.pinpoint.web.vo.UserPhoneInfo;
 import com.navercorp.pinpoint.web.vo.exception.PinpointUserGroupException;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * @author minwoo.jung
@@ -37,20 +42,23 @@ import java.util.List;
 @Transactional(rollbackFor = {Exception.class})
 public class UserGroupServiceImpl implements UserGroupService {
 
-    @Autowired
-    UserGroupDao userGroupDao;
+    private final UserGroupDao userGroupDao;
 
-    @Autowired(required = false)
-    UserInfoDecoder userInfoDecoder = DefaultUserInfoDecoder.EMPTY_USER_INFO_DECODER;
+    private final UserInfoDecoder userInfoDecoder;
 
-    @Autowired
-    AlarmService alarmService;
+    private final AlarmService alarmService;
 
-    @Autowired
-    private ConfigProperties webProperties;
+    private final ConfigProperties webProperties;
 
-    @Autowired
-    UserService userService;
+    private final UserService userService;
+
+    public UserGroupServiceImpl(UserGroupDao userGroupDao, Optional<UserInfoDecoder> userInfoDecoder, AlarmService alarmService, ConfigProperties webProperties, UserService userService) {
+        this.userGroupDao = Objects.requireNonNull(userGroupDao, "userGroupDao");
+        this.userInfoDecoder = Objects.requireNonNull(userInfoDecoder, "userInfoDecoder").orElse(DefaultUserInfoDecoder.EMPTY_USER_INFO_DECODER);
+        this.alarmService = Objects.requireNonNull(alarmService, "alarmService");
+        this.webProperties = Objects.requireNonNull(webProperties, "webProperties");
+        this.userService = Objects.requireNonNull(userService, "userService");
+    }
 
     @Override
     public String createUserGroup(UserGroup userGroup) throws PinpointUserGroupException {
@@ -150,8 +158,41 @@ public class UserGroupServiceImpl implements UserGroupService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UserPhoneInfo> selectPhoneInfoOfMember(String userGroupId) {
+        final List<UserPhoneInfo> userPhoneInfoList = userGroupDao.selectPhoneInfoOfMember(userGroupId);
+
+        if (CollectionUtils.isEmpty(userPhoneInfoList)) {
+            return userPhoneInfoList;
+        }
+
+        if (DefaultUserInfoDecoder.EMPTY_USER_INFO_DECODER.equals(userInfoDecoder)) {
+            return userPhoneInfoList;
+        }
+
+
+        List<UserPhoneInfo> convertedUserPhoneInfoList = new ArrayList<>(userPhoneInfoList.size());
+
+        for (UserPhoneInfo userPhoneInfo : userPhoneInfoList) {
+            String decodedPhoneNumber = userInfoDecoder.decodePhoneNumber(userPhoneInfo.getPhoneNumber());
+            String phoneNumber = User.removeHyphenForPhoneNumber(decodedPhoneNumber);
+            convertedUserPhoneInfoList.add(new UserPhoneInfo(userPhoneInfo.getPhoneCountryCode(), phoneNumber));
+        }
+
+        return convertedUserPhoneInfoList;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<String> selectEmailOfMember(String userGroupId) {
-        return userGroupDao.selectEmailOfMember(userGroupId);
+        List<String> emailList = userGroupDao.selectEmailOfMember(userGroupId);
+
+        List<String> decodedEmailList = emailList;
+
+        if (!DefaultUserInfoDecoder.EMPTY_USER_INFO_DECODER.equals(userInfoDecoder)) {
+            decodedEmailList =  userInfoDecoder.decodeEmailList(decodedEmailList);
+        }
+
+        return decodedEmailList;
     }
 
     @Override

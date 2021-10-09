@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.web.vo.stat.chart.application;
 
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinDoubleFieldBo;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.chart.Chart;
@@ -38,7 +39,7 @@ public class ApplicationCpuLoadChartGroupTest {
     @Test
     public void createApplicationCpuLoadChartGroupTest() throws Exception {
         long time = 1495418083250L;
-        Range range = new Range(time - 240000, time);
+        Range range = Range.newRange(time - 240000, time);
         TimeWindow timeWindow = new TimeWindow(range);
         List<AggreJoinCpuLoadBo> aggreCpuLoadList = new ArrayList<>(5);
         AggreJoinCpuLoadBo aggreJoinCpuLoadBo1 = new AggreJoinCpuLoadBo("testApp", 0.11, 0.60, "agent1_1", 0.20, "agent1_2", 0.1, 0.60, "agent1_3", 0.47, "agent1_4", time);
@@ -61,7 +62,7 @@ public class ApplicationCpuLoadChartGroupTest {
         assertEquals(5, jvmCpuLoadPoints.size());
         int index = jvmCpuLoadPoints.size();
         for (Point point : jvmCpuLoadPoints) {
-            testJvmCpuLoad((CpuLoadPoint)point, aggreCpuLoadList.get(--index));
+            testJvmCpuLoad((DoubleApplicationStatPoint)point, aggreCpuLoadList.get(--index));
         }
 
         Chart sysCpuLoadChart = charts.get(ApplicationCpuLoadChart.ApplicationCpuLoadChartGroup.CpuLoadChartType.CPU_LOAD_SYSTEM);
@@ -69,26 +70,28 @@ public class ApplicationCpuLoadChartGroupTest {
         assertEquals(5, sysCpuLoadPoints.size());
         index = sysCpuLoadPoints.size();
         for (Point point : sysCpuLoadPoints) {
-            testSysCpuLoad((CpuLoadPoint)point, aggreCpuLoadList.get(--index));
+            testSysCpuLoad((DoubleApplicationStatPoint)point, aggreCpuLoadList.get(--index));
         }
 
     }
 
-    private void testSysCpuLoad(CpuLoadPoint cpuLoadPoint, AggreJoinCpuLoadBo aggreJoinCpuLoadBo) {
+    private void testSysCpuLoad(DoubleApplicationStatPoint cpuLoadPoint, AggreJoinCpuLoadBo aggreJoinCpuLoadBo) {
         assertEquals(cpuLoadPoint.getXVal(), aggreJoinCpuLoadBo.getTimestamp());
-        assertEquals(cpuLoadPoint.getYValForAvg(), aggreJoinCpuLoadBo.getSystemCpuLoad(), 0);
-        assertEquals(cpuLoadPoint.getYValForMin(), aggreJoinCpuLoadBo.getMinSystemCpuLoad(), 0);
-        assertEquals(cpuLoadPoint.getYValForMax(), aggreJoinCpuLoadBo.getMaxSystemCpuLoad(), 0);
-        assertEquals(cpuLoadPoint.getAgentIdForMin(), aggreJoinCpuLoadBo.getMinSysCpuAgentId());
-        assertEquals(cpuLoadPoint.getAgentIdForMax(), aggreJoinCpuLoadBo.getMaxSysCpuAgentId());
+        final JoinDoubleFieldBo systemCpuLoadJoinValue = aggreJoinCpuLoadBo.getSystemCpuLoadJoinValue();
+        assertEquals(cpuLoadPoint.getYValForAvg(), systemCpuLoadJoinValue.getAvg(), 0);
+        assertEquals(cpuLoadPoint.getYValForMin(), systemCpuLoadJoinValue.getMin(), 0);
+        assertEquals(cpuLoadPoint.getYValForMax(), systemCpuLoadJoinValue.getMax(), 0);
+        assertEquals(cpuLoadPoint.getAgentIdForMin(), systemCpuLoadJoinValue.getMinAgentId());
+        assertEquals(cpuLoadPoint.getAgentIdForMax(), systemCpuLoadJoinValue.getMaxAgentId());
     }
 
-    private void testJvmCpuLoad(CpuLoadPoint cpuLoadPoint, AggreJoinCpuLoadBo aggreJoinCpuLoadBo) {
-        assertEquals(cpuLoadPoint.getYValForAvg(), aggreJoinCpuLoadBo.getJvmCpuLoad(), 0);
-        assertEquals(cpuLoadPoint.getYValForMin(), aggreJoinCpuLoadBo.getMinJvmCpuLoad(), 0);
-        assertEquals(cpuLoadPoint.getYValForMax(), aggreJoinCpuLoadBo.getMaxJvmCpuLoad(), 0);
-        assertEquals(cpuLoadPoint.getAgentIdForMin(), aggreJoinCpuLoadBo.getMinJvmCpuAgentId());
-        assertEquals(cpuLoadPoint.getAgentIdForMax(), aggreJoinCpuLoadBo.getMaxJvmCpuAgentId());
+    private void testJvmCpuLoad(DoubleApplicationStatPoint cpuLoadPoint, AggreJoinCpuLoadBo aggreJoinCpuLoadBo) {
+        final JoinDoubleFieldBo jvmCpuLoadJoinValue = aggreJoinCpuLoadBo.getJvmCpuLoadJoinValue();
+        assertEquals(cpuLoadPoint.getYValForAvg(), jvmCpuLoadJoinValue.getAvg(), 0);
+        assertEquals(cpuLoadPoint.getYValForMin(), jvmCpuLoadJoinValue.getMin(), 0);
+        assertEquals(cpuLoadPoint.getYValForMax(), jvmCpuLoadJoinValue.getMax(), 0);
+        assertEquals(cpuLoadPoint.getAgentIdForMin(), jvmCpuLoadJoinValue.getMinAgentId());
+        assertEquals(cpuLoadPoint.getAgentIdForMax(), jvmCpuLoadJoinValue.getMaxAgentId());
     }
 
 }

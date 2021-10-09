@@ -1,8 +1,22 @@
+export const enum ResponseRange {
+    MIN = 0,
+    MAX = 30000
+}
+
+const enum FilterType {
+    NODE,
+    LINK
+}
+
 export class Filter {
     // paramName = fa
     fromApplication = '';
     // paramName = fst
     fromServiceType = '';
+    // paramName = a
+    application = '';
+    // paramName = st
+    serviceType = '';
     // paramName = ta
     toApplication = '';
     // paramName = tst
@@ -19,10 +33,14 @@ export class Filter {
     fromAgentName?: string;
     // paramName = tan
     toAgentName?: string;
+    // paramName = an
+    agentName?: string;
+    // node or link
+    type: FilterType;
+
     static instanceFromString(str: string): Filter[] {
         const returnFilter: Filter[] = [];
         let aFilterFromStr: any;
-
         try {
             aFilterFromStr = JSON.parse(str);
         } catch (exception) {
@@ -37,15 +55,13 @@ export class Filter {
                 filterFromStr.ta,
                 filterFromStr.tst,
                 filterFromStr.ie,
+                filterFromStr.a,
+                filterFromStr.st,
+                filterFromStr.rf,
+                filterFromStr.rt === 'max' ? ResponseRange.MAX : filterFromStr.rt
             );
-            if (filterFromStr.rf || filterFromStr.rf === 0) {
-                newFilter.setResponseFrom(filterFromStr.rf);
-            }
-            if (filterFromStr.rt) {
-                newFilter.setResponseTo(filterFromStr.rt);
-            }
             if (filterFromStr.url) {
-                newFilter.setUrlPattern(filterFromStr.url);
+                newFilter.setUrlPattern(window.atob(filterFromStr.url));
             }
             if (filterFromStr.fan) {
                 newFilter.setFromAgentName(filterFromStr.fan);
@@ -58,29 +74,32 @@ export class Filter {
         return returnFilter;
     }
 
-    constructor(fa: string, fst: string, ta: string, tst: string, ie: null | boolean = null) {
+    constructor(fa: string, fst: string, ta: string, tst: string, ie: null | boolean = null, a: string = null, st: string = null, rf = ResponseRange.MIN, rt = ResponseRange.MAX) {
         this.fromApplication = fa;
         this.fromServiceType = fst;
         this.toApplication = ta;
         this.toServiceType = tst;
         this.transactionResult = ie;
+        this.application = a;
+        this.serviceType = st;
+        this.responseFrom = rf;
+        this.responseTo = rt;
+        this.type = this.getFilterType();
+    }
+
+    private getFilterType(): FilterType {
+        return this.application === null && this.serviceType === null
+            ? FilterType.LINK
+            : FilterType.NODE;
     }
 
     equal(filter: Filter): boolean {
-        return (
-            this.fromApplication === filter.fromApplication &&
+        return this.type !== filter.type ? false
+            : filter.type === FilterType.NODE ? this.application === filter.application && this.serviceType === filter.serviceType
+            : this.fromApplication === filter.fromApplication &&
             this.fromServiceType === filter.fromServiceType &&
             this.toApplication === filter.toApplication &&
-            this.toServiceType === filter.toServiceType
-        );
-    }
-
-    setResponseFrom(rf: number): void {
-        this.responseFrom = rf;
-    }
-
-    setResponseTo(rt: number): void {
-        this.responseTo = rt;
+            this.toServiceType === filter.toServiceType;
     }
 
     setUrlPattern(url: string): void {
@@ -95,6 +114,10 @@ export class Filter {
         this.toAgentName = tan;
     }
 
+    setAgentName(an: string): void {
+        this.agentName = an;
+    }
+
     getToKey(): string {
         return `${this.toApplication}^${this.toServiceType}`;
     }
@@ -105,9 +128,9 @@ export class Filter {
 
     getTransactionResultStr(): string {
         if (this.transactionResult === true) {
-            return 'Success Only';
-        } else if (this.transactionResult === false) {
             return 'Failed Only';
+        } else if (this.transactionResult === false) {
+            return 'Success Only';
         }
         return 'Success + Failed';
     }
@@ -118,16 +141,14 @@ export class Filter {
             fst: this.fromServiceType,
             ta: this.toApplication,
             tst: this.toServiceType,
-            ie: this.transactionResult
+            a: this.application,
+            st: this.serviceType,
+            ie: this.transactionResult,
+            rf: this.responseFrom,
+            rt: this.responseTo === ResponseRange.MAX ? 'max' : this.responseTo
         };
-        if (this.responseFrom || this.responseFrom === 0) {
-            param['rf'] = this.responseFrom;
-        }
-        if (this.responseTo) {
-            param['rt'] = this.responseTo;
-        }
         if (this.urlPattern) {
-            param['url'] = this.urlPattern;
+            param['url'] = window.btoa(this.urlPattern);
         }
         if (this.fromAgentName) {
             param['fan'] = this.fromAgentName;
@@ -135,7 +156,9 @@ export class Filter {
         if (this.toAgentName) {
             param['tan'] = this.toAgentName;
         }
-
+        if (this.agentName) {
+            param['an'] = this.agentName;
+        }
         return param;
     }
 }

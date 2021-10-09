@@ -26,11 +26,11 @@ import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.AggreJoinCpuLoadBo;
 import com.navercorp.pinpoint.web.vo.stat.AggregationStatData;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author minwoo.jung
@@ -38,20 +38,23 @@ import java.util.List;
 @Repository
 public class HbaseApplicationCpuLoadDao implements ApplicationCpuLoadDao {
 
-    @Autowired
-    private CpuLoadDecoder cpuLoadDecoder;
+    private final CpuLoadDecoder cpuLoadDecoder;
 
-    @Autowired
-    private ApplicationStatSampler<JoinCpuLoadBo> cpuLoadSampler;
+    private final ApplicationStatSampler<JoinCpuLoadBo> cpuLoadSampler;
 
-    @Autowired
-    private HbaseApplicationStatDaoOperations operations;
+    private final HbaseApplicationStatDaoOperations operations;
+
+    public HbaseApplicationCpuLoadDao(CpuLoadDecoder cpuLoadDecoder, ApplicationStatSampler<JoinCpuLoadBo> cpuLoadSampler, HbaseApplicationStatDaoOperations operations) {
+        this.cpuLoadDecoder = Objects.requireNonNull(cpuLoadDecoder, "cpuLoadDecoder");
+        this.cpuLoadSampler = Objects.requireNonNull(cpuLoadSampler, "cpuLoadSampler");
+        this.operations = Objects.requireNonNull(operations, "operations");
+    }
 
     @Override
     public List<AggreJoinCpuLoadBo> getApplicationStatList(String applicationId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         ApplicationStatMapper mapper = operations.createRowMapper(cpuLoadDecoder, range);
         SampledApplicationStatResultExtractor resultExtractor = new SampledApplicationStatResultExtractor(timeWindow, mapper, cpuLoadSampler);
         List<AggregationStatData> aggregationStatDataList = operations.getSampledStatList(StatType.APP_CPU_LOAD, resultExtractor, applicationId, range);

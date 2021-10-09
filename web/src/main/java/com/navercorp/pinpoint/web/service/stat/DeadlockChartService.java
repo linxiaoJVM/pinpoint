@@ -21,12 +21,12 @@ import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.stat.SampledDeadlock;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import com.navercorp.pinpoint.web.vo.stat.chart.agent.DeadlockChart;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -36,19 +36,15 @@ public class DeadlockChartService implements AgentStatChartService {
 
     private final SampledDeadlockDao sampledDeadlockDao;
 
-    @Autowired
     public DeadlockChartService(@Qualifier("sampledDeadlockDaoFactory") SampledDeadlockDao sampledDeadlockDao) {
-        this.sampledDeadlockDao = sampledDeadlockDao;
+        this.sampledDeadlockDao = Objects.requireNonNull(sampledDeadlockDao, "sampledDeadlockDao");
     }
 
     @Override
     public StatChart selectAgentChart(String agentId, TimeWindow timeWindow) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
-        if (timeWindow == null) {
-            throw new NullPointerException("timeWindow");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(timeWindow, "timeWindow");
+
         List<SampledDeadlock> sampledDeadlockList = this.sampledDeadlockDao.getSampledAgentStatList(agentId, timeWindow);
         return new DeadlockChart(timeWindow, sampledDeadlockList);
     }

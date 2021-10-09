@@ -3,11 +3,12 @@ import { Observable } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 
 import {
-    WindowRefService,
     WebAppSettingDataService,
     UrlRouteManagerService,
     NewUrlStateNotificationService,
-    DynamicPopup
+    DynamicPopup,
+    AnalyticsService,
+    TRACKED_EVENT_LIST
 } from 'app/shared/services';
 import { UrlPathId, UrlQuery, UrlPath } from 'app/shared/models';
 import { Filter } from 'app/core/models';
@@ -31,7 +32,7 @@ export class FilterTransactionWizardPopupContainerComponent implements OnInit, A
         private webAppSettingDataService: WebAppSettingDataService,
         private newUrlStateNotificationService: NewUrlStateNotificationService,
         private urlRouteManagerService: UrlRouteManagerService,
-        private windowRefService: WindowRefService,
+        private analyticsService: AnalyticsService,
     ) {}
 
     ngOnInit() {
@@ -62,12 +63,14 @@ export class FilterTransactionWizardPopupContainerComponent implements OnInit, A
             param.from.serviceType,
             param.to.applicationName,
             param.to.serviceType,
-            param.transactionResult
+            param.transactionResult,
+            null,
+            null,
+            param.responseFrom,
+            param.responseTo
         );
-        f.setResponseFrom(param.responseFrom);
-        f.setResponseTo(param.responseTo);
         if (param.urlPattern) {
-            f.setUrlPattern(this.windowRefService.nativeWindow.btoa(param.urlPattern));
+            f.setUrlPattern(param.urlPattern);
         }
         if (param.from.agent) {
             f.setFromAgentName(param.from.agent);
@@ -91,11 +94,13 @@ export class FilterTransactionWizardPopupContainerComponent implements OnInit, A
                 period,
                 endTime
             ],
-            queryParam: {
+            queryParams: {
                 filter: FilterParamMaker.makeParam(currFilterStr, addedFilter),
                 hint: HintParamMaker.makeParam(currHintStr, addedHint)
             }
         });
+
+        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_FILTERED_MAP_PAGE_ON_FILTER_TRANSACTION_WIZARD_POPUP);
     }
 
     onClosePopup(): void {

@@ -21,8 +21,8 @@ import java.util.List;
 /**
  * @author jaehong.kim
  */
-public class AgentStatMetricSnapshotBatch {
-    private java.lang.String agentId;
+public class AgentStatMetricSnapshotBatch implements MetricType {
+    private String agentId;
     private long startTimestamp;
     private List<AgentStatMetricSnapshot> agentStats;
 

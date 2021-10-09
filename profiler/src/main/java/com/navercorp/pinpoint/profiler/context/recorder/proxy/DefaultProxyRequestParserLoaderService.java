@@ -16,7 +16,9 @@
 
 package com.navercorp.pinpoint.profiler.context.recorder.proxy;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
+
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +34,12 @@ public class DefaultProxyRequestParserLoaderService implements ProxyRequestParse
     private final List<ProxyRequestParserProvider> providerList;
     private final List<ProxyRequestParser> proxyHttpHeaderParserList = new ArrayList<ProxyRequestParser>();
 
-    public DefaultProxyRequestParserLoaderService(final List<ProxyRequestParserProvider> providerList) {
-        this.providerList = Assert.requireNonNull(providerList, "providerList");
-        load();
+    public DefaultProxyRequestParserLoaderService(final List<ProxyRequestParserProvider> providerList, ProfilerConfig profilerConfig) {
+        this.providerList = Objects.requireNonNull(providerList, "providerList");
+        load(profilerConfig);
     }
 
-    private void load() {
+    private void load(final ProfilerConfig profilerConfig) {
         logger.info("Loading ProxyRequestParserProvider");
         for (ProxyRequestParserProvider provider : providerList) {
             final ProxyRequestParserProviderSetupContext context = new ProxyRequestParserProviderSetupContext() {
@@ -45,6 +47,7 @@ public class DefaultProxyRequestParserLoaderService implements ProxyRequestParse
                 public void addProxyRequestParser(ProxyRequestParser parser) {
                     if (parser != null) {
                         logger.info("Add ProxyRequestParser={}", parser);
+                        parser.init(profilerConfig);
                         proxyHttpHeaderParserList.add(parser);
                     }
                 }

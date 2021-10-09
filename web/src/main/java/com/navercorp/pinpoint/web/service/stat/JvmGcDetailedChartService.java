@@ -21,12 +21,12 @@ import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.stat.SampledJvmGcDetailed;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import com.navercorp.pinpoint.web.vo.stat.chart.agent.JvmGcDetailedChart;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -36,19 +36,15 @@ public class JvmGcDetailedChartService implements AgentStatChartService {
 
     private final SampledJvmGcDetailedDao sampledJvmGcDetailedDao;
 
-    @Autowired
     public JvmGcDetailedChartService(@Qualifier("sampledJvmGcDetailedDaoFactory") SampledJvmGcDetailedDao sampledJvmGcDetailedDao) {
-        this.sampledJvmGcDetailedDao = sampledJvmGcDetailedDao;
+        this.sampledJvmGcDetailedDao = Objects.requireNonNull(sampledJvmGcDetailedDao, "sampledJvmGcDetailedDao");
     }
 
     @Override
     public StatChart selectAgentChart(String agentId, TimeWindow timeWindow) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
-        if (timeWindow == null) {
-            throw new NullPointerException("timeWindow");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(timeWindow, "timeWindow");
+
         List<SampledJvmGcDetailed> sampledJvmGcDetaileds = this.sampledJvmGcDetailedDao.getSampledAgentStatList(agentId, timeWindow);
         return new JvmGcDetailedChart(timeWindow, sampledJvmGcDetaileds);
     }

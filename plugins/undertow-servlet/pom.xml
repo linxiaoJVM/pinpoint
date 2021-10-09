@@ -21,7 +21,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint-plugins</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.3.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-undertow-servlet-plugin</artifactId>
@@ -29,7 +29,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <jdk.version>1.6</jdk.version>
+        <jdk.version>1.7</jdk.version>
         <jdk.home>${env.JAVA_7_HOME}</jdk.home>
         <sniffer.artifactid>java17</sniffer.artifactid>
     </properties>
@@ -74,10 +74,15 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <artifactSet>
+                                <includes>
+                                    <include>com.navercorp.pinpoint:pinpoint-common-servlet</include>
+                                </includes>
+                            </artifactSet>
                             <relocations>
                                 <relocation>
                                     <pattern>com.navercorp.pinpoint.plugin.common.servlet</pattern>
-                                    <shadedPattern>com.navercorp.pinpoint.plugin.undertow.common.servlet</shadedPattern>
+                                    <shadedPattern>com.navercorp.pinpoint.plugin.undertowservlet.common.servlet</shadedPattern>
                                 </relocation>
                             </relocations>
                             <dependencyReducedPomLocation>

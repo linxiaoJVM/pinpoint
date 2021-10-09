@@ -17,7 +17,6 @@ import { SystemConfigurationDataService } from './services/system-configuration-
 import { SystemConfigurationResolverService } from './services/system-configuration-resolver.service';
 import { SplitRatioService } from './services/split-ratio.service';
 import { GutterEventService } from './services/gutter-event.service';
-import { ApplicationListResolverService } from './services/application-list-resolver.service';
 import { AnalyticsService } from './services/analytics.service';
 import { BrowserSupportCheckService } from './services/browser-support-check.service';
 import { AgentHistogramDataService } from './services/agent-histogram-data.service';
@@ -25,6 +24,7 @@ import { TransactionDetailDataService } from './services/transaction-detail-data
 import { StoreHelperService } from './services/store-helper.service';
 import { UrlValidateGuard } from './services/url-validate.guard';
 import { ThemeService } from './services/theme.service';
+import { AuthService } from './services/auth.service';
 
 import { HeaderLogoComponent } from './components/header-logo';
 import { EmptyContentsComponent, NoneComponent } from './components/empty-contents';
@@ -35,14 +35,12 @@ import { SimpleProgressSliderComponent } from './components/simple-progress-slid
 import { FormFieldErrorMessageComponent } from './components/form-field-error-message';
 import { ServerErrorMessageComponent } from './components/server-error-message';
 import { ContextPopupDirective } from './directives/context-popup.directive';
-import { SplitterDirective } from './directives/splitter.directive';
 import { SearchInputDirective } from './directives/search-input.directive';
 import { SafeHtmlPipe } from './pipes/safe-html.pipe';
 import { JSONTextParserPipe } from './pipes/json-text-parser.pipe';
 import { DynamicPopupService } from './services/dynamic-popup.service';
 import { MessageQueueService } from './services/message-queue.service';
 import { WindowRefService } from './services/window-ref.service';
-import { ApplicationListDataService } from './services/application-list-data.service';
 import { SafeStylePipe } from './pipes/safe-style.pipe';
 import { RetryComponent } from './components/retry';
 import { HandleObsPipe } from './pipes/handle-obs.pipe';
@@ -66,7 +64,6 @@ import { PickPropsPipe } from './pipes/pick-props.pipe';
         HandleObsPipe,
         PickPropsPipe,
         ContextPopupDirective,
-        SplitterDirective,
         SearchInputDirective
     ],
     imports: [
@@ -95,7 +92,6 @@ import { PickPropsPipe } from './pipes/pick-props.pipe';
         HandleObsPipe,
         PickPropsPipe,
         ContextPopupDirective,
-        SplitterDirective,
         SearchInputDirective
     ],
     providers: []
@@ -126,9 +122,8 @@ export class SharedModule {
                 TransactionDetailDataService,
                 MessageQueueService,
                 DynamicPopupService,
-                ApplicationListResolverService,
-                ApplicationListDataService,
-                ThemeService
+                ThemeService,
+                AuthService
             ]
         };
     }

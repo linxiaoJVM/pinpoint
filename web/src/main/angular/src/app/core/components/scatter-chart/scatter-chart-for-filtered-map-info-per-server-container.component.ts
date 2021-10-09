@@ -14,7 +14,7 @@ import {
     MessageQueueService,
     MESSAGE_TO
 } from 'app/shared/services';
-import { UrlPath, UrlPathId } from 'app/shared/models';
+import { UrlPath, UrlPathId, UrlQuery } from 'app/shared/models';
 import { ScatterChart } from './class/scatter-chart.class';
 import { ScatterChartInteractionService } from './scatter-chart-interaction.service';
 import { HELP_VIEWER_LIST, HelpViewerPopupContainerComponent } from 'app/core/components/help-viewer-popup/help-viewer-popup-container.component';
@@ -52,6 +52,7 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
     timezone: string;
     dateFormat: string[];
     showBlockMessagePopup = false;
+    enableServerSideScan: boolean;
 
     constructor(
         private storeHelperService: StoreHelperService,
@@ -69,6 +70,7 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
     ) {}
 
     ngOnInit() {
+        this.enableServerSideScan = this.webAppSettingDataService.getExperimentalOption('scatterScan');
         this.setScatterY();
         forkJoin(
             this.translateService.get('COMMON.NO_DATA'),
@@ -112,6 +114,13 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
         this.unsubscribe.complete();
     }
 
+    private reset(range?: {[key: string]: number}): void {
+        this.toX = range ? range.toX : Date.now();
+        this.fromX = range ? range.fromX : this.toX - this.webAppSettingDataService.getSystemDefaultPeriod().getMiliSeconds();
+
+        this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+    }
+
     private setScatterY() {
         const {min, max} = this.webAppSettingDataService.getScatterY(this.instanceKey);
 
@@ -128,9 +137,7 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
             this.dateFormat = format;
             this.cd.detectChanges();
         });
-        this.storeHelperService.getAgentSelectionForServerList(this.unsubscribe).pipe(
-            filter((data: IAgentSelection) => !!data),
-        ).subscribe(({agent}: IAgentSelection) => {
+        this.messageQueueService.receiveMessage(this.unsubscribe, MESSAGE_TO.AGENT_SELECT_FOR_SERVER_LIST).subscribe(({agent}: IAgentSelection) => {
             this.selectedAgent = agent;
             this.scatterChartInteractionService.changeAgent(this.instanceKey, agent);
             this.cd.detectChanges();
@@ -144,7 +151,7 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
             this.selectedTarget = target;
             this.selectedAgent = '';
             this.selectedApplication = this.selectedTarget.node[0];
-            this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+            this.reset({fromX: this.fromX, toX: this.toX});
             this.cd.detectChanges();
         });
     }
@@ -168,6 +175,10 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
         });
         this.hideSettingPopup = true;
         this.webAppSettingDataService.setScatterY(this.instanceKey, { min: params.min, max: params.max });
+        this.reset({fromX: this.fromX, toX: this.toX});
+        this.scatterChartDataOfAllNode.forEach((scatterData: any) => {
+            this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData[this.selectedApplication]);
+        });
     }
 
     onCancelSetting(): void {
@@ -189,7 +200,7 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
         this.urlRouteManagerService.openPage({
             path: [
                 UrlPath.SCATTER_FULL_SCREEN_MODE,
-                this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).getUrlStr(),
+                `${this.selectedApplication.replace('^', '@')}`,
                 this.newUrlStateNotificationService.getPathValue(UrlPathId.PERIOD).getValueWithTime(),
                 this.newUrlStateNotificationService.getPathValue(UrlPathId.END_TIME).getEndTime(),
                 this.selectedAgent
@@ -231,15 +242,24 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
     }
 
     onSelectArea(params: any): void {
-        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_TRANSACTION_LIST);
+        this.analyticsService.trackEvent(TRACKED_EVENT_LIST.SELECT_AREA_ON_SCATTER);
         const returnOpenWindow = this.urlRouteManagerService.openPage({
             path: [
                 UrlPath.TRANSACTION_LIST,
-                this.newUrlStateNotificationService.getPathValue(UrlPathId.APPLICATION).getUrlStr(),
+                `${this.selectedApplication.replace('^', '@')}`,
                 this.newUrlStateNotificationService.getPathValue(UrlPathId.PERIOD).getValueWithTime(),
                 this.newUrlStateNotificationService.getPathValue(UrlPathId.END_TIME).getEndTime()
             ],
-            metaInfo: `${this.selectedApplication}|${params.x.from}|${params.x.to}|${params.y.from}|${params.y.to}|${this.selectedAgent}|${params.type.join(',')}`
+            queryParams: {
+                [UrlQuery.DRAG_INFO]: {
+                    x1: params.x.from,
+                    x2: params.x.to,
+                    y1: params.y.from,
+                    y2: params.y.to,
+                    agentId: this.selectedAgent,
+                    dotStatus: params.type
+                }
+            },
         });
 
         if (returnOpenWindow === null || returnOpenWindow === undefined) {

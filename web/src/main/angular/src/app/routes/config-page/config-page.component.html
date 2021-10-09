@@ -1,4 +1,4 @@
-<header class="flex-container flex-row">
+<header class="l-header flex-container flex-row">
     <pp-header-logo></pp-header-logo>
     <button class="l-exit-button" title="Exit the configuration page" (click)="onClickExit()"><i class="fas fa-times"></i></button>
 </header>
@@ -30,6 +30,8 @@
             <li class="l-list-item"><a (click)="onMenuClick('installation')" routerLink="/config/installation" routerLinkActive="active" class="l-link">Installation</a></li>
             <li class="l-list-item l-separator"></li>
             <li class="l-list-item"><a (click)="onMenuClick('help')" routerLink="/config/help" routerLinkActive="active" class="l-link">Help</a></li>
+            <li class="l-list-item l-separator"></li>      
+            <li class="l-list-item"><a (click)="onMenuClick('experimental')" routerLink="/config/experimental" routerLinkActive="active" class="l-link l-experimental-menu-link">Experimental <i class="fas fa-flask"></i></a></li>
         </ul>
     </section>
     <section class="l-main-section">

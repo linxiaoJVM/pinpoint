@@ -20,9 +20,10 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
 import com.navercorp.pinpoint.profiler.metadata.AgentInfo;
+import com.navercorp.pinpoint.profiler.metadata.MetaDataType;
 import com.navercorp.pinpoint.profiler.sender.ResultResponse;
 import com.navercorp.pinpoint.profiler.util.AgentInfoFactory;
 import com.navercorp.pinpoint.rpc.DefaultFuture;
@@ -47,13 +48,13 @@ public class AgentInfoSender {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private final EnhancedDataSender dataSender;
+    private final EnhancedDataSender<MetaDataType> dataSender;
     private final AgentInfoFactory agentInfoFactory;
     private final long refreshIntervalMs;
     private final long sendIntervalMs;
     private final int maxTryPerAttempt;
     private final Scheduler scheduler;
-    private final MessageConverter<ResultResponse> messageConverter;
+    private final MessageConverter<Object, ResultResponse> messageConverter;
 
     private AgentInfoSender(Builder builder) {
         this.dataSender = builder.dataSender;
@@ -144,14 +145,14 @@ public class AgentInfoSender {
 
         private final SuccessListener taskHandler;
         private final int retryCount;
-        private AtomicInteger counter;
+        private final AtomicInteger counter;
 
         private AgentInfoSendTask(SuccessListener taskHandler) {
             this(taskHandler, 0);
         }
 
         private AgentInfoSendTask(SuccessListener taskHandler, int retryCount) {
-            this.taskHandler = Assert.requireNonNull(taskHandler, "taskHandler");
+            this.taskHandler = Objects.requireNonNull(taskHandler, "taskHandler");
             this.retryCount = retryCount;
             this.counter = new AtomicInteger(0);
         }
@@ -174,7 +175,7 @@ public class AgentInfoSender {
         private boolean sendAgentInfo() {
             try {
                 AgentInfo agentInfo = agentInfoFactory.createAgentInfo();
-                final DefaultFuture<ResponseMessage> future = new DefaultFuture<ResponseMessage>();
+                final DefaultFuture<ResponseMessage> future = new DefaultFuture<>();
 
                 logger.info("Sending AgentInfo {}", agentInfo);
                 dataSender.request(agentInfo, new ResponseMessageFutureListener(future));
@@ -205,16 +206,16 @@ public class AgentInfoSender {
     }
 
     public static class Builder {
-        private final EnhancedDataSender dataSender;
+        private final EnhancedDataSender<MetaDataType> dataSender;
         private final AgentInfoFactory agentInfoFactory;
         private long refreshIntervalMs = DEFAULT_AGENT_INFO_REFRESH_INTERVAL_MS;
         private long sendIntervalMs = DEFAULT_AGENT_INFO_SEND_INTERVAL_MS;
         private int maxTryPerAttempt = DEFAULT_MAX_TRY_COUNT_PER_ATTEMPT;
-        private MessageConverter<ResultResponse> messageConverter;
+        private MessageConverter<Object, ResultResponse> messageConverter;
 
-        public Builder(EnhancedDataSender dataSender, AgentInfoFactory agentInfoFactory) {
-            this.dataSender = Assert.requireNonNull(dataSender, "dataSender");
-            this.agentInfoFactory = Assert.requireNonNull(agentInfoFactory, "agentInfoFactory");
+        public Builder(EnhancedDataSender<MetaDataType> dataSender, AgentInfoFactory agentInfoFactory) {
+            this.dataSender = Objects.requireNonNull(dataSender, "dataSender");
+            this.agentInfoFactory = Objects.requireNonNull(agentInfoFactory, "agentInfoFactory");
         }
 
         public Builder refreshInterval(long refreshIntervalMs) {
@@ -232,7 +233,7 @@ public class AgentInfoSender {
             return this;
         }
 
-        public Builder setMessageConverter(MessageConverter<ResultResponse> messageConverter) {
+        public Builder setMessageConverter(MessageConverter<Object, ResultResponse> messageConverter) {
             this.messageConverter = messageConverter;
             return this;
         }

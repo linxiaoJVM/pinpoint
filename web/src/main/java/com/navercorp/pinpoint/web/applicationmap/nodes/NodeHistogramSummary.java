@@ -17,8 +17,11 @@
 package com.navercorp.pinpoint.web.applicationmap.nodes;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogramFormat;
 import com.navercorp.pinpoint.web.applicationmap.histogram.NodeHistogram;
 import com.navercorp.pinpoint.web.view.NodeHistogramSummarySerializer;
+
+import java.util.Objects;
 
 /**
  * @author HyunGil Jeong
@@ -28,16 +31,11 @@ public class NodeHistogramSummary {
 
     private final ServerInstanceList serverInstanceList;
     private final NodeHistogram nodeHistogram;
+    private TimeHistogramFormat timeHistogramFormat = TimeHistogramFormat.V1;
 
     public NodeHistogramSummary(ServerInstanceList serverInstanceList, NodeHistogram nodeHistogram) {
-        if (serverInstanceList == null) {
-            throw new NullPointerException("serverInstanceList");
-        }
-        if (nodeHistogram == null) {
-            throw new NullPointerException("nodeHistogram");
-        }
-        this.serverInstanceList = serverInstanceList;
-        this.nodeHistogram = nodeHistogram;
+        this.serverInstanceList = Objects.requireNonNull(serverInstanceList, "serverInstanceList");
+        this.nodeHistogram = Objects.requireNonNull(nodeHistogram, "nodeHistogram");
     }
 
     public ServerInstanceList getServerInstanceList() {
@@ -46,6 +44,14 @@ public class NodeHistogramSummary {
 
     public NodeHistogram getNodeHistogram() {
         return nodeHistogram;
+    }
+
+    public TimeHistogramFormat getTimeHistogramFormat() {
+        return timeHistogramFormat;
+    }
+
+    public void setTimeHistogramFormat(TimeHistogramFormat timeHistogramFormat) {
+        this.timeHistogramFormat = timeHistogramFormat;
     }
 
     @Override

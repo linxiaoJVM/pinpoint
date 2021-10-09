@@ -16,9 +16,9 @@
 package com.navercorp.pinpoint.web.dao.mysql;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.mybatis.spring.SqlSessionTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
@@ -31,12 +31,14 @@ import com.navercorp.pinpoint.web.vo.User;
 @Repository
 public class MysqlUserDao implements UserDao {
 
-    private static final String NAMESPACE = UserDao.class.getPackage().getName() + "." + UserDao.class.getSimpleName() + ".";
+    private static final String NAMESPACE = UserDao.class.getName() + ".";
 
-    @Autowired
-    @Qualifier("sqlSessionTemplate")
-    private SqlSessionTemplate sqlSessionTemplate;
-    
+    private final SqlSessionTemplate sqlSessionTemplate;
+
+    public MysqlUserDao(@Qualifier("sqlSessionTemplate") SqlSessionTemplate sqlSessionTemplate) {
+        this.sqlSessionTemplate = Objects.requireNonNull(sqlSessionTemplate, "sqlSessionTemplate");
+    }
+
     @Override
     public void insertUser(User user) {
         sqlSessionTemplate.insert(NAMESPACE + "insertUser", user);
@@ -81,6 +83,16 @@ public class MysqlUserDao implements UserDao {
     @Override
     public List<User> selectUserByUserName(String userName) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectUserByUserName", userName);
+    }
+    
+    @Override
+    public List<User> selectUserByUserGroupId(String userGroupId) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectUserByUserGroupId", userGroupId);
+    }
+    
+    @Override
+    public List<User> searchUser(String condition) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "searchUser", condition);
     }
 
     @Override

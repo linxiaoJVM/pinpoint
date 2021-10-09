@@ -24,10 +24,10 @@ import com.navercorp.pinpoint.rpc.util.PinpointRPCTestUtils;
 import com.navercorp.pinpoint.test.client.TestRawSocket;
 import com.navercorp.pinpoint.test.server.TestServerMessageListenerFactory;
 
+import com.navercorp.pinpoint.testcase.util.SocketUtils;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.springframework.util.SocketUtils;
 
 import java.io.IOException;
 import java.util.Map;
@@ -105,7 +105,7 @@ public class EventHandlerTest {
         Assert.assertNotNull(testRawSocket.readResponsePacket(3000));
     }
 
-    class EventHandler extends ServerStateChangeEventHandler {
+    static class EventHandler extends ServerStateChangeEventHandler {
 
         private SocketStateCode code;
 
@@ -119,7 +119,7 @@ public class EventHandlerTest {
         }
     }
 
-    class ThrowExceptionEventHandler extends ServerStateChangeEventHandler {
+    static class ThrowExceptionEventHandler extends ServerStateChangeEventHandler {
 
         private int errorCount = 0;
 

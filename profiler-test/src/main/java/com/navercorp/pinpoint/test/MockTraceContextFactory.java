@@ -59,7 +59,7 @@ public class MockTraceContextFactory {
 
             bind(AgentInformation.class).toInstance(new TestAgentInformation());
             bind(StorageFactory.class).toInstance(new LogStorageFactory());
-            bind(EnhancedDataSender.class).toInstance(new LoggingDataSender());
+            bind(EnhancedDataSender.class).toInstance(new LoggingDataSender<>());
         }
     }
 
@@ -84,5 +84,5 @@ public class MockTraceContextFactory {
         public String getInterceptorRegistryClassName() {
             return null;
         }
-    };
+    }
 }

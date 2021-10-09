@@ -18,8 +18,11 @@ import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.SpanEventSimpleAroundInterceptorForPlugin;
+import com.navercorp.pinpoint.common.util.ArrayUtils;
+import com.navercorp.pinpoint.common.util.BytesUtils;
 import com.navercorp.pinpoint.plugin.hbase.HbasePluginConstants;
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -35,7 +38,8 @@ import java.util.List;
  */
 public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundInterceptorForPlugin {
 
-    private boolean paramsProfile;
+    private final boolean paramsProfile;
+    private final boolean tableNameProfile;
 
     /**
      * Instantiates a new Hbase table method interceptor.
@@ -44,9 +48,10 @@ public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundIntercepto
      * @param descriptor    the descriptor
      * @param paramsProfile
      */
-    public HbaseTableMethodInterceptor(TraceContext traceContext, MethodDescriptor descriptor, boolean paramsProfile) {
+    public HbaseTableMethodInterceptor(TraceContext traceContext, MethodDescriptor descriptor, boolean paramsProfile, boolean tableNameProfile) {
         super(traceContext, descriptor);
         this.paramsProfile = paramsProfile;
+        this.tableNameProfile = tableNameProfile;
     }
 
     @Override
@@ -58,11 +63,35 @@ public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundIntercepto
     protected void doInAfterTrace(SpanEventRecorder recorder, Object target, Object[] args, Object result, Throwable throwable) {
         if (paramsProfile) {
             String attributes = parseAttributes(args);
-            if (attributes != null)
+            if (attributes != null) {
                 recorder.recordAttribute(HbasePluginConstants.HBASE_CLIENT_PARAMS, attributes);
+            }
         }
+        if (tableNameProfile){
+            String tableName = getTableName(target);
+            recorder.recordAttribute(HbasePluginConstants.HBASE_TABLE_NAME, tableName);
+        }
+
         recorder.recordApi(getMethodDescriptor());
         recorder.recordException(throwable);
+    }
+
+    protected String getTableName(Object target) {
+        try {
+            if (target instanceof org.apache.hadoop.hbase.client.HTable) {
+                byte[] tableName = ((HTable) target).getTableName();
+                return BytesUtils.toString(tableName);
+            } else {
+                if (isDebug) {
+                    logger.debug("invalid instanceof HTable:{}", target);
+                }
+            }
+        } catch (Exception e) {
+            if (isDebug) {
+                logger.debug("failed to getTableName method. caused:{}", e.getMessage(), e);
+            }
+        }
+        return "Unknown";
     }
 
     /**
@@ -73,12 +102,12 @@ public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundIntercepto
      */
     protected String parseAttributes(Object[] args) {
 
-        Object param = null;
-
-        if (args != null && args.length == 1) { // only one
+        Object param;
+        final int argsLength = ArrayUtils.getLength(args);
+        if (argsLength == 1) { // only one
             param = args[0];
-        } else if (args != null && args.length > 1) { // last param
-            param = args[args.length - 1];
+        } else if (argsLength > 1) { // last param
+            param = args[argsLength - 1];
         } else {
             return null;
         }
@@ -100,7 +129,7 @@ public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundIntercepto
         }
         // if param instanceof List.
         if (param instanceof List) {
-            List list = (List) param;
+            List<?> list = (List<?>) param;
             return "size: " + list.size();
         }
         return null;

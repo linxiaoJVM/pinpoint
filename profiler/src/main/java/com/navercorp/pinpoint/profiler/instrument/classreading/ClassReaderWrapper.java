@@ -29,7 +29,7 @@
  */
 package com.navercorp.pinpoint.profiler.instrument.classreading;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.common.util.IOUtils;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
@@ -49,7 +49,7 @@ public class ClassReaderWrapper {
     private final ClassReader classReader;
 
     // need readAttributes.
-    private final List<String> annotationInternalNames = new ArrayList<String>();
+    private final List<String> annotationInternalNames = new ArrayList<>();
     private boolean innerClass = false;
 
     // bytecodes of the class.
@@ -58,7 +58,7 @@ public class ClassReaderWrapper {
     }
 
     public ClassReaderWrapper(final byte[] classBinary, final boolean readAttributes) {
-        Assert.requireNonNull(classBinary, "classBinary");
+        Objects.requireNonNull(classBinary, "classBinary");
         this.classReader = new ClassReader(classBinary);
         if (readAttributes) {
             readAttributes();
@@ -71,7 +71,7 @@ public class ClassReaderWrapper {
 
     // classloader and class internal name.
     public ClassReaderWrapper(final ClassLoader classLoader, final String classInternalName, final boolean readAttributes) throws IOException {
-        Assert.requireNonNull(classInternalName, "classInternalName");
+        Objects.requireNonNull(classInternalName, "classInternalName");
 
         ClassLoader cl = classLoader;
         if (cl == null) {

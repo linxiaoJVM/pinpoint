@@ -26,10 +26,10 @@ import com.navercorp.pinpoint.web.mapper.stat.sampling.sampler.ResponseTimeSampl
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.stat.SampledResponseTime;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -37,20 +37,22 @@ import java.util.List;
 @Repository("sampledResponseTimeDaoV2")
 public class HbaseSampledResponseTimeDaoV2 implements SampledResponseTimeDao {
 
-    @Autowired
-    private ResponseTimeDecoder responseTimeDecoder;
+    private final HbaseAgentStatDaoOperationsV2 operations;
 
-    @Autowired
-    private ResponseTimeSampler responseTimeSampler;
+    private final ResponseTimeDecoder responseTimeDecoder;
+    private final ResponseTimeSampler responseTimeSampler;
 
-    @Autowired
-    private HbaseAgentStatDaoOperationsV2 operations;
+    public HbaseSampledResponseTimeDaoV2(HbaseAgentStatDaoOperationsV2 operations, ResponseTimeDecoder responseTimeDecoder, ResponseTimeSampler responseTimeSampler) {
+        this.operations = Objects.requireNonNull(operations, "operations");
+        this.responseTimeDecoder = Objects.requireNonNull(responseTimeDecoder, "responseTimeDecoder");
+        this.responseTimeSampler = Objects.requireNonNull(responseTimeSampler, "responseTimeSampler");
+    }
 
     @Override
     public List<SampledResponseTime> getSampledAgentStatList(String agentId, TimeWindow timeWindow) {
         long scanFrom = timeWindow.getWindowRange().getFrom();
         long scanTo = timeWindow.getWindowRange().getTo() + timeWindow.getWindowSlotSize();
-        Range range = new Range(scanFrom, scanTo);
+        Range range = Range.newRange(scanFrom, scanTo);
         AgentStatMapperV2<ResponseTimeBo> mapper = operations.createRowMapper(responseTimeDecoder, range);
 
         SampledAgentStatResultExtractor<ResponseTimeBo, SampledResponseTime> resultExtractor = new SampledAgentStatResultExtractor<>(timeWindow, mapper, responseTimeSampler);

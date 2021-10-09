@@ -25,8 +25,7 @@ import com.navercorp.pinpoint.common.server.bo.codec.stat.header.BitCountingHead
 import com.navercorp.pinpoint.common.server.bo.codec.stat.v2.JvmGcCodecV2;
 import com.navercorp.pinpoint.common.server.bo.serializer.stat.AgentStatDecodingContext;
 import com.navercorp.pinpoint.common.server.bo.stat.JvmGcBo;
-import org.apache.commons.collections.CollectionUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -43,7 +42,6 @@ public class JvmGcCodecV1 implements AgentStatCodec<JvmGcBo> {
 
     private final AgentStatDataPointCodec codec;
 
-    @Autowired
     public JvmGcCodecV1(AgentStatDataPointCodec codec) {
         this.codec = Objects.requireNonNull(codec, "codec");
     }
@@ -63,7 +61,7 @@ public class JvmGcCodecV1 implements AgentStatCodec<JvmGcBo> {
         final int numValues = jvmGcBos.size();
         valueBuffer.putVInt(numValues);
 
-        List<Long> timestamps = new ArrayList<Long>(numValues);
+        List<Long> timestamps = new ArrayList<>(numValues);
         JvmGcCodecV2.JvmGcCodecEncoder encoder = new JvmGcCodecV2.JvmGcCodecEncoder(codec);
 
         for (JvmGcBo jvmGcBo : jvmGcBos) {
@@ -94,7 +92,7 @@ public class JvmGcCodecV1 implements AgentStatCodec<JvmGcBo> {
         JvmGcCodecV2.JvmGcCodecDecoder decoder = new JvmGcCodecV2.JvmGcCodecDecoder(codec);
         decoder.decode(valueBuffer, headerDecoder, numValues);
 
-        List<JvmGcBo> jvmGcBos = new ArrayList<JvmGcBo>(numValues);
+        List<JvmGcBo> jvmGcBos = new ArrayList<>(numValues);
         for (int i = 0; i < numValues; i++) {
             JvmGcBo jvmGcBo = decoder.getValue(i);
             jvmGcBo.setAgentId(agentId);

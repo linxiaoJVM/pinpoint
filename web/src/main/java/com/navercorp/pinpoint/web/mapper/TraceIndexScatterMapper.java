@@ -19,7 +19,7 @@ package com.navercorp.pinpoint.web.mapper;
 import com.navercorp.pinpoint.common.buffer.Buffer;
 import com.navercorp.pinpoint.common.buffer.OffsetFixedBuffer;
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
-import com.navercorp.pinpoint.common.hbase.HbaseTableConstatns;
+import com.navercorp.pinpoint.common.hbase.HbaseTableConstants;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
 import com.navercorp.pinpoint.common.util.BytesUtils;
 import com.navercorp.pinpoint.common.util.TimeUtils;
@@ -33,6 +33,8 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  * @author emeroad
@@ -40,6 +42,17 @@ import java.util.List;
  */
 @Component
 public class TraceIndexScatterMapper implements RowMapper<List<Dot>> {
+    // @Nullable
+    private final Predicate<Dot> filter;
+
+
+    public TraceIndexScatterMapper() {
+        this.filter = null;
+    }
+
+    public TraceIndexScatterMapper(Predicate<Dot> filter) {
+        this.filter = Objects.requireNonNull(filter, "filter");
+    }
 
     @Override
     public List<Dot> mapRow(Result result, int rowNum) throws Exception {
@@ -49,44 +62,32 @@ public class TraceIndexScatterMapper implements RowMapper<List<Dot>> {
 
         Cell[] rawCells = result.rawCells();
         List<Dot> list = new ArrayList<>(rawCells.length);
+        final Predicate<Dot> filter = this.filter;
         for (Cell cell : rawCells) {
             final Dot dot = createDot(cell);
-            list.add(dot);
+            if (filter == null) {
+                list.add(dot);
+            } else if(filter.test(dot)) {
+                list.add(dot);
+            }
         }
-
         return list;
     }
 
-    private Dot createDot(Cell cell) {
+    static Dot createDot(Cell cell) {
 
         final Buffer valueBuffer = new OffsetFixedBuffer(cell.getValueArray(), cell.getValueOffset(), cell.getValueLength());
         int elapsed = valueBuffer.readVInt();
         int exceptionCode = valueBuffer.readSVInt();
         String agentId = valueBuffer.readPrefixedString();
 
-        long reverseAcceptedTime = BytesUtils.bytesToLong(cell.getRowArray(), cell.getRowOffset() + HbaseTableConstatns.APPLICATION_NAME_MAX_LEN + HbaseColumnFamily.APPLICATION_TRACE_INDEX_TRACE.ROW_DISTRIBUTE_SIZE);
+        final int acceptTimeOffset = cell.getRowOffset() + HbaseTableConstants.APPLICATION_NAME_MAX_LEN + HbaseColumnFamily.APPLICATION_TRACE_INDEX_TRACE.ROW_DISTRIBUTE_SIZE;
+        long reverseAcceptedTime = BytesUtils.bytesToLong(cell.getRowArray(), acceptTimeOffset);
         long acceptedTime = TimeUtils.recoveryTimeMillis(reverseAcceptedTime);
 
-        final int qualifierOffset = cell.getQualifierOffset();
+        TransactionId transactionId = TransactionIdMapper.parseVarTransactionId(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
 
-        TransactionId transactionId = TransactionIdMapper.parseVarTransactionId(cell.getQualifierArray(), qualifierOffset, cell.getQualifierLength());
-        
         return new Dot(transactionId, acceptedTime, elapsed, exceptionCode, agentId);
     }
 
-    /*
-    public static TransactionId parseVarTransactionId(byte[] bytes, int offset) {
-        if (bytes == null) {
-            throw new NullPointerException("bytes");
-        }
-        final Buffer buffer = new OffsetFixedBuffer(bytes, offset);
-
-        buffer.readInt();
-
-        String agentId = buffer.readPrefixedString();
-        long agentStartTime = buffer.readSVarLong();
-        long transactionSequence = buffer.readVarLong();
-        return new TransactionId(agentId, agentStartTime, transactionSequence);
-    }
-    */
 }

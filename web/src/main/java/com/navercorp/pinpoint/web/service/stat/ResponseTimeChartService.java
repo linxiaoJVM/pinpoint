@@ -21,12 +21,12 @@ import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.stat.SampledResponseTime;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import com.navercorp.pinpoint.web.vo.stat.chart.agent.ResponseTimeChart;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -36,19 +36,15 @@ public class ResponseTimeChartService implements AgentStatChartService {
 
     private final SampledResponseTimeDao sampledResponseTimeDao;
 
-    @Autowired
     public ResponseTimeChartService(@Qualifier("sampledResponseTimeDaoFactory") SampledResponseTimeDao sampledResponseTimeDao) {
-        this.sampledResponseTimeDao = sampledResponseTimeDao;
+        this.sampledResponseTimeDao = Objects.requireNonNull(sampledResponseTimeDao, "sampledResponseTimeDao");
     }
 
     @Override
     public StatChart selectAgentChart(String agentId, TimeWindow timeWindow) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
-        if (timeWindow == null) {
-            throw new NullPointerException("timeWindow");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(timeWindow, "timeWindow");
+
         List<SampledResponseTime> sampledResponseTimes = this.sampledResponseTimeDao.getSampledAgentStatList(agentId, timeWindow);
         return new ResponseTimeChart(timeWindow, sampledResponseTimes);
     }

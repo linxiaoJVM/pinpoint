@@ -26,7 +26,6 @@ import com.navercorp.pinpoint.common.trace.ServiceTypeInfo;
 import com.navercorp.pinpoint.common.trace.ServiceTypeProperty;
 import com.navercorp.pinpoint.common.trace.TraceMetadataProvider;
 import com.navercorp.pinpoint.common.trace.TraceMetadataSetupContext;
-import com.navercorp.pinpoint.loader.plugins.trace.yaml.TraceMetadataProviderYamlParser;
 import com.navercorp.pinpoint.loader.plugins.trace.TraceMetadataProviderParser;
 import org.junit.Test;
 
@@ -36,10 +35,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -105,8 +104,8 @@ public class TraceMetadataProviderYamlParserTest {
 
     private static class TraceMetadataProviderVerifier {
 
-        private final Map<Short, ServiceTypeInfo> serviceTypes = new HashMap<Short, ServiceTypeInfo>();
-        private final Map<Integer, AnnotationKey> annotationKeys = new HashMap<Integer, AnnotationKey>();
+        private final Map<Short, ServiceTypeInfo> serviceTypes = new HashMap<>();
+        private final Map<Integer, AnnotationKey> annotationKeys = new HashMap<>();
 
         private TraceMetadataProviderVerifier(TraceMetadataProvider traceMetadataProvider) {
             traceMetadataProvider.setup(new TraceMetadataSetupContext() {
@@ -189,7 +188,7 @@ public class TraceMetadataProviderYamlParserTest {
     private static class ServiceTypeInfoExpectation {
         private final short code;
         private final String name;
-        private final List<ServiceTypeProperty> serviceTypeProperties = new ArrayList<ServiceTypeProperty>();
+        private final List<ServiceTypeProperty> serviceTypeProperties = new ArrayList<>();
         private String desc = null;
         private AnnotationKeyMatcher annotationKeyMatcher = null;
 
@@ -217,7 +216,7 @@ public class TraceMetadataProviderYamlParserTest {
     private static class AnnotationKeyExpectation {
         private final int code;
         private final String name;
-        private final List<AnnotationKeyProperty> annotationKeyProperties = new ArrayList<AnnotationKeyProperty>();
+        private final List<AnnotationKeyProperty> annotationKeyProperties = new ArrayList<>();
 
         AnnotationKeyExpectation(int code, String name) {
             this.code = code;
