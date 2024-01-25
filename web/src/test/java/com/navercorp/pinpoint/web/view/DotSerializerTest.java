@@ -19,28 +19,27 @@ package com.navercorp.pinpoint.web.view;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.pinpoint.common.profiler.util.TransactionId;
 import com.navercorp.pinpoint.common.profiler.util.TransactionIdUtils;
+import com.navercorp.pinpoint.common.server.util.json.Jackson;
 import com.navercorp.pinpoint.web.vo.scatter.Dot;
-
-import org.junit.Assert;
-
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author emeroad
  */
 public class DotSerializerTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = Jackson.newMapper();
 
     @Test
     public void testSerialize() throws Exception {
         TransactionId transactionId = TransactionIdUtils.parseTransactionId("aigw.dev.1^1395798795017^1527177");
         Dot dot = new Dot(transactionId, 100, 99, 1, "agent");
         String jsonValue = mapper.writeValueAsString(dot);
-        Assert.assertEquals("[100,99,\"aigw.dev.1^1395798795017^1527177\",0]", jsonValue);
+        Assertions.assertEquals("[100,99,\"aigw.dev.1^1395798795017^1527177\",0]", jsonValue);
     }
 }

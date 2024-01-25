@@ -16,9 +16,7 @@
 
 package com.navercorp.pinpoint.rpc.server;
 
-import com.navercorp.pinpoint.rpc.ChannelWriteFailListenableFuture;
-import com.navercorp.pinpoint.rpc.Future;
-import com.navercorp.pinpoint.rpc.ResponseMessage;
+import com.navercorp.pinpoint.io.ResponseMessage;
 import com.navercorp.pinpoint.rpc.client.RequestManager;
 import com.navercorp.pinpoint.rpc.client.WriteFailFutureListener;
 import com.navercorp.pinpoint.rpc.cluster.ClusterOption;
@@ -46,13 +44,14 @@ import com.navercorp.pinpoint.rpc.stream.StreamChannelManager;
 import com.navercorp.pinpoint.rpc.stream.StreamException;
 import com.navercorp.pinpoint.rpc.util.ClassUtils;
 import com.navercorp.pinpoint.rpc.util.ControlMessageEncodingUtils;
+import com.navercorp.pinpoint.rpc.util.Futures;
 import com.navercorp.pinpoint.rpc.util.IDGenerator;
 import com.navercorp.pinpoint.rpc.util.ListUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -61,19 +60,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * @author Taejin Koo
  */
 public class DefaultPinpointServer implements PinpointServer {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final long startTimestamp = System.currentTimeMillis();
 
     private final Channel channel;
-    private final RequestManager requestManager;
+    private final RequestManager<ResponseMessage> requestManager;
 
     private final DefaultPinpointServerState state;
     private final CyclicStateChecker stateChecker;
@@ -123,7 +124,7 @@ public class DefaultPinpointServer implements PinpointServer {
             this.stateChangeEventListeners.add(ServerStateChangeEventHandler.DISABLED_INSTANCE);
         }
 
-        RequestManager requestManager = new RequestManager(serverConfig.getRequestManagerTimer(), serverConfig.getDefaultRequestTimeout());
+        RequestManager<ResponseMessage> requestManager = new RequestManager<>(serverConfig.getRequestManagerTimer(), serverConfig.getDefaultRequestTimeout());
         this.requestManager = requestManager;
 
         
@@ -137,7 +138,11 @@ public class DefaultPinpointServer implements PinpointServer {
 
         this.localClusterOption = serverConfig.getClusterOption();
     }
-    
+
+    private ResponseMessage toResponseMessage(ResponsePacket responsePacket1) {
+        return ResponseMessage.wrap(responsePacket1.getPayload());
+    }
+
     public void start() {
         logger.info("{} start() started. channel:{}.", objectUniqName, channel);
         
@@ -170,7 +175,7 @@ public class DefaultPinpointServer implements PinpointServer {
                 logger.warn("{} stop(). Socket has closed state({}).", objectUniqName, currentStateCode);
             } else {
                 state.toErrorUnknown();
-                logger.warn("{} stop(). Socket has unexpected state.", objectUniqName, currentStateCode);
+                logger.warn("{} stop(). Socket has unexpected state({})", objectUniqName, currentStateCode);
             }
 
             if (this.channel.isConnected()) {
@@ -193,7 +198,7 @@ public class DefaultPinpointServer implements PinpointServer {
     }
 
     @Override
-    public Future<ResponseMessage> request(byte[] payload) {
+    public CompletableFuture<ResponseMessage> request(byte[] payload) {
         Objects.requireNonNull(payload, "payload");
         if (!isEnableDuplexCommunication()) {
             throw new IllegalStateException("Request fail. Error: Illegal State. pinpointServer:" + toString());
@@ -201,8 +206,9 @@ public class DefaultPinpointServer implements PinpointServer {
 
         final int requestId = this.requestManager.nextRequestId();
         RequestPacket requestPacket = new RequestPacket(requestId, payload);
-        ChannelWriteFailListenableFuture<ResponseMessage> responseFuture = this.requestManager.register(requestPacket.getRequestId());
-        write0(requestPacket, responseFuture);
+        CompletableFuture<ResponseMessage> responseFuture = this.requestManager.register(requestPacket.getRequestId());
+        write0(requestPacket, Futures.writeFailListener(responseFuture));
+
         return responseFuture;
     }
 
@@ -365,7 +371,12 @@ public class DefaultPinpointServer implements PinpointServer {
     }
 
     private void handleResponse(ResponsePacket responsePacket) {
-        this.requestManager.messageReceived(responsePacket, this);
+        this.requestManager.messageReceived(responsePacket, new Supplier<ResponseMessage>() {
+            @Override
+            public ResponseMessage get() {
+                return ResponseMessage.wrap(responsePacket.getPayload());
+            }
+        }, this::toString);
     }
 
     private void handleStreamEvent(StreamPacket streamPacket) {

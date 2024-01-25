@@ -16,109 +16,93 @@
 
 package com.navercorp.pinpoint.bootstrap;
 
-import com.navercorp.pinpoint.common.Version;
-import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.bootstrap.agentdir.AgentDirBaseClassPathResolver;
+import com.navercorp.pinpoint.bootstrap.agentdir.JarDescription;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.Objects;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
-
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class AgentDirGenerator {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
+    private final Path bootStrapJar;
+    private final Path agentDirPath;
+    private final String version;
 
-    private static final String bootStrapJar = "pinpoint-bootstrap-" + Version.VERSION + ".jar";
-
-    private static final String commons = "pinpoint-commons-" + Version.VERSION + ".jar";
-    private static final String bootStrapCoreJar = "pinpoint-bootstrap-core-" + Version.VERSION + ".jar";
-    private static final String bootStrapJava9Jar = "pinpoint-bootstrap-java9-" + Version.VERSION + ".jar";
-    private static final String bootStrapCoreOptionalJar = "pinpoint-java7-" + Version.VERSION + ".jar";
-    private static final String annotations = "pinpoint-annotations-" + Version.VERSION + ".jar";
-
-    private final String agentDirPath;
-
-    public AgentDirGenerator(String agentDirPath) {
+    public AgentDirGenerator(Path agentDirPath, String version) {
         this.agentDirPath = Objects.requireNonNull(agentDirPath, "agentDirPath");
+        this.version = Objects.requireNonNull(version, "version");
+
+        this.bootStrapJar = libPath("pinpoint-bootstrap", version);
+    }
+
+    private static Path libPath(String name, String version) {
+        return Paths.get(name + "-" + version + ".jar");
     }
 
     public void create() throws IOException {
 
-        final File agentDir = createDir(agentDirPath);
+        createDir(agentDirPath);
 
         // create dummy bootstrap
-        createJarFile(agentDir, bootStrapJar);
+        createJarFile(agentDirPath, bootStrapJar);
 
-        File boot = createChildDir(agentDir, "boot");
+        Path boot = createChildDir(agentDirPath, "boot");
 
-        createJarFile(boot, commons);
-        createJarFile(boot, bootStrapCoreJar);
-        createJarFile(boot, bootStrapJava9Jar);
-        createJarFile(boot, bootStrapCoreOptionalJar);
-        createJarFile(boot, annotations);
+        AgentDirBaseClassPathResolver bootDir = new AgentDirBaseClassPathResolver(boot);
+        List<JarDescription> bootJarDescriptions = bootDir.getBootJarDescriptions();
+        for (JarDescription description : bootJarDescriptions) {
+            createJarFile(boot, Paths.get(description.getJarName(version)));
+        }
     }
 
-    private File createChildDir(File agentDir, String childDir) {
-        String childDirPath = agentDir.getAbsolutePath() + File.separator + childDir;
+    private Path createChildDir(Path agentDir, String childDir) {
+        Path childDirPath = agentDir.toAbsolutePath().resolve(childDir);
         return createDir(childDirPath);
     }
 
-    private File createDir(String dirPath) {
+    private Path createDir(Path dirPath) {
         logger.debug("create dir:{}", dirPath);
 
-        final File dir = new File(dirPath);
-        if (!dir.exists()) {
-            boolean mkdir = dir.mkdirs();
-            Assert.assertTrue(dir + " create fail", mkdir);
+        if (!dirPath.toFile().exists()) {
+
+            try {
+                Files.createDirectory(dirPath);
+            } catch (IOException e) {
+                throw new RuntimeException(dirPath + " create fil", e);
+            }
         }
-        Assert.assertTrue(dirPath + " not a directory", dir.isDirectory());
+        Assertions.assertTrue(Files.isDirectory(dirPath), dirPath + " not a directory");
 
-        Assert.assertTrue(dir.canWrite());
+        Assertions.assertTrue(Files.isWritable(dirPath));
 
-        return dir;
+        return dirPath;
     }
 
 
-    private void createFile(File parentDir, String filepath) throws IOException {
-        logger.debug("create file : {}/{}",  parentDir, filepath);
-
-        final File file = new File(parentDir, filepath);
-        boolean newFile = file.createNewFile();
-        Assert.assertTrue(filepath + " create fail", newFile);
-
-    }
-
-    private void createJarFile(File parentDir, String filepath) throws IOException {
-        final String jarPath = parentDir.getPath() + File.separator + filepath;
-        logger.debug("create jar:{}", jarPath);
+    private void createJarFile(Path parentDir, Path filepath) throws IOException {
+        final Path jarPath = parentDir.resolve(filepath);
+        logger.info("create jar:{}", jarPath);
 
         Manifest manifest = new Manifest();
-        try (FileOutputStream out = new FileOutputStream(jarPath);
+        try (OutputStream out = Files.newOutputStream(jarPath);
              JarOutputStream jos = new JarOutputStream(out, manifest)){
         }
 
-    }
-
-    public void remove() throws IOException {
-        File file = new File(agentDirPath);
-        try {
-            FileUtils.deleteDirectory(file);
-        } catch (IOException e) {
-            logger.warn("unable to deleteDirectory. path:{}", file.getPath(), e);
-            // Boot directory is not deleted.
-            // Perhaps JarFile is not closed.
-            FileUtils.forceDeleteOnExit(file);
-        }
     }
 
 }

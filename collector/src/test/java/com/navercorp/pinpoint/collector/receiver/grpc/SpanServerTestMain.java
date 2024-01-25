@@ -17,7 +17,7 @@
 package com.navercorp.pinpoint.collector.receiver.grpc;
 
 import com.google.protobuf.GeneratedMessageV3;
-import com.navercorp.pinpoint.collector.grpc.config.GrpcStreamConfiguration;
+import com.navercorp.pinpoint.collector.grpc.config.GrpcStreamProperties;
 import com.navercorp.pinpoint.collector.receiver.BindAddress;
 import com.navercorp.pinpoint.collector.receiver.DispatchHandler;
 import com.navercorp.pinpoint.collector.receiver.grpc.service.DefaultServerRequestFactory;
@@ -37,8 +37,8 @@ import io.grpc.ServerServiceDefinition;
 import org.springframework.beans.factory.FactoryBean;
 
 import java.net.InetAddress;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -82,7 +82,7 @@ public class SpanServerTestMain {
 
         AgentHeaderReader agentHeaderReader = new AgentHeaderReader("test");
         HeaderPropagationInterceptor interceptor = new HeaderPropagationInterceptor(agentHeaderReader);
-        grpcReceiver.setServerInterceptorList(Arrays.asList(interceptor));
+        grpcReceiver.setServerInterceptorList(List.of(interceptor));
 
 //        for(int i = 0; i < 9999; i++) {
         grpcReceiver.afterPropertiesSet();
@@ -98,10 +98,10 @@ public class SpanServerTestMain {
     }
 
     private ServerServiceDefinition newSpanBindableService(Executor executor) throws Exception {
-        GrpcStreamConfiguration streamConfiguration = newStreamConfiguration();
+        GrpcStreamProperties streamProperties = newStreamProperties();
 
         FactoryBean<ServerInterceptor> interceptorFactory = new StreamExecutorServerInterceptorFactory(executor,
-                Executors.newSingleThreadScheduledExecutor(), streamConfiguration);
+                Executors.newSingleThreadScheduledExecutor(), streamProperties);
         ((StreamExecutorServerInterceptorFactory) interceptorFactory).setBeanName("SpanService");
 
         ServerInterceptor interceptor = interceptorFactory.getObject();
@@ -109,12 +109,12 @@ public class SpanServerTestMain {
         return ServerInterceptors.intercept(spanService, interceptor);
     }
 
-    private GrpcStreamConfiguration newStreamConfiguration() {
-        GrpcStreamConfiguration.Builder builder = GrpcStreamConfiguration.newBuilder();
-        builder.setCallInitRequestCount(100);
-        builder.setSchedulerPeriodMillis(1000);
-        builder.setSchedulerRecoveryMessageCount(100);
-        return builder.build();
+    private GrpcStreamProperties newStreamProperties() {
+        GrpcStreamProperties properties = new GrpcStreamProperties();
+        properties.setCallInitRequestCount(100);
+        properties.setSchedulerPeriodMillis(1000);
+        properties.setSchedulerRecoveryMessageCount(100);
+        return properties;
     }
 
     private ExecutorService newWorkerExecutor(int thread) {
@@ -136,12 +136,11 @@ public class SpanServerTestMain {
 //            System.out.println("## Incoming " + IncomingCounter.addAndGet(1));
             try {
                 TimeUnit.SECONDS.sleep(1);
-            } catch (InterruptedException ignore) {
+            } catch (InterruptedException ignored) {
             }
 
             final GeneratedMessageV3 data = serverRequest.getData();
-            if (data instanceof PSpan) {
-                PSpan span = (PSpan) data;
+            if (data instanceof PSpan span) {
                 System.out.println("Dispatch send message " + span.getSpanId());
             } else {
                 System.out.println("Invalid send message " + serverRequest.getData());

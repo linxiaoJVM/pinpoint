@@ -21,7 +21,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint</artifactId>
-        <version>2.3.1-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-plugins-it</artifactId>
@@ -30,35 +30,28 @@
     <packaging>pom</packaging>
     <modules>
         <module>plugins-it-utils</module>
-        <module>plugins-it-jdbc-test</module>
-
-
+        <module>plugins-it-utils-jdbc</module>
         <module>activemq-it</module>
         <module>cassandra-it</module>
+        <module>clickhouse-jdbc-it</module>
         <module>cxf-it</module>
         <module>druid-it</module>
         <module>dubbo-it</module>
-        <module>elasticsearch-bbose-it</module>
         <module>elasticsearch-it</module>
         <module>fastjson-it</module>
         <module>google-grpc-it</module>
         <module>google-httpclient-it</module>
-        <module>google-httpclient-jdk7-it</module>
         <module>gson-it</module>
         <module>hbase-it</module>
-        <module>httpclient3-it</module>
-        <module>httpclient4-it</module>
+        <module>httpclient-it</module>
         <module>hikaricp-it</module>
-        <module>hikaricp-jdk7-it</module>
         <module>hystrix-it</module>
         <module>ibatis-it</module>
         <module>informix-jdbc-it</module>
         <module>jackson-it</module>
-        <module>jackson-jdk7-it</module>
         <module>jdk-http-it</module>
         <module>json-lib-it</module>
         <module>log4j2-it</module>
-        <module>log4j2-jdk8-it</module>
         <module>log4j-it</module>
         <module>logback-it</module>
         <module>mariadb-jdbc-it</module>
@@ -78,11 +71,16 @@
         <module>oracledb-it</module>
         <module>paho-mqtt-it</module>
         <module>kafka-it</module>
+        <module>kotlin-coroutines-it</module>
         <module>lambda-it</module>
+        <module>jtds-it</module>
+        <module>mysql-jdbc-driver-plugin-it</module>
+        <module>spring-data-r2dbc-it</module>
+        <module>redis-lettuce-it</module>
     </modules>
 
     <properties>
-        <testcontainers.version>1.15.3</testcontainers.version>
+        <spring.version>${spring5.version}</spring.version>
     </properties>
 
     <dependencyManagement>
@@ -121,25 +119,16 @@
             <artifactId>pinpoint-testcase</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
 
         <!-- Logging dependencies -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
             <scope>test</scope>
         </dependency>
 <!--        <dependency>-->

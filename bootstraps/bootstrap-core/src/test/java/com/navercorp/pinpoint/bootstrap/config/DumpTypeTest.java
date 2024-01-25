@@ -16,30 +16,23 @@
 
 package com.navercorp.pinpoint.bootstrap.config;
 
-import org.junit.Assert;
-
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.navercorp.pinpoint.bootstrap.config.DumpType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author emeroad
  */
 public class DumpTypeTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
     public void find() {
         DumpType none = DumpType.valueOf("ALWAYS");
         logger.debug("type:{}", none);
-
-        try {
+        Assertions.assertThrows(Exception.class, () -> {
             DumpType.valueOf("error");
-            Assert.fail("not found");
-        } catch (IllegalArgumentException ignored) {
-
-        }
+        });
     }
 }

@@ -17,6 +17,8 @@
 package com.navercorp.pinpoint.common.server.bo;
 
 import com.navercorp.pinpoint.common.profiler.util.TransactionId;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,10 +30,10 @@ public class SpanChunkBo implements BasicSpan {
 
     private byte version = 0;
 
-    private String agentId;
+    @NotBlank private String agentId;
     private String agentName;
-    private String applicationId;
-    private long agentStartTime;
+    @NotBlank private String applicationId;
+    @PositiveOrZero private long agentStartTime;
 
     private TransactionId transactionId;
 
@@ -197,6 +199,7 @@ public class SpanChunkBo implements BasicSpan {
         return "SpanChunkBo{" +
                 "version=" + version +
                 ", agentId='" + agentId + '\'' +
+                ", agentName='" + agentName + '\'' +
                 ", applicationId='" + applicationId + '\'' +
                 ", agentStartTime=" + agentStartTime +
                 ", transactionId=" + transactionId +
@@ -207,7 +210,7 @@ public class SpanChunkBo implements BasicSpan {
                 ", spanEventBoList=" + spanEventBoList +
                 ", collectorAcceptTime=" + collectorAcceptTime +
                 ", localAsyncId=" + localAsyncId +
-                ", keyTIme=" + keyTime +
+                ", keyTime=" + keyTime +
                 '}';
     }
 }

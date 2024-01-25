@@ -18,8 +18,8 @@ package com.navercorp.pinpoint.plugin.commons.dbcp2;
 
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfigLoader;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
@@ -29,35 +29,35 @@ import java.util.Properties;
 public class CommonsDbcp2ConfigTest {
 
     @Test
-    public void configTest1() throws Exception {
+    public void configTest1() {
         CommonsDbcp2Config commonsDbcpConfig = createCommonsDbcpConfig("false", "false");
 
-        Assert.assertFalse(commonsDbcpConfig.isPluginEnable());
-        Assert.assertFalse(commonsDbcpConfig.isProfileClose());
+        Assertions.assertFalse(commonsDbcpConfig.isPluginEnable());
+        Assertions.assertFalse(commonsDbcpConfig.isProfileClose());
     }
 
     @Test
-    public void configTest2() throws Exception {
+    public void configTest2() {
         CommonsDbcp2Config commonsDbcpConfig = createCommonsDbcpConfig("false", "true");
 
-        Assert.assertFalse(commonsDbcpConfig.isPluginEnable());
-        Assert.assertTrue(commonsDbcpConfig.isProfileClose());
+        Assertions.assertFalse(commonsDbcpConfig.isPluginEnable());
+        Assertions.assertTrue(commonsDbcpConfig.isProfileClose());
     }
 
     @Test
-    public void configTest3() throws Exception {
+    public void configTest3() {
         CommonsDbcp2Config commonsDbcpConfig = createCommonsDbcpConfig("true", "false");
 
-        Assert.assertTrue(commonsDbcpConfig.isPluginEnable());
-        Assert.assertFalse(commonsDbcpConfig.isProfileClose());
+        Assertions.assertTrue(commonsDbcpConfig.isPluginEnable());
+        Assertions.assertFalse(commonsDbcpConfig.isProfileClose());
     }
 
     @Test
-    public void configTest4() throws Exception {
+    public void configTest4() {
         CommonsDbcp2Config commonsDbcpConfig = createCommonsDbcpConfig("true", "true");
 
-        Assert.assertTrue(commonsDbcpConfig.isPluginEnable());
-        Assert.assertTrue(commonsDbcpConfig.isProfileClose());
+        Assertions.assertTrue(commonsDbcpConfig.isPluginEnable());
+        Assertions.assertTrue(commonsDbcpConfig.isProfileClose());
     }
 
     private CommonsDbcp2Config createCommonsDbcpConfig(String pluginEnable, String profileConnectionCloseEnable) {

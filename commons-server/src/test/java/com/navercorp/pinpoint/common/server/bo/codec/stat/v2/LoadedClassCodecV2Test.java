@@ -20,20 +20,20 @@ import com.navercorp.pinpoint.common.server.bo.codec.stat.AgentStatCodec;
 import com.navercorp.pinpoint.common.server.bo.codec.stat.AgentStatCodecTestBase;
 import com.navercorp.pinpoint.common.server.bo.codec.stat.TestAgentStatFactory;
 import com.navercorp.pinpoint.common.server.bo.stat.LoadedClassBo;
-import org.junit.Assert;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.List;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration("classpath:applicationContext-test.xml")
 public class LoadedClassCodecV2Test extends AgentStatCodecTestBase<LoadedClassBo> {
 
     @Autowired
-    private LoadedClassCodecV2 loadedClassCodecV2;
+    private AgentStatCodecV2<LoadedClassBo> codec;
 
     @Override
     protected List<LoadedClassBo> createAgentStats(String agentId, long startTimestamp, long initialTimestamp) {
@@ -42,15 +42,15 @@ public class LoadedClassCodecV2Test extends AgentStatCodecTestBase<LoadedClassBo
 
     @Override
     protected AgentStatCodec<LoadedClassBo> getCodec() {
-        return loadedClassCodecV2;
+        return codec;
     }
 
     @Override
     protected void verify(LoadedClassBo expected, LoadedClassBo actual) {
-        Assert.assertEquals("agentId", expected.getAgentId(), actual.getAgentId());
-        Assert.assertEquals("startTimestamp", expected.getStartTimestamp(), actual.getStartTimestamp());
-        Assert.assertEquals("timestamp", expected.getTimestamp(), actual.getTimestamp());
-        Assert.assertEquals("loadedClassCount", expected.getLoadedClassCount(), actual.getLoadedClassCount());
-        Assert.assertEquals("unloadedClassCount", expected.getUnloadedClassCount(), actual.getUnloadedClassCount());
+        Assertions.assertEquals(expected.getAgentId(), actual.getAgentId(), "agentId");
+        Assertions.assertEquals(expected.getStartTimestamp(), actual.getStartTimestamp(), "startTimestamp");
+        Assertions.assertEquals(expected.getTimestamp(), actual.getTimestamp(), "timestamp");
+        Assertions.assertEquals(expected.getLoadedClassCount(), actual.getLoadedClassCount(), "loadedClassCount");
+        Assertions.assertEquals(expected.getUnloadedClassCount(), actual.getUnloadedClassCount(), "unloadedClassCount");
     }
 }

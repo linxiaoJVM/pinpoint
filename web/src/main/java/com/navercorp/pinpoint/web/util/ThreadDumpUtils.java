@@ -26,6 +26,7 @@ import com.navercorp.pinpoint.thrift.dto.command.TThreadState;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -33,7 +34,7 @@ import java.util.List;
  */
 public final class ThreadDumpUtils {
 
-    public static final String LINE_SEPARATOR = System.getProperty("line.separator");
+    public static final String LINE_SEPARATOR = System.lineSeparator();
     public static final String TAB_SEPARATOR = "    "; // tab to 4 spaces
 
     public static String createDumpMessage(TThreadDump threadDump) {
@@ -44,10 +45,10 @@ public final class ThreadDumpUtils {
 
         // set threadId
         String hexStringThreadId = Long.toHexString(threadDump.getThreadId());
-        message.append(" Id=0x" + hexStringThreadId);
+        message.append(" Id=0x").append(hexStringThreadId);
 
         // set threadState
-        message.append(" " + threadState.name());
+        message.append(' ').append(threadState.name());
 
         if (!StringUtils.isBlank(threadDump.getLockName())) {
             message.append(" on ").append(threadDump.getLockName());
@@ -73,19 +74,14 @@ public final class ThreadDumpUtils {
 
             if (i == 0 && !StringUtils.isBlank(threadDump.getLockName())) {
                 switch (threadState) {
-                    case BLOCKED:
+                    case BLOCKED -> {
                         message.append(TAB_SEPARATOR + "-  blocked on ").append(threadDump.getLockName());
                         message.append(LINE_SEPARATOR);
-                        break;
-                    case WAITING:
+                    }
+                    case WAITING, TIMED_WAITING -> {
                         message.append(TAB_SEPARATOR + "-  waiting on ").append(threadDump.getLockName());
                         message.append(LINE_SEPARATOR);
-                        break;
-                    case TIMED_WAITING:
-                        message.append(TAB_SEPARATOR + "-  waiting on ").append(threadDump.getLockName());
-                        message.append(LINE_SEPARATOR);
-                        break;
-                    default:
+                    }
                 }
             }
 
@@ -102,7 +98,7 @@ public final class ThreadDumpUtils {
         // set Locks
         List<String> lockedSynchronizers = threadDump.getLockedSynchronizers();
         if (CollectionUtils.hasLength(lockedSynchronizers)) {
-            message.append(LINE_SEPARATOR + TAB_SEPARATOR + "Number of locked synchronizers = ").append(lockedSynchronizers.size());
+            message.append(LINE_SEPARATOR).append(TAB_SEPARATOR).append("Number of locked synchronizers = ").append(lockedSynchronizers.size());
             message.append(LINE_SEPARATOR);
             for (String lockedSynchronizer : lockedSynchronizers) {
                 message.append(TAB_SEPARATOR + "- ").append(lockedSynchronizer);
@@ -114,14 +110,6 @@ public final class ThreadDumpUtils {
         return message.toString();
     }
 
-    private static TThreadState getThreadState(TThreadState threadState) {
-        if (threadState == null) {
-            return TThreadState.UNKNOWN;
-        } else {
-            return threadState;
-        }
-    }
-
     public static String createDumpMessage(ThreadDumpBo threadDump) {
         ThreadState threadState = getThreadState(threadDump.getThreadState());
 
@@ -130,10 +118,10 @@ public final class ThreadDumpUtils {
 
         // set threadId
         String hexStringThreadId = Long.toHexString(threadDump.getThreadId());
-        message.append(" Id=0x" + hexStringThreadId);
+        message.append(" Id=0x").append(hexStringThreadId);
 
         // set threadState
-        message.append(" " + threadState.name());
+        message.append(" ").append(threadState.name());
 
         if (!StringUtils.isBlank(threadDump.getLockName())) {
             message.append(" on ").append(threadDump.getLockName());
@@ -152,46 +140,40 @@ public final class ThreadDumpUtils {
         message.append(LINE_SEPARATOR);
 
         // set StackTrace
-        final int stackTraceSize = threadDump.getStackTraceList().size();
-        for (int i = 0; i < stackTraceSize; i++) {
-            final String stackTrace = threadDump.getStackTraceList().get(i);
+        for (int i = 0; i < threadDump.getStackTraceList().size(); i++) {
+            String stackTrace = threadDump.getStackTraceList().get(i);
             message.append(TAB_SEPARATOR + "at ").append(stackTrace);
             message.append(LINE_SEPARATOR);
 
             if (i == 0 && !StringUtils.isBlank(threadDump.getLockName())) {
                 switch (threadState) {
-                    case BLOCKED:
+                    case BLOCKED -> {
                         message.append(TAB_SEPARATOR + "-  blocked on ").append(threadDump.getLockName());
                         message.append(LINE_SEPARATOR);
-                        break;
-                    case WAITING:
+                    }
+                    case WAITING, TIMED_WAITING -> {
                         message.append(TAB_SEPARATOR + "-  waiting on ").append(threadDump.getLockName());
                         message.append(LINE_SEPARATOR);
-                        break;
-                    case TIMED_WAITING:
-                        message.append(TAB_SEPARATOR + "-  waiting on ").append(threadDump.getLockName());
-                        message.append(LINE_SEPARATOR);
-                        break;
-                    default:
+                    }
+                    default -> {
+                    }
                 }
             }
 
-            if (CollectionUtils.hasLength(threadDump.getLockedMonitorInfoList())) {
-                for (MonitorInfoBo lockedMonitor : threadDump.getLockedMonitorInfoList()) {
-                    if (lockedMonitor.getStackDepth() == i) {
-                        message.append(TAB_SEPARATOR + "-  locked ").append(lockedMonitor.getStackFrame());
-                        message.append(LINE_SEPARATOR);
-                    }
+            for (MonitorInfoBo lockedMonitor : threadDump.getLockedMonitorInfoList()) {
+                if (lockedMonitor.getStackDepth() == i) {
+                    message.append(TAB_SEPARATOR + "-  locked ").append(lockedMonitor.getStackFrame());
+                    message.append(LINE_SEPARATOR);
                 }
             }
         }
 
         // set Locks
-        List<String> lockedSynchronizerList = threadDump.getLockedSynchronizerList();
-        if (CollectionUtils.hasLength(lockedSynchronizerList)) {
-            message.append(LINE_SEPARATOR + TAB_SEPARATOR + "Number of locked synchronizers = ").append(lockedSynchronizerList.size());
+        List<String> lockedSynchronizers = threadDump.getLockedSynchronizerList();
+        if (CollectionUtils.hasLength(lockedSynchronizers)) {
+            message.append(LINE_SEPARATOR).append(TAB_SEPARATOR).append("Number of locked synchronizers = ").append(lockedSynchronizers.size());
             message.append(LINE_SEPARATOR);
-            for (String lockedSynchronizer : lockedSynchronizerList) {
+            for (String lockedSynchronizer : lockedSynchronizers) {
                 message.append(TAB_SEPARATOR + "- ").append(lockedSynchronizer);
                 message.append(LINE_SEPARATOR);
             }
@@ -202,10 +184,11 @@ public final class ThreadDumpUtils {
     }
 
     private static ThreadState getThreadState(ThreadState threadState) {
-        if (threadState == null) {
-            return ThreadState.UNKNOWN;
-        } else {
-            return threadState;
-        }
+        return Objects.requireNonNullElse(threadState, ThreadState.UNKNOWN);
     }
+
+    private static TThreadState getThreadState(TThreadState threadState) {
+        return Objects.requireNonNullElse(threadState, TThreadState.UNKNOWN);
+    }
+
 }

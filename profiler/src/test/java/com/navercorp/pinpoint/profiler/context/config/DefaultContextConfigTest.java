@@ -16,16 +16,16 @@
 
 package com.navercorp.pinpoint.profiler.context.config;
 
-import com.navercorp.pinpoint.bootstrap.config.util.ValueAnnotationProcessor;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.common.config.util.ValueAnnotationProcessor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
 public class DefaultContextConfigTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private ValueAnnotationProcessor processor = new ValueAnnotationProcessor();
 
@@ -39,8 +39,8 @@ public class DefaultContextConfigTest {
         ContextConfig contextConfig = new DefaultContextConfig();
         processor.process(contextConfig, properties);
 
-        Assert.assertEquals(contextConfig.isIoBufferingEnable(), false);
-        Assert.assertEquals(contextConfig.getIoBufferingBufferSize(), 30);
+        Assertions.assertEquals(contextConfig.isIoBufferingEnable(), false);
+        Assertions.assertEquals(contextConfig.getIoBufferingBufferSize(), 30);
     }
 
     @Test
@@ -52,8 +52,8 @@ public class DefaultContextConfigTest {
         ContextConfig contextConfig = new DefaultContextConfig();
         processor.process(contextConfig, properties);
 
-        Assert.assertEquals(contextConfig.isIoBufferingEnable(), true);
-        Assert.assertEquals(contextConfig.getIoBufferingBufferSize(), 10);
+        Assertions.assertEquals(contextConfig.isIoBufferingEnable(), true);
+        Assertions.assertEquals(contextConfig.getIoBufferingBufferSize(), 10);
     }
 
 }

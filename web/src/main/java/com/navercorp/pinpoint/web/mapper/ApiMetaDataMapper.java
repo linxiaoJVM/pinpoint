@@ -29,9 +29,8 @@ import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -47,9 +46,9 @@ import java.util.Objects;
 @Component
 public class ApiMetaDataMapper implements RowMapper<List<ApiMetaDataBo>> {
 
-    private final static byte[] API_METADATA_CF_API_QUALI_SIGNATURE  = HbaseColumnFamily.API_METADATA_API.QUALIFIER_SIGNATURE;
+    private final static byte[] API_METADATA_CQ = HbaseColumnFamily.API_METADATA_API.QUALIFIER_SIGNATURE;
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
 
@@ -68,7 +67,7 @@ public class ApiMetaDataMapper implements RowMapper<List<ApiMetaDataBo>> {
 
         final MetaDataRowKey key = decoder.decodeRowKey(rowKey);
 
-        List<ApiMetaDataBo> apiMetaDataList = new ArrayList<>();
+        List<ApiMetaDataBo> apiMetaDataList = new ArrayList<>(result.size());
 
         for (Cell cell : result.rawCells()) {
             final byte[] value = getValue(cell);
@@ -80,8 +79,16 @@ public class ApiMetaDataMapper implements RowMapper<List<ApiMetaDataBo>> {
             if (buffer.hasRemaining()) {
                 methodTypeEnum = MethodTypeEnum.valueOf(buffer.readInt());
             }
+            String location = null;
+            if (buffer.hasRemaining()) {
+                location = buffer.readPrefixedString();
+            }
 
-            ApiMetaDataBo apiMetaDataBo = new ApiMetaDataBo(key.getAgentId(), key.getAgentStartTime(), key.getId(), lineNumber, methodTypeEnum, apiInfo);
+            ApiMetaDataBo.Builder builder = new ApiMetaDataBo.Builder(key.getAgentId(), key.getAgentStartTime(), key.getId(), lineNumber, methodTypeEnum, apiInfo);
+            if (location != null) {
+                builder.setLocation(location);
+            }
+            ApiMetaDataBo apiMetaDataBo = builder.build();
 
             apiMetaDataList.add(apiMetaDataBo);
             if (logger.isDebugEnabled()) {
@@ -92,8 +99,7 @@ public class ApiMetaDataMapper implements RowMapper<List<ApiMetaDataBo>> {
     }
 
     private byte[] getValue(Cell cell) {
-        if (Bytes.equals(API_METADATA_CF_API_QUALI_SIGNATURE, 0, API_METADATA_CF_API_QUALI_SIGNATURE.length,
-                cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength())) {
+        if (CellUtil.matchingQualifier(cell, API_METADATA_CQ)) {
             return CellUtil.cloneValue(cell);
         } else {
             // backward compatibility

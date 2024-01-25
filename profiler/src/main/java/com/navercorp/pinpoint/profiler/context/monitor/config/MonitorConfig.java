@@ -29,6 +29,14 @@ public interface MonitorConfig {
 
     boolean isUriStatEnable();
 
+    boolean getUriStatCollectHttpMethod();
+
+    boolean isSqlStatEnable();
+
+    boolean isSqlErrorEnable();
+
+    int getSqlErrorCount();
+
     int getCompletedUriStatDataLimitSize();
 
 }

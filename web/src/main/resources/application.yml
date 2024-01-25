@@ -1,8 +1,38 @@
 spring:
-  main:
-    allow-bean-definition-overriding: true
   profiles:
     active: release
+  jackson:
+    mapper:
+      default-view-inclusion: true
 
 server:
   port: 8080
+  error:
+    path: /api/error
+    include-exception: true
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
+    whitelabel:
+      enabled: true
+
+pinpoint:
+  modules:
+    web:
+      # github or url
+      install:
+        type: github
+      # basicLogin
+      login:
+      webhook: true
+    realtime:
+      enabled: true
+
+
+pinpoint.web.cache-resources: true
+
+---
+spring.config.activate.on-profile: local
+pinpoint.web.cache-resources: false
+
+

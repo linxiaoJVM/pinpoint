@@ -56,4 +56,5 @@ public interface Trace extends StackOperation {
     TraceScope getScope(String name);
 
     TraceScope addScope(String name);
+
 }

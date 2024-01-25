@@ -16,28 +16,27 @@
 
 package com.navercorp.pinpoint.profiler.monitor;
 
-import java.util.Objects;
-
+import com.navercorp.pinpoint.common.profiler.message.DataSender;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.profiler.monitor.collector.AgentCustomMetricCollector;
 import com.navercorp.pinpoint.profiler.monitor.metric.AgentCustomMetricSnapshot;
 import com.navercorp.pinpoint.profiler.monitor.metric.AgentCustomMetricSnapshotBatch;
-import com.navercorp.pinpoint.profiler.sender.DataSender;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.profiler.monitor.metric.MetricType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
  */
 public class CustomMetricCollectingJob implements Runnable {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final DataSender dataSender;
+    private final DataSender<MetricType> dataSender;
     private final AgentCustomMetricCollector agentCustomMetricCollector;
     private final int numCollectionsPerBatch;
 
@@ -46,7 +45,7 @@ public class CustomMetricCollectingJob implements Runnable {
     private long prevCollectionTimestamp = System.currentTimeMillis();
     private List<AgentCustomMetricSnapshot> agentCustomMetricSnapshotList;
 
-    public CustomMetricCollectingJob(DataSender dataSender, AgentCustomMetricCollector agentCustomMetricCollector, int numCollectionsPerBatch) {
+    public CustomMetricCollectingJob(DataSender<MetricType> dataSender, AgentCustomMetricCollector agentCustomMetricCollector, int numCollectionsPerBatch) {
         this.dataSender = Objects.requireNonNull(dataSender, "dataSender");
         this.agentCustomMetricCollector = Objects.requireNonNull(agentCustomMetricCollector, "agentCustomMetricCollector");
         Assert.isTrue(numCollectionsPerBatch > 0, "numCollectionsPerBatch must be `numCollectionsPerBatch > 0`");

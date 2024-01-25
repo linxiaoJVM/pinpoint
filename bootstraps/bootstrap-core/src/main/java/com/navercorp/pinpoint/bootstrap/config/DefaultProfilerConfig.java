@@ -16,10 +16,11 @@
 
 package com.navercorp.pinpoint.bootstrap.config;
 
-import com.navercorp.pinpoint.bootstrap.config.util.BypassResolver;
-import com.navercorp.pinpoint.bootstrap.config.util.ValueResolver;
 import com.navercorp.pinpoint.bootstrap.util.NumberUtils;
 import com.navercorp.pinpoint.common.annotations.VisibleForTesting;
+import com.navercorp.pinpoint.common.config.Value;
+import com.navercorp.pinpoint.common.config.util.BypassResolver;
+import com.navercorp.pinpoint.common.config.util.ValueResolver;
 import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.common.util.logger.CommonLogger;
 import com.navercorp.pinpoint.common.util.logger.StdoutCommonLoggerFactory;
@@ -44,9 +45,11 @@ public class DefaultProfilerConfig implements ProfilerConfig {
     // TestAgent only
     public static final String IMPORT_PLUGIN = "profiler.plugin.import-plugin";
 
+    public static final String AGENT_CLASSLOADER_ADDITIONAL_LIBS = "profiler.agent.classloader.additional-libs";
+
     private final Properties properties;
 
-    private static final TransportModule DEFAULT_TRANSPORT_MODULE = TransportModule.THRIFT;
+    private static final TransportModule DEFAULT_TRANSPORT_MODULE = TransportModule.GRPC;
 
     @Value("${profiler.enable:true}")
     private boolean profileEnable = false;
@@ -55,7 +58,7 @@ public class DefaultProfilerConfig implements ProfilerConfig {
     private int logDirMaxBackupSize = 5;
 
     @Value("${" + Profiles.ACTIVE_PROFILE_KEY + " }")
-    private String activeProfile = Profiles.DEFAULT_ACTIVE_PROFILE;
+    private String activeProfile = "";
 
     @VisibleForTesting
     private boolean staticResourceCleanup = false;
@@ -69,6 +72,9 @@ public class DefaultProfilerConfig implements ProfilerConfig {
     @Value("${profiler.jdbc.maxsqlbindvaluesize}")
     private int maxSqlBindValueSize = 1024;
 
+    @Value("${profiler.transport.grpc.stats.logging.period}")
+    private String grpcStatLoggingPeriod = "PT1M";
+
 
     private HttpStatusCodeErrors httpStatusCodeErrors = new HttpStatusCodeErrors();
 
@@ -76,6 +82,9 @@ public class DefaultProfilerConfig implements ProfilerConfig {
     private String injectionModuleFactoryClazzName = null;
     @Value("${profiler.application.namespace}")
     private String applicationNamespace = "";
+
+    @Value("${" + AGENT_CLASSLOADER_ADDITIONAL_LIBS + "}")
+    private String agentClassloaderAdditionalLibs = "";
 
 
     public DefaultProfilerConfig() {
@@ -127,6 +136,10 @@ public class DefaultProfilerConfig implements ProfilerConfig {
         return maxSqlBindValueSize;
     }
 
+    @Override
+    public String getGrpcStatLoggingPeriod() {
+        return grpcStatLoggingPeriod;
+    }
 
     @Override
     public boolean getStaticResourceCleanup() {
@@ -158,6 +171,11 @@ public class DefaultProfilerConfig implements ProfilerConfig {
     @Override
     public int getLogDirMaxBackupSize() {
         return logDirMaxBackupSize;
+    }
+
+    @Override
+    public List<String> getAgentClassloaderAdditionalLibs() {
+        return StringUtils.tokenizeToStringList(agentClassloaderAdditionalLibs, ",");
     }
 
     @Override
@@ -257,18 +275,16 @@ public class DefaultProfilerConfig implements ProfilerConfig {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("DefaultProfilerConfig{");
-        sb.append("profileEnable='").append(profileEnable).append('\'');
-        sb.append(", activeProfile=").append(activeProfile);
-        sb.append(", logDirMaxBackupSize=").append(logDirMaxBackupSize);
-        sb.append(", staticResourceCleanup=").append(staticResourceCleanup);
-        sb.append(", jdbcSqlCacheSize=").append(jdbcSqlCacheSize);
-        sb.append(", traceSqlBindValue=").append(traceSqlBindValue);
-        sb.append(", maxSqlBindValueSize=").append(maxSqlBindValueSize);
-        sb.append(", httpStatusCodeErrors=").append(httpStatusCodeErrors);
-        sb.append(", injectionModuleFactoryClazzName='").append(injectionModuleFactoryClazzName).append('\'');
-        sb.append(", applicationNamespace='").append(applicationNamespace).append('\'');
-        sb.append('}');
-        return sb.toString();
+        return "DefaultProfilerConfig{" + "profileEnable='" + profileEnable + '\'' +
+                ", activeProfile=" + activeProfile +
+                ", logDirMaxBackupSize=" + logDirMaxBackupSize +
+                ", staticResourceCleanup=" + staticResourceCleanup +
+                ", jdbcSqlCacheSize=" + jdbcSqlCacheSize +
+                ", traceSqlBindValue=" + traceSqlBindValue +
+                ", maxSqlBindValueSize=" + maxSqlBindValueSize +
+                ", httpStatusCodeErrors=" + httpStatusCodeErrors +
+                ", injectionModuleFactoryClazzName='" + injectionModuleFactoryClazzName + '\'' +
+                ", applicationNamespace='" + applicationNamespace + '\'' +
+                '}';
     }
 }

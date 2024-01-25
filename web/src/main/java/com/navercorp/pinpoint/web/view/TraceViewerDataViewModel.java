@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Stack;
 
 public class TraceViewerDataViewModel {
@@ -74,15 +73,15 @@ public class TraceViewerDataViewModel {
         Record prev = null;
         Record possibleException = null;
 
-        List<Stack<Record>> recordTraces = new ArrayList<Stack<Record>>();
+        List<Stack<Record>> recordTraces = new ArrayList<>();
 
         for (Record record : recordSet.getRecordList()) {
             if (record.getElapsed() != 0) {
                 boolean isRecordHighlighted = StringUtils.equals(recordSet.getApplicationId(), record.getApplicationName());
                 boolean isApplicationNameChanged = !previousAppName.equals(record.getApplicationName());
 
-                if (recordTraces.size() == 0) {
-                    Stack<Record> recordTrace = new Stack<Record>();
+                if (recordTraces.isEmpty()) {
+                    Stack<Record> recordTrace = new Stack<>();
                     recordTrace.push(record);
                     recordTraces.add(recordTrace);
                     occupiedRange.add(new Long[]{record.getBegin(), record.getBegin() + record.getElapsed()});
@@ -101,8 +100,10 @@ public class TraceViewerDataViewModel {
                 previousAppName = record.getApplicationName();
                 prev = record;
             } else {
-                if ((record.getTitle().equals("SQL") || (record.getTitle().equals("MONGO-JSON")))) {
-                    addQueryInfo(prev, record);
+                if (isQueryTitle(record.getTitle())) {
+                    if (prev != null) {
+                        addQueryInfo(prev, record);
+                    }
                 }
 
                 if (record.getHasException()) {
@@ -115,7 +116,10 @@ public class TraceViewerDataViewModel {
             }
             possibleException = record;
         }
+    }
 
+    private boolean isQueryTitle(String title) {
+        return "SQL".equals(title) || "MONGO-JSON".equals(title);
     }
 
     private void addToInvisibleRecords(Record record) {
@@ -202,7 +206,7 @@ public class TraceViewerDataViewModel {
         int nextTid = tid;
         Integer searchingFor = invisibleRecords.get(record.getParentId());
 
-        if (Objects.isNull(searchingFor)) {
+        if (searchingFor == null) {
             searchingFor = record.getParentId();
         }
 
@@ -220,8 +224,8 @@ public class TraceViewerDataViewModel {
     }
 
     public static class TraceEvent {
+        private static final String PID = "";                  /* process id (not used in timeline, but necessary for trace_viewer spec. */
         private String cat;                             /* category name (Exception, Database, Trace) */
-        private final String pid = "";                  /* process id (not used in timeline, but necessary for trace_viewer spec. */
         private int tid;                               /* thread id (used to separate async call stacks) */
         private String id;                               /* thread id (used to separate async call stacks) */
         private long ts;                                /* start time (us) */
@@ -245,7 +249,7 @@ public class TraceViewerDataViewModel {
             this.name = (showApplicationName? ("[" + record.getApplicationName() + "] "): "") + record.getTitle();
             this.cname = cname;
 
-            this.args = new HashMap<String, String>();
+            this.args = new HashMap<>();
             args.put("id", String.valueOf(record.getId()));
             args.put("parentId", String.valueOf(record.getParentId()));
             args.put("API Type", record.getApiType());
@@ -281,7 +285,7 @@ public class TraceViewerDataViewModel {
 
         public String getCat() { return cat; }
 
-        public String getPid() { return pid; }
+        public String getPid() { return PID; }
 
         public long getTs() { return ts; }
 

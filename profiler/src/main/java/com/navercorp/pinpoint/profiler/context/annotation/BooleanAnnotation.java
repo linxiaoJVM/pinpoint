@@ -16,30 +16,18 @@
 
 package com.navercorp.pinpoint.profiler.context.annotation;
 
-import com.navercorp.pinpoint.grpc.trace.PAnnotationValue;
 import com.navercorp.pinpoint.profiler.context.Annotation;
-import com.navercorp.pinpoint.profiler.context.grpc.GrpcAnnotationSerializable;
-import com.navercorp.pinpoint.profiler.context.grpc.GrpcAnnotationValueMapper;
-import com.navercorp.pinpoint.profiler.context.thrift.AnnotationValueThriftMapper;
-import com.navercorp.pinpoint.profiler.context.thrift.ThriftAnnotationSerializable;
-import com.navercorp.pinpoint.thrift.dto.TAnnotationValue;
 
 /**
  * @author emeroad
  */
-public class BooleanAnnotation implements Annotation<Boolean>,
-        GrpcAnnotationSerializable, ThriftAnnotationSerializable {
+public class BooleanAnnotation implements Annotation<Boolean> {
     private final int key;
     private final boolean value;
 
     BooleanAnnotation(int key, boolean value) {
         this.key = key;
         this.value = value;
-    }
-
-    @Override
-    public int getAnnotationKey() {
-        return getKey();
     }
 
     @Override
@@ -50,19 +38,6 @@ public class BooleanAnnotation implements Annotation<Boolean>,
     @Override
     public Boolean getValue() {
         return value;
-    }
-
-
-    @Override
-    public PAnnotationValue apply(GrpcAnnotationValueMapper context) {
-        PAnnotationValue.Builder builder = context.getAnnotationBuilder();
-        builder.setBoolValue(this.value);
-        return builder.build();
-    }
-
-    @Override
-    public TAnnotationValue apply(AnnotationValueThriftMapper context) {
-        return TAnnotationValue.boolValue(this.value);
     }
 
     @Override

@@ -20,8 +20,8 @@ import java.util.Objects;
 import com.navercorp.pinpoint.exception.PinpointException;
 import com.navercorp.pinpoint.profiler.instrument.InstrumentEngine;
 import com.navercorp.pinpoint.profiler.plugin.PluginConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.io.InputStream;
 
@@ -31,7 +31,7 @@ import java.io.InputStream;
  */
 public class BootstrapClassLoaderHandler implements ClassInjector {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final PluginConfig pluginConfig;
     private final InstrumentEngine instrumentEngine;
@@ -90,7 +90,7 @@ public class BootstrapClassLoaderHandler implements ClassInjector {
                 return classLoader.getResourceAsStream(internalName);
             }
         } catch (Exception e) {
-            logger.warn("Failed to load plugin resource as stream {} with classLoader {}", internalName, targetClassLoader, e);
+            logger.warn("Failed to load plugin resource as stream {} with classLoader", internalName, e);
             return null;
         }
         logger.warn("Invalid bootstrap class loader. cl={}", targetClassLoader);

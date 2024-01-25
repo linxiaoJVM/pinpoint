@@ -45,7 +45,7 @@ public class LettuceMethodInterceptor extends SpanEventSimpleAroundInterceptorFo
                                Throwable throwable) {
         final String endPoint = toEndPoint(target);
         recorder.recordApi(getMethodDescriptor());
-        recorder.recordEndPoint(endPoint != null ? endPoint : "Unknown");
+        recorder.recordEndPoint(endPoint != null ? endPoint : "UNKNOWN");
         recorder.recordDestinationId(LettuceConstants.REDIS_LETTUCE.getName());
         recorder.recordServiceType(LettuceConstants.REDIS_LETTUCE);
         recorder.recordException(throwable);
@@ -55,6 +55,9 @@ public class LettuceMethodInterceptor extends SpanEventSimpleAroundInterceptorFo
                 // Avoid duplicate async context
                 final AsyncContext asyncContext = recorder.recordNextAsyncContext();
                 ((AsyncContextAccessor) result)._$PINPOINT$_setAsyncContext(asyncContext);
+                if (isDebug) {
+                    logger.debug("Set asyncContext to result. asyncContext={}", asyncContext);
+                }
             }
         }
     }

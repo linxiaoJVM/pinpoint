@@ -17,12 +17,12 @@
 package com.navercorp.pinpoint.batch;
 
 import com.navercorp.pinpoint.batch.common.DefaultDivider;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.batch.item.ExecutionContext;
 
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author minwoo.jung
@@ -33,7 +33,7 @@ public class DefaultDividerTest {
     public void devide() {
         DefaultDivider defaultDivider = new DefaultDivider();
         Map<String, ExecutionContext> map = defaultDivider.divide("test_partition", "test");
-        assertEquals(1, map.size());
+        assertThat(map).hasSize(1);
     }
 
 }

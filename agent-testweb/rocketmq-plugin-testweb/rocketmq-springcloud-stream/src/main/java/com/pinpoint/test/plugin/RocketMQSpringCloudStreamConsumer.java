@@ -16,22 +16,23 @@
 
 package com.pinpoint.test.plugin;
 
+import com.pinpoint.test.plugin.RocketMQSpringCloudStreamConsumer.MySink;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.Input;
 import org.springframework.cloud.stream.annotation.StreamListener;
 import org.springframework.messaging.SubscribableChannel;
-
-import com.pinpoint.test.plugin.RocketMQSpringCloudStreamConsumer.MySink;
 
 /**
  * @author messi-gao
  */
 @EnableBinding({ MySink.class })
 public class RocketMQSpringCloudStreamConsumer {
-
+    private final Logger logger = LogManager.getLogger(this.getClass());
     @StreamListener("input1")
     public void receiveInput1(String receiveMsg) {
-        System.out.println("input1 receive: " + receiveMsg);
+        logger.info("input1 receive:{}", receiveMsg);
     }
 
     public interface MySink {

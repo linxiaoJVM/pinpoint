@@ -18,14 +18,15 @@ package com.navercorp.pinpoint.web.applicationmap.link;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.common.trace.ServiceType;
-import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogramFormat;
-import com.navercorp.pinpoint.web.applicationmap.nodes.Node;
 import com.navercorp.pinpoint.web.applicationmap.histogram.AgentTimeHistogram;
 import com.navercorp.pinpoint.web.applicationmap.histogram.AgentTimeHistogramBuilder;
 import com.navercorp.pinpoint.web.applicationmap.histogram.ApplicationTimeHistogram;
 import com.navercorp.pinpoint.web.applicationmap.histogram.ApplicationTimeHistogramBuilder;
 import com.navercorp.pinpoint.web.applicationmap.histogram.Histogram;
+import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogramFormat;
+import com.navercorp.pinpoint.web.applicationmap.nodes.Node;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.AgentHistogramList;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkCallData;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkCallDataMap;
@@ -33,8 +34,6 @@ import com.navercorp.pinpoint.web.view.AgentResponseTimeViewModelList;
 import com.navercorp.pinpoint.web.view.LinkSerializer;
 import com.navercorp.pinpoint.web.view.TimeViewModel;
 import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.LinkKey;
-import com.navercorp.pinpoint.web.vo.Range;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -52,13 +51,9 @@ import java.util.Set;
 @JsonSerialize(using = LinkSerializer.class)
 public class Link {
 
-    private static final String LINK_DELIMITER = "~";
-
-    private final LinkType linkType;
-
     // specifies who created the link.
     // indicates whether it was automatically created by the source, or if it was manually created by the target.
-    private final CreateType createType;
+    private final LinkDirection direction;
 
     private final Node fromNode;
     private final Node toNode;
@@ -67,20 +62,15 @@ public class Link {
 
     private final LinkStateResolver linkStateResolver = LinkStateResolver.DEFAULT_LINK_STATE_RESOLVER;
 
-    private final LinkCallDataMap sourceLinkCallDataMap = new LinkCallDataMap();
+    private final LinkCallDataMap inLink = new LinkCallDataMap();
 
-    private final LinkCallDataMap targetLinkCallDataMap = new LinkCallDataMap();
+    private final LinkCallDataMap outLink = new LinkCallDataMap();
 
     private Histogram linkHistogram;
     private TimeHistogramFormat timeHistogramFormat = TimeHistogramFormat.V1;
 
-    public Link(CreateType createType, Node fromNode, Node toNode, Range range) {
-        this(LinkType.DETAILED, createType, fromNode, toNode, range);
-    }
-
-    public Link(LinkType linkType, CreateType createType, Node fromNode, Node toNode, Range range) {
-        this.linkType = Objects.requireNonNull(linkType, "linkType");
-        this.createType = Objects.requireNonNull(createType, "createType");
+    public Link(LinkDirection direction, Node fromNode, Node toNode, Range range) {
+        this.direction = Objects.requireNonNull(direction, "direction");
         this.fromNode = Objects.requireNonNull(fromNode, "fromNode");
         this.toNode = Objects.requireNonNull(toNode, "toNode");
         this.range = Objects.requireNonNull(range, "range");
@@ -103,10 +93,6 @@ public class Link {
         return new LinkKey(fromNode.getApplication(), toNode.getApplication());
     }
 
-    public LinkType getLinkType() {
-        return linkType;
-    }
-
     public Node getFrom() {
         return fromNode;
     }
@@ -119,8 +105,8 @@ public class Link {
         return range;
     }
 
-    public String getLinkName() {
-        return createLinkName(fromNode, toNode);
+    public LinkName getLinkName() {
+        return LinkName.of(fromNode.getApplication(), toNode.getApplication());
     }
 
     public TimeHistogramFormat getTimeHistogramFormat() {
@@ -131,29 +117,25 @@ public class Link {
         this.timeHistogramFormat = timeHistogramFormat;
     }
 
-    public static String createLinkName(Node fromNode, Node toNode) {
-        return fromNode.getNodeName() + LINK_DELIMITER + toNode.getNodeName();
+    public LinkCallDataMap getInLink() {
+        return inLink;
     }
 
-    public LinkCallDataMap getSourceLinkCallDataMap() {
-        return sourceLinkCallDataMap;
+    public LinkCallDataMap getOutLink() {
+        return outLink;
     }
 
-    public LinkCallDataMap getTargetLinkCallDataMap() {
-        return targetLinkCallDataMap;
-    }
-
-    public CreateType getCreateType() {
-        return createType;
+    public LinkDirection getDirection() {
+        return direction;
     }
 
     @JsonIgnore
     public AgentHistogramList getSourceList() {
-        return sourceLinkCallDataMap.getSourceList();
+        return inLink.getInLinkList();
     }
 
     public AgentHistogramList getTargetList() {
-        return sourceLinkCallDataMap.getTargetList();
+        return inLink.getOutLinkList();
     }
 
     public Histogram getHistogram() {
@@ -164,33 +146,29 @@ public class Link {
     }
 
     private Histogram createHistogram0() {
-        // need serviceType of target (callee)
+        // need serviceType of out link
         // ie. Tomcat -> Arcus: we need arcus type
         final LinkCallDataMap findMap = getLinkCallDataMap();
-        AgentHistogramList targetList = findMap.getTargetList();
-        return targetList.mergeHistogram(toNode.getServiceType());
+        AgentHistogramList outLinkList = findMap.getOutLinkList();
+        return outLinkList.mergeHistogram(toNode.getServiceType());
     }
 
     private LinkCallDataMap getLinkCallDataMap() {
-        switch (createType) {
-            case Source:
-                return sourceLinkCallDataMap;
-            case Target:
-                return targetLinkCallDataMap;
-            default:
-                throw new IllegalArgumentException("invalid CreateType:" + createType);
-        }
+        return switch (direction) {
+            case IN_LINK -> inLink;
+            case OUT_LINK -> outLink;
+        };
     }
 
     public Histogram getTargetHistogram() {
-        // need serviceType of target (callee)
+        // need serviceType of out link
         // ie. Tomcat -> Arcus: we need Arcus type
-        AgentHistogramList targetList = targetLinkCallDataMap.getTargetList();
-        return targetList.mergeHistogram(toNode.getServiceType());
+        AgentHistogramList outLinkList = outLink.getOutLinkList();
+        return outLinkList.mergeHistogram(toNode.getServiceType());
     }
 
     public List<TimeViewModel> getLinkApplicationTimeSeriesHistogram() {
-        if (createType == CreateType.Source) {
+        if (direction == LinkDirection.IN_LINK) {
             return getSourceApplicationTimeSeriesHistogram();
         } else {
             return getTargetApplicationTimeSeriesHistogram();
@@ -205,7 +183,7 @@ public class Link {
     private ApplicationTimeHistogram getSourceApplicationTimeSeriesHistogramData() {
         // we need Target (to)'s time since time in link is RPC-based
         ApplicationTimeHistogramBuilder builder = new ApplicationTimeHistogramBuilder(toNode.getApplication(), range);
-        return builder.build(sourceLinkCallDataMap.getLinkDataList());
+        return builder.build(inLink.getLinkDataList());
     }
 
     public List<TimeViewModel> getTargetApplicationTimeSeriesHistogram() {
@@ -216,36 +194,42 @@ public class Link {
     public ApplicationTimeHistogram getTargetApplicationTimeSeriesHistogramData() {
         // we need Target (to)'s time since time in link is RPC-based
         ApplicationTimeHistogramBuilder builder = new ApplicationTimeHistogramBuilder(toNode.getApplication(), range);
-        return builder.build(targetLinkCallDataMap.getLinkDataList());
+        return builder.build(outLink.getLinkDataList());
     }
 
-    public void addSource(LinkCallDataMap sourceLinkCallDataMap) {
-        this.sourceLinkCallDataMap.addLinkDataMap(sourceLinkCallDataMap);
+    public ApplicationTimeHistogram getLinkApplicationTimeHistogram() {
+        if (direction == LinkDirection.IN_LINK) {
+            return getSourceApplicationTimeSeriesHistogramData();
+        } else {
+            return getTargetApplicationTimeSeriesHistogramData();
+        }
     }
 
-    public void addTarget(LinkCallDataMap targetLinkCallDataMap) {
-        this.targetLinkCallDataMap.addLinkDataMap(targetLinkCallDataMap);
+    public void addInLink(LinkCallDataMap inLinkCallDataMap) {
+        this.inLink.addLinkDataMap(inLinkCallDataMap);
+    }
+
+    public void addOutLink(LinkCallDataMap outLinkCallDataMap) {
+        this.outLink.addLinkDataMap(outLinkCallDataMap);
     }
 
     public AgentResponseTimeViewModelList getSourceAgentTimeSeriesHistogram() {
         // we need Target (to)'s time since time in link is RPC-based
         AgentTimeHistogramBuilder builder = new AgentTimeHistogramBuilder(toNode.getApplication(), range);
-        AgentTimeHistogram applicationTimeSeriesHistogram = builder.buildSource(sourceLinkCallDataMap);
-        AgentResponseTimeViewModelList agentResponseTimeViewModelList = new AgentResponseTimeViewModelList(applicationTimeSeriesHistogram.createViewModel(timeHistogramFormat));
-        return agentResponseTimeViewModelList;
+        AgentTimeHistogram applicationTimeSeriesHistogram = builder.buildSource(inLink);
+        return new AgentResponseTimeViewModelList(applicationTimeSeriesHistogram.createViewModel(timeHistogramFormat));
     }
 
     public AgentTimeHistogram getTargetAgentTimeHistogram() {
         AgentTimeHistogramBuilder builder = new AgentTimeHistogramBuilder(toNode.getApplication(), range);
-        AgentTimeHistogram agentTimeHistogram = builder.buildSource(targetLinkCallDataMap);
-        return agentTimeHistogram;
+        return builder.buildSource(outLink);
     }
 
     public Collection<Application> getSourceLinkTargetAgentList() {
         Set<Application> agentList = new HashSet<>();
-        Collection<LinkCallData> linkDataList = sourceLinkCallDataMap.getLinkDataList();
+        Collection<LinkCallData> linkDataList = inLink.getLinkDataList();
         for (LinkCallData linkCallData : linkDataList) {
-            agentList.add(new Application(linkCallData.getTarget(), linkCallData.getTargetServiceType()));
+            agentList.add(linkCallData.getTarget());
         }
         return agentList;
     }

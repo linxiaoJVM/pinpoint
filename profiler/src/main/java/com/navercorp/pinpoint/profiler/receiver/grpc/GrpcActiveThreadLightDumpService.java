@@ -16,7 +16,6 @@
 
 package com.navercorp.pinpoint.profiler.receiver.grpc;
 
-import java.util.Objects;
 import com.navercorp.pinpoint.common.util.JvmUtils;
 import com.navercorp.pinpoint.grpc.trace.PActiveThreadLightDump;
 import com.navercorp.pinpoint.grpc.trace.PCmdActiveThreadLightDump;
@@ -28,18 +27,18 @@ import com.navercorp.pinpoint.grpc.trace.PThreadLightDump;
 import com.navercorp.pinpoint.grpc.trace.ProfilerCommandServiceGrpc;
 import com.navercorp.pinpoint.profiler.context.active.ActiveTraceRepository;
 import com.navercorp.pinpoint.profiler.context.active.ActiveTraceSnapshot;
-import com.navercorp.pinpoint.profiler.context.grpc.GrpcThreadStateMessageConverter;
+import com.navercorp.pinpoint.profiler.context.grpc.mapper.ThreadDumpMapper;
 import com.navercorp.pinpoint.profiler.receiver.service.ActiveThreadDumpCoreService;
 import com.navercorp.pinpoint.profiler.receiver.service.ThreadDump;
 import com.navercorp.pinpoint.profiler.receiver.service.ThreadDumpRequest;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.management.ThreadInfo;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Taejin Koo
@@ -48,16 +47,21 @@ public class GrpcActiveThreadLightDumpService implements ProfilerGrpcCommandServ
 
     static final String JAVA = "JAVA";
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final GrpcThreadStateMessageConverter grpcThreadStateMessageConverter = new GrpcThreadStateMessageConverter();
+
+    private final ThreadDumpMapper mapper;
 
     private final ActiveThreadDumpCoreService activeThreadDump;
 
-    public GrpcActiveThreadLightDumpService(ActiveTraceRepository activeTraceRepository) {
+    public GrpcActiveThreadLightDumpService(
+            ActiveTraceRepository activeTraceRepository,
+            ThreadDumpMapper threadDumpMapper
+    ) {
         Objects.requireNonNull(activeTraceRepository, "activeTraceRepository");
 
         this.activeThreadDump = new ActiveThreadDumpCoreService(activeTraceRepository);
+        this.mapper = Objects.requireNonNull(threadDumpMapper, "threadDumpMapper");
     }
 
     @Override
@@ -90,7 +94,7 @@ public class GrpcActiveThreadLightDumpService implements ProfilerGrpcCommandServ
     }
 
     private List<PActiveThreadLightDump> toPActiveThreadLightDump(Collection<ThreadDump> activeTraceInfoList) {
-        final List<PActiveThreadLightDump> result = new ArrayList<PActiveThreadLightDump>(activeTraceInfoList.size());
+        final List<PActiveThreadLightDump> result = new ArrayList<>(activeTraceInfoList.size());
         for (ThreadDump threadDump : activeTraceInfoList) {
             PActiveThreadLightDump pActiveThreadLightDump = createActiveThreadDump(threadDump);
             result.add(pActiveThreadLightDump);
@@ -122,7 +126,7 @@ public class GrpcActiveThreadLightDumpService implements ProfilerGrpcCommandServ
         PThreadLightDump.Builder builder = PThreadLightDump.newBuilder();
         builder.setThreadName(threadInfo.getThreadName());
         builder.setThreadId(threadInfo.getThreadId());
-        builder.setThreadState(grpcThreadStateMessageConverter.toMessage(threadInfo.getThreadState()));
+        builder.setThreadState(mapper.map(threadInfo.getThreadState()));
         return builder.build();
     }
 

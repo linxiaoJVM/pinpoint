@@ -21,8 +21,6 @@ import com.navercorp.pinpoint.bootstrap.context.ParsingResult;
 /**
  * @author emeroad
  */
-public interface CachingSqlNormalizer {
-    ParsingResult wrapSql(String sql);
-
-    boolean normalizedSql(ParsingResult sql);
+public interface CachingSqlNormalizer<T extends ParsingResult> {
+    boolean normalizedSql(T sql);
 }

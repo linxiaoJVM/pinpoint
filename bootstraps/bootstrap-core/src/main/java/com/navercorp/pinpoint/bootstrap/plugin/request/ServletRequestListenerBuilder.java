@@ -27,8 +27,6 @@ import com.navercorp.pinpoint.bootstrap.plugin.proxy.ProxyRequestRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.DisableParameterRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.RemoteAddressResolverFactory;
-import com.navercorp.pinpoint.bootstrap.plugin.uri.DisabledUriStatRecorder;
-import com.navercorp.pinpoint.bootstrap.plugin.uri.UriStatRecorder;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 
@@ -50,14 +48,13 @@ public class ServletRequestListenerBuilder<REQ> {
     private ParameterRecorder<REQ> parameterRecorder;
 
     private Filter<String> excludeUrlFilter;
+    private Filter<String> traceExcludeMethodFilter;
     private RequestRecorderFactory<REQ> requestRecorderFactory;
 
     private HttpStatusCodeErrors httpStatusCodeErrors;
 
     private List<String> recordRequestHeaders;
     private List<String> recordRequestCookies;
-    private UriStatRecorder<REQ> uriStatRecorder = DisabledUriStatRecorder.create();
-    private boolean recordStatusCode = true;
 
     public ServletRequestListenerBuilder(final ServiceType serviceType,
                                          final TraceContext traceContext,
@@ -83,6 +80,10 @@ public class ServletRequestListenerBuilder<REQ> {
         this.excludeUrlFilter = excludeUrlFilter;
     }
 
+    public void setTraceExcludeMethodFilter(Filter<String> traceExcludeMethodFilter) {
+        this.traceExcludeMethodFilter = traceExcludeMethodFilter;
+    }
+
     public void setRequestRecorderFactory(RequestRecorderFactory<REQ> requestRecorderFactory) {
         this.requestRecorderFactory = requestRecorderFactory;
     }
@@ -100,22 +101,20 @@ public class ServletRequestListenerBuilder<REQ> {
         this.recordRequestCookies = recordRequestCookies;
     }
 
-    public void setReqUriStatRecorder(UriStatRecorder<REQ> reqUriStatRecorder) {
-        Objects.requireNonNull(reqUriStatRecorder, "reqUriStatRecorder");
-        this.uriStatRecorder = reqUriStatRecorder;
-    }
-
-    public void setRecordStatusCode(boolean recordStatusCode) {
-        this.recordStatusCode = recordStatusCode;
-    }
-
     private <T> Filter<T> newExcludeUrlFilter(Filter<T> excludeUrlFilter) {
+        return filterNonNull(excludeUrlFilter);
+    }
+
+    private <T> Filter<T> newTraceExcludeMethodFilter(Filter<T> excludeMethodFilter) {
+        return filterNonNull(excludeMethodFilter);
+    }
+
+    private static <T> Filter<T> filterNonNull(Filter<T> excludeUrlFilter) {
         if (excludeUrlFilter == null) {
             return new SkipFilter<>();
         }
         return excludeUrlFilter;
     }
-
 
     public ServletRequestListener<REQ> build() {
 
@@ -133,6 +132,7 @@ public class ServletRequestListenerBuilder<REQ> {
 
 
         Filter<String> excludeUrlFilter = newExcludeUrlFilter(this.excludeUrlFilter);
+        Filter<String> traceExcludeMethodFilter = newTraceExcludeMethodFilter(this.traceExcludeMethodFilter);
 
         final ServerRequestRecorder<REQ> serverRequestRecorder = newServerRequestRecorder(requestAdaptor);
 
@@ -141,7 +141,7 @@ public class ServletRequestListenerBuilder<REQ> {
         // not general api : http??
         HttpStatusCodeRecorder httpStatusCodeRecorder;
         if (httpStatusCodeErrors == null) {
-            HttpStatusCodeErrors httpStatusCodeErrors = new HttpStatusCodeErrors(Collections.<String>emptyList());
+            HttpStatusCodeErrors httpStatusCodeErrors = new HttpStatusCodeErrors(Collections.emptyList());
             httpStatusCodeRecorder = new HttpStatusCodeRecorder(httpStatusCodeErrors);
         } else {
             httpStatusCodeRecorder = new HttpStatusCodeRecorder(httpStatusCodeErrors);
@@ -149,8 +149,8 @@ public class ServletRequestListenerBuilder<REQ> {
 
 
         return new ServletRequestListener<>(serviceType, traceContext, requestAdaptor, requestTraceReader,
-                excludeUrlFilter, parameterRecorder, proxyRequestRecorder, serverRequestRecorder, httpStatusCodeRecorder,
-                uriStatRecorder, recordStatusCode);
+                excludeUrlFilter, traceExcludeMethodFilter, parameterRecorder, proxyRequestRecorder,
+                serverRequestRecorder, httpStatusCodeRecorder);
     }
 
 

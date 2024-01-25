@@ -16,14 +16,17 @@
 
 package com.navercorp.pinpoint.web.applicationmap.histogram;
 
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.web.view.AgentResponseTimeViewModelList;
 import com.navercorp.pinpoint.web.view.TimeViewModel;
-import com.navercorp.pinpoint.web.vo.*;
+import com.navercorp.pinpoint.web.view.histogram.HistogramView;
+import com.navercorp.pinpoint.web.vo.Application;
+import com.navercorp.pinpoint.web.vo.ResponseTime;
+import com.navercorp.pinpoint.web.vo.ResponseTimeStatics;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,11 +38,10 @@ import java.util.Objects;
  * agentHistogram
  * applicationTimeHistogram
  * agentTimeHistogram
+ *
  * @author emeroad
  */
 public class NodeHistogram {
-
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final Application application;
 
@@ -86,6 +88,10 @@ public class NodeHistogram {
         return applicationHistogram;
     }
 
+    public ApplicationTimeHistogram getApplicationTimeHistogram() {
+        return applicationTimeHistogram;
+    }
+
     public void setApplicationTimeHistogram(ApplicationTimeHistogram applicationTimeHistogram) {
         this.applicationTimeHistogram = applicationTimeHistogram;
     }
@@ -94,8 +100,18 @@ public class NodeHistogram {
         this.applicationHistogram = Objects.requireNonNull(applicationHistogram, "applicationHistogram");
     }
 
+    public void setApplicationHistogram(List<ResponseTime> responseTimeList) {
+        Objects.requireNonNull(responseTimeList, "responseTimeList");
+        this.applicationHistogram = createApplicationLevelResponseTime(responseTimeList);
+    }
+
     public void setAgentHistogramMap(Map<String, Histogram> agentHistogramMap) {
         this.agentHistogramMap = agentHistogramMap;
+    }
+
+    public void setAgentHistogramMap(List<ResponseTime> responseTimeList) {
+        Objects.requireNonNull(responseTimeList, "responseTimeList");
+        this.agentHistogramMap = createAgentLevelResponseTime(responseTimeList);
     }
 
     public Map<String, Histogram> getAgentHistogramMap() {
@@ -107,9 +123,9 @@ public class NodeHistogram {
             return null;
         }
         Map<String, ResponseTimeStatics> map = new HashMap<>(agentHistogramMap.size());
-        agentHistogramMap.forEach((agentId, histogram) -> {
-            map.put(agentId, ResponseTimeStatics.fromHistogram(histogram));
-        });
+        agentHistogramMap.forEach((agentId, histogram) ->
+                map.put(agentId, ResponseTimeStatics.fromHistogram(histogram))
+        );
         return map;
     }
 
@@ -123,6 +139,21 @@ public class NodeHistogram {
 
     public void setAgentTimeHistogram(AgentTimeHistogram agentTimeHistogram) {
         this.agentTimeHistogram = agentTimeHistogram;
+    }
+
+    public List<HistogramView> createAgentHistogramViewList() {
+        Map<String, List<TimeHistogram>> agentTimeHistogramMap = agentTimeHistogram.getTimeHistogramMap();
+        List<HistogramView> result = new ArrayList<>();
+        for (Map.Entry<String, Histogram> entry : agentHistogramMap.entrySet()) {
+            String agentId = entry.getKey();
+            Histogram agentHistogram = entry.getValue();
+
+            List<TimeHistogram> sortedTimeHistogram = agentTimeHistogramMap.computeIfAbsent(agentId, id -> Collections.emptyList());
+
+            HistogramView histogramView = new HistogramView(agentId, agentHistogram, sortedTimeHistogram);
+            result.add(histogramView);
+        }
+        return result;
     }
 
     private ApplicationTimeHistogram createApplicationLevelTimeSeriesResponseTime(List<ResponseTime> responseHistogramList) {
@@ -161,13 +192,11 @@ public class NodeHistogram {
         final Histogram applicationHistogram = new Histogram(this.application.getServiceType());
         for (ResponseTime responseTime : responseHistogram) {
             final Collection<TimeHistogram> histogramList = responseTime.getAgentResponseHistogramList();
-            for (Histogram histogram : histogramList) {
-                applicationHistogram.add(histogram);
-            }
+            applicationHistogram.addAll(histogramList);
         }
         return applicationHistogram;
     }
-    
+
     public Range getRange() {
         return range;
     }

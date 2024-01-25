@@ -16,19 +16,18 @@
 
 package com.navercorp.pinpoint.grpc.client.config;
 
-import com.navercorp.pinpoint.bootstrap.config.util.ValueAnnotationProcessor;
-import com.navercorp.pinpoint.grpc.client.config.ClientOption;
-import org.junit.Test;
+import com.navercorp.pinpoint.common.config.util.ValueAnnotationProcessor;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ClientOptionTest {
 
     @Test
-    public void build() throws Exception {
+    public void build() {
         Properties properties = new Properties();
         properties.setProperty("keepalive.time.millis", "1");
         properties.setProperty("keepalive.timeout.millis", "2");

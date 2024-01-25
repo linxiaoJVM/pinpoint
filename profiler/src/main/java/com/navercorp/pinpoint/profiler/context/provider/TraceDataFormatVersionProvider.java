@@ -21,14 +21,14 @@ import com.google.inject.Provider;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.config.TransportModule;
 import com.navercorp.pinpoint.profiler.context.TraceDataFormatVersion;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class TraceDataFormatVersionProvider implements Provider<TraceDataFormatVersion> {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
     private final TraceDataFormatVersion version;
 
     @Inject
@@ -40,15 +40,6 @@ public class TraceDataFormatVersionProvider implements Provider<TraceDataFormatV
     private TraceDataFormatVersion getVersion(ProfilerConfig profilerConfig) {
         final TransportModule transportModule = profilerConfig.getTransportModule();
         logger.info("TransportModule:{}", transportModule);
-        if (TransportModule.THRIFT == transportModule) {
-            final String version = profilerConfig.readString(TraceDataFormatVersion.THRIFT_TRACE_VERSION_KEY, "v1");
-            if ("v1".equalsIgnoreCase(version)) {
-                return TraceDataFormatVersion.V1;
-            }
-            throw new UnsupportedOperationException("unknown " + TraceDataFormatVersion.THRIFT_TRACE_VERSION_KEY + ":" + version);
-        }
-
-
         if (TransportModule.GRPC == transportModule) {
             final String version = profilerConfig.readString(TraceDataFormatVersion.GRPC_TRACE_VERSION_KEY, "v2");
             if ("v2".equalsIgnoreCase(version)) {

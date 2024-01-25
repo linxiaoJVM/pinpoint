@@ -45,7 +45,7 @@ public abstract class MqttCallbackMessageArrivedInterceptor extends SpanRecursiv
     @Override
     protected Trace createTrace(Object target, Object[] args) {
 
-        if(!validateArgs(args)){
+        if (!validateArgs(args)){
             return null;
         }
 
@@ -100,11 +100,7 @@ public abstract class MqttCallbackMessageArrivedInterceptor extends SpanRecursiv
             brokerUri = ((BrokerUriFieldAccessor) target)._$PINPOINT$_getBrokerUri();
         }
 
-        if (StringUtils.isEmpty(brokerUri)) {
-            return UNKNOWN;
-        } else {
-            return brokerUri;
-        }
+        return StringUtils.defaultIfEmpty(brokerUri, UNKNOWN);
     }
 
 }

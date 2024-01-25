@@ -16,13 +16,12 @@
 
 package com.navercorp.pinpoint.batch.job;
 
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.springframework.batch.item.ExecutionContext;
 
 import java.util.Map;
 import java.util.Optional;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * @author minwoo.jung
@@ -30,10 +29,10 @@ import static org.junit.Assert.assertEquals;
 public class AgentCountPartitionerTest {
 
     @Test
-    public void partition() throws Exception {
+    public void partition() {
         AgentCountPartitioner partitioner = new AgentCountPartitioner(Optional.empty());
         Map<String, ExecutionContext> partition = partitioner.partition(0);
-        assertEquals(1, partition.size());
+        Assertions.assertThat(partition).hasSize(1);
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NAVER Corp.
+ * Copyright 2023 NAVER Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,37 +22,85 @@ import com.navercorp.pinpoint.bootstrap.context.AsyncContext;
 import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
+import com.navercorp.pinpoint.bootstrap.context.Trace;
+import com.navercorp.pinpoint.bootstrap.context.SpanRecorder;
 import com.navercorp.pinpoint.bootstrap.interceptor.AsyncContextSpanEventSimpleAroundInterceptor;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.common.util.ArrayUtils;
+import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.plugin.spring.webflux.SpringWebFluxConstants;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.util.pattern.PathPattern;
 
 /**
  * @author jaehong.kim
  */
 public class DispatchHandlerInvokeHandlerMethodInterceptor extends AsyncContextSpanEventSimpleAroundInterceptor {
+    private TraceContext traceContext;
+    private final Boolean uriStatEnable;
+    private final Boolean uriStatUseUserInput;
 
-    public DispatchHandlerInvokeHandlerMethodInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor) {
+    public DispatchHandlerInvokeHandlerMethodInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor, Boolean uriStatEnable, Boolean uriStatUseUserInput) {
         super(traceContext, methodDescriptor);
+        this.traceContext = traceContext;
+        this.uriStatEnable = uriStatEnable;
+        this.uriStatUseUserInput = uriStatUseUserInput;
     }
 
     // BEFORE
     @Override
     public AsyncContext getAsyncContext(Object target, Object[] args) {
         if (validate(args)) {
-            return AsyncContextAccessorUtils.getAsyncContext(args[0]);
+            return AsyncContextAccessorUtils.getAsyncContext(args, 0);
         }
         return null;
     }
 
     @Override
     public void doInBeforeTrace(SpanEventRecorder recorder, AsyncContext asyncContext, Object target, Object[] args) {
+        if (uriStatEnable) {
+            final Trace trace = traceContext.currentRawTraceObject();
+            if (trace == null) {
+                return;
+            }
+
+            final ServerWebExchange exchange = ArrayArgumentUtils.getArgument(args, 0, ServerWebExchange.class);
+            if (exchange != null) {
+                String uriTemplate = "";
+
+                if (uriStatUseUserInput) {
+                    for (String attributeName : SpringWebFluxConstants.SPRING_WEBFLUX_URI_USER_INPUT_ATTRIBUTE_KEYS) {
+                        final Object uriMapping = exchange.getAttribute(attributeName);
+                        if (!(uriMapping instanceof String)) {
+                            continue;
+                        }
+                        uriTemplate = (String) uriMapping;
+                    }
+                }
+                if (!StringUtils.hasLength(uriTemplate)) {
+                    for (String attributeName : SpringWebFluxConstants.SPRING_WEBFLUX_DEFAULT_URI_ATTRIBUTE_KEYS) {
+                        final Object uriMapping = exchange.getAttribute(attributeName);
+                        if (!(uriMapping instanceof PathPattern)) {
+                            continue;
+                        }
+                        uriTemplate = ((PathPattern) uriMapping).getPatternString();
+                    }
+                }
+
+                if (StringUtils.hasLength(uriTemplate)) {
+                    final SpanRecorder spanRecorder = trace.getSpanRecorder();
+                    spanRecorder.recordUriTemplate(uriTemplate, true);
+                }
+
+            }
+        }
     }
 
     // AFTER
     @Override
     public AsyncContext getAsyncContext(Object target, Object[] args, Object result, Throwable throwable) {
         if (validate(args)) {
-            return AsyncContextAccessorUtils.getAsyncContext(args[0]);
+            return AsyncContextAccessorUtils.getAsyncContext(args, 0);
         }
         return null;
     }
@@ -67,13 +115,13 @@ public class DispatchHandlerInvokeHandlerMethodInterceptor extends AsyncContextS
             return;
         }
 
-        final AsyncContext publisherAsyncContext = AsyncContextAccessorUtils.getAsyncContext(args[0]);
+        final AsyncContext publisherAsyncContext = AsyncContextAccessorUtils.getAsyncContext(args, 0);
         if (publisherAsyncContext != null) {
             // Set AsyncContext to CoreSubscriber
             if (result instanceof AsyncContextAccessor) {
                 ((AsyncContextAccessor) (result))._$PINPOINT$_setAsyncContext(publisherAsyncContext);
                 if (isDebug) {
-                    logger.debug("Set AsyncContext result={}", result);
+                    logger.debug("Set AsyncContext to result. asyncContext={}", publisherAsyncContext);
                 }
             }
         }
@@ -81,9 +129,6 @@ public class DispatchHandlerInvokeHandlerMethodInterceptor extends AsyncContextS
 
     private boolean validate(final Object[] args) {
         if (ArrayUtils.isEmpty(args)) {
-            if (isDebug) {
-                logger.debug("Invalid args object. args={}.", args);
-            }
             return false;
         }
         return true;

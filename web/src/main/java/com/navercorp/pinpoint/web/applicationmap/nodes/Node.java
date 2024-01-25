@@ -16,19 +16,14 @@
 
 package com.navercorp.pinpoint.web.applicationmap.nodes;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.navercorp.pinpoint.common.trace.ServiceType;
-import com.navercorp.pinpoint.web.applicationmap.appender.metric.DBMetric;
-import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogramFormat;
+import com.navercorp.pinpoint.web.applicationmap.histogram.ApdexScore;
 import com.navercorp.pinpoint.web.applicationmap.histogram.NodeHistogram;
+import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogramFormat;
 import com.navercorp.pinpoint.web.view.NodeSerializer;
 import com.navercorp.pinpoint.web.vo.Application;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -41,37 +36,18 @@ import java.util.Objects;
 @JsonSerialize(using = NodeSerializer.class)
 public class Node {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-
-    private static final String NODE_DELIMITER = "^";
-
-    private final NodeType nodeType;
-
     private final Application application;
 
     // avoid NPE
-    private ServerInstanceList serverInstanceList = new ServerInstanceList();
+    private ServerGroupList serverGroupList = ServerGroupList.empty();
 
     private NodeHistogram nodeHistogram;
-    
+
     private boolean authorized = true;
     private TimeHistogramFormat timeHistogramFormat = TimeHistogramFormat.V1;
 
-    private List<DBMetric> dbMetricList = new ArrayList<>(0);
-
     public Node(Application application) {
-        this(NodeType.DETAILED, application);
-    }
-    
-    public Node(NodeType nodeType, Application application) {
-        this.nodeType = Objects.requireNonNull(nodeType, "nodeType");
         this.application = Objects.requireNonNull(application, "application");
-    }
-
-    public Node(Node copyNode) {
-        Objects.requireNonNull(copyNode, "copyNode");
-        this.nodeType = copyNode.nodeType;
-        this.application = copyNode.application;
     }
 
     public String getApplicationTextName() {
@@ -82,17 +58,14 @@ public class Node {
         }
     }
 
-    public NodeType getNodeType() {
-        return nodeType;
-    }
 
     // TODO remove setter
-    public void setServerInstanceList(ServerInstanceList serverInstanceList) {
-        this.serverInstanceList = Objects.requireNonNull(serverInstanceList, "serverInstanceList");
+    public void setServerGroupList(ServerGroupList serverGroupList) {
+        this.serverGroupList = Objects.requireNonNull(serverGroupList, "serverGroupList");
     }
 
-    public ServerInstanceList getServerInstanceList() {
-        return serverInstanceList;
+    public ServerGroupList getServerGroupList() {
+        return serverGroupList;
     }
 
 
@@ -100,12 +73,8 @@ public class Node {
         return application;
     }
 
-    public String getNodeName() {
-        return createNodeName(application);
-    }
-
-    public static String createNodeName(Application application) {
-        return application.getName() + NODE_DELIMITER + application.getServiceType();
+    public NodeName getNodeName() {
+        return NodeName.of(application);
     }
 
     public ServiceType getServiceType() {
@@ -119,7 +88,11 @@ public class Node {
     public void setNodeHistogram(NodeHistogram nodeHistogram) {
         this.nodeHistogram = nodeHistogram;
     }
-    
+
+    public ApdexScore getApdexScore() {
+        return ApdexScore.newApdexScore(nodeHistogram.getApplicationHistogram());
+    }
+
     public boolean isAuthorized() {
         return authorized;
     }
@@ -141,11 +114,4 @@ public class Node {
         return "Node [" + application + "]";
     }
 
-    public void addDBMetric(DBMetric dbMetric) {
-        dbMetricList.add(dbMetric);
-    }
-
-    public List<DBMetric> getDBMetricList() {
-        return dbMetricList;
-    }
 }

@@ -4,22 +4,32 @@ import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.plugin.hbase.HbasePluginConstants;
+import com.navercorp.pinpoint.plugin.hbase.HbaseVersion;
+import com.navercorp.pinpoint.plugin.hbase.interceptor.data.DataOperationType;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.ClusterConnection;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collections;
 
+import static com.navercorp.pinpoint.common.util.VarArgs.va;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
+
+@ExtendWith(MockitoExtension.class)
 public class HbaseTableMethodInterceptorTest {
 
     @Mock
@@ -39,10 +49,14 @@ public class HbaseTableMethodInterceptorTest {
 
         Object target = new Object();
         Object[] args = new Object[]{};
-
-        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor,true, false);
+        int hbaseVersion = getHbaseVersion();
+        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor, true, false, hbaseVersion, DataOperationType.DISABLE);
         interceptor.doInBeforeTrace(recorder, target, args);
         verify(recorder).recordServiceType(HbasePluginConstants.HBASE_CLIENT_TABLE);
+    }
+
+    private int getHbaseVersion() {
+        return HbaseVersion.getVersion(this.getClass().getClassLoader());
     }
 
     @Test
@@ -51,7 +65,8 @@ public class HbaseTableMethodInterceptorTest {
         Object target = new Object();
         Object[] args = new Object[]{Collections.singletonList("test")};
 
-        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor, true , true);
+        int hbaseVersion = getHbaseVersion();
+        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor, true, true, hbaseVersion, DataOperationType.DISABLE);
         interceptor.doInAfterTrace(recorder, target, args, null, null);
         verify(recorder).recordAttribute(HbasePluginConstants.HBASE_CLIENT_PARAMS, "size: 1");
         verify(recorder).recordApi(descriptor);
@@ -59,17 +74,50 @@ public class HbaseTableMethodInterceptorTest {
     }
 
     @Test
-    public void doTestHbaseTableName() throws Exception{
+    public void doTestHbaseTableName() {
 
+        Table target = Mockito.mock(HTable.class);
+        when(target.getName()).thenReturn(TableName.valueOf("test"));
+
+        Object[] args = new Object[]{Collections.singletonList("test")};
+
+        int hbaseVersion = getHbaseVersion();
+        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor, true, true, hbaseVersion, DataOperationType.DISABLE);
+        interceptor.doInAfterTrace(recorder, target, args, null, null);
+        verify(recorder).recordAttribute(HbasePluginConstants.HBASE_TABLE_NAME, "test");
+        verify(recorder).recordApi(descriptor);
+        verify(recorder).recordException(null);
+    }
+
+    @Test
+    public void getTableName() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        HTable mockHTable = Mockito.mock(HTable.class);
+        when(mockHTable.getName()).thenReturn(TableName.valueOf("HTable"));
+
+        int hbaseVersion = getHbaseVersion();
+        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor, true, true, hbaseVersion, DataOperationType.DISABLE);
+
+        Method method = interceptor.getClass().getDeclaredMethod("getTableName", Object.class);
+        method.setAccessible(true);
+
+        String hTableString = (String) method.invoke(interceptor, mockHTable);
+        Assertions.assertEquals("HTable", hTableString);
+
+        String unknownString = (String) method.invoke(interceptor, "1234");
+        Assertions.assertEquals("Unknown", unknownString);
+    }
+
+    @Test
+    public void doTestHBaseCalcSize() throws Exception {
         doReturn(new Configuration()).when(connection).getConfiguration();
 
         Table target = new HTable(TableName.valueOf("test"), connection);
 
-        Object[] args = new Object[]{Collections.singletonList("test")};
+        int hbaseVersion = getHbaseVersion();
+        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor, true, true, hbaseVersion, DataOperationType.MUTATION);
 
-        HbaseTableMethodInterceptor interceptor = new HbaseTableMethodInterceptor(traceContext, descriptor, true, true);
-        interceptor.doInAfterTrace(recorder, target, args, null, null);
-        verify(recorder).recordAttribute(HbasePluginConstants.HBASE_TABLE_NAME, "test");
+        interceptor.doInAfterTrace(recorder, target, va(new Put(new byte[10])), null, null);
+        verify(recorder).recordAttribute(HbasePluginConstants.HBASE_OP_WRITE_SIZE, 10);
         verify(recorder).recordApi(descriptor);
         verify(recorder).recordException(null);
     }

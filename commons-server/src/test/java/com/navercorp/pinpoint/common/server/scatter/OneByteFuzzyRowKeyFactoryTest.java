@@ -1,15 +1,14 @@
 package com.navercorp.pinpoint.common.server.scatter;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.List;
 
 public class OneByteFuzzyRowKeyFactoryTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
     public void test() {
@@ -20,19 +19,19 @@ public class OneByteFuzzyRowKeyFactoryTest {
     @Test
     public void test_100() {
         OneByteFuzzyRowKeyFactory fuzzyKeyFactory = new OneByteFuzzyRowKeyFactory();
-        Assert.assertEquals(0, fuzzyKeyFactory.getKey(100).byteValue());
+        Assertions.assertEquals(0, fuzzyKeyFactory.getKey(100).byteValue());
     }
 
     @Test
     public void test_200() {
         OneByteFuzzyRowKeyFactory fuzzyKeyFactory = new OneByteFuzzyRowKeyFactory();
-        Assert.assertEquals(1, fuzzyKeyFactory.getKey(199).byteValue());
+        Assertions.assertEquals(1, fuzzyKeyFactory.getKey(199).byteValue());
     }
 
     @Test
     public void test_500() {
         OneByteFuzzyRowKeyFactory fuzzyKeyFactory = new OneByteFuzzyRowKeyFactory();
-        Assert.assertEquals(3, fuzzyKeyFactory.getKey(500).byteValue());
+        Assertions.assertEquals(3, fuzzyKeyFactory.getKey(500).byteValue());
     }
 
     @Test
@@ -40,7 +39,7 @@ public class OneByteFuzzyRowKeyFactoryTest {
         OneByteFuzzyRowKeyFactory fuzzyKeyFactory = new OneByteFuzzyRowKeyFactory();
         long[] slot = fuzzyKeyFactory.slot;
         long max = slot[slot.length - 1] + 1;
-        Assert.assertEquals(slot.length, fuzzyKeyFactory.getKey(max).byteValue());
+        Assertions.assertEquals(slot.length, fuzzyKeyFactory.getKey(max).byteValue());
     }
 
     @Test
@@ -50,8 +49,8 @@ public class OneByteFuzzyRowKeyFactoryTest {
         OneByteFuzzyRowKeyFactory fuzzyKeyFactory = new OneByteFuzzyRowKeyFactory();
         List<Byte> rangeKey = fuzzyKeyFactory.getRangeKey(101, 500);
 
-        List<Byte> expected = Arrays.asList((byte) 1, (byte)2, (byte)3);
-        Assert.assertEquals(expected, rangeKey);
+        List<Byte> expected = List.of((byte) 1, (byte) 2, (byte) 3);
+        Assertions.assertEquals(expected, rangeKey);
 
     }
 
@@ -61,8 +60,8 @@ public class OneByteFuzzyRowKeyFactoryTest {
 //        slot=[100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400, 204800, 409600]
         OneByteFuzzyRowKeyFactory fuzzyKeyFactory = new OneByteFuzzyRowKeyFactory();
         List<Byte> rangeKey = fuzzyKeyFactory.getRangeKey(409601, 409602);
-        List<Byte> expected = Arrays.asList((byte) 13);
-        Assert.assertEquals(expected, rangeKey);
+        List<Byte> expected = List.of((byte) 13);
+        Assertions.assertEquals(expected, rangeKey);
     }
 
     @Test
@@ -71,8 +70,8 @@ public class OneByteFuzzyRowKeyFactoryTest {
 //        slot=[100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400, 204800, 409600]
         OneByteFuzzyRowKeyFactory fuzzyKeyFactory = new OneByteFuzzyRowKeyFactory();
         List<Byte> rangeKey = fuzzyKeyFactory.getRangeKey(1, 10);
-        List<Byte> expected = Arrays.asList((byte) 0);
-        Assert.assertEquals(expected, rangeKey);
+        List<Byte> expected = List.of((byte) 0);
+        Assertions.assertEquals(expected, rangeKey);
     }
 
 }

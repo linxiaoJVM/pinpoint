@@ -14,28 +14,25 @@
  */
 package com.navercorp.pinpoint.plugin.spring.beans.interceptor;
 
-import static org.junit.Assert.*;
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfigLoader;
+import com.navercorp.pinpoint.plugin.spring.beans.SpringBeansConfig;
+import com.navercorp.pinpoint.plugin.spring.beans.SpringBeansTargetScope;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 
 import java.util.Properties;
 
-import com.navercorp.pinpoint.bootstrap.config.ProfilerConfigLoader;
-import com.navercorp.pinpoint.plugin.spring.beans.SpringBeansTargetScope;
-import org.junit.Test;
-
-import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
-import com.navercorp.pinpoint.plugin.spring.beans.SpringBeansConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.support.RootBeanDefinition;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Jongho Moon
  * @author jaehong.kim
  */
 public class TargetBeanFilterTest {
-
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Test
     public void testClassLoadedByBootClassLoader() {
@@ -48,7 +45,6 @@ public class TargetBeanFilterTest {
         filter.clear();
 
         if (String.class.getClassLoader() != null) {
-            logger.debug("String is not loaded by: {}. Skip test.", String.class.getClassLoader());
             return;
         }
 

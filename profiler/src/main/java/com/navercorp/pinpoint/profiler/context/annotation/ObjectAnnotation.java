@@ -17,19 +17,12 @@
 package com.navercorp.pinpoint.profiler.context.annotation;
 
 import com.navercorp.pinpoint.common.util.StringUtils;
-import com.navercorp.pinpoint.grpc.trace.PAnnotationValue;
 import com.navercorp.pinpoint.profiler.context.Annotation;
-import com.navercorp.pinpoint.profiler.context.grpc.GrpcAnnotationSerializable;
-import com.navercorp.pinpoint.profiler.context.grpc.GrpcAnnotationValueMapper;
-import com.navercorp.pinpoint.profiler.context.thrift.AnnotationValueThriftMapper;
-import com.navercorp.pinpoint.profiler.context.thrift.ThriftAnnotationSerializable;
-import com.navercorp.pinpoint.thrift.dto.TAnnotationValue;
 
 /**
  * @author emeroad
  */
-public class ObjectAnnotation implements Annotation<Object>,
-        GrpcAnnotationSerializable, ThriftAnnotationSerializable {
+public class ObjectAnnotation implements Annotation<Object> {
 
     private final int key;
     private final String value;
@@ -44,11 +37,6 @@ public class ObjectAnnotation implements Annotation<Object>,
     }
 
     @Override
-    public int getAnnotationKey() {
-        return getKey();
-    }
-
-    @Override
     public int getKey() {
         return key;
     }
@@ -56,19 +44,6 @@ public class ObjectAnnotation implements Annotation<Object>,
     @Override
     public Object getValue() {
         return value;
-    }
-
-
-    @Override
-    public PAnnotationValue apply(GrpcAnnotationValueMapper context) {
-        PAnnotationValue.Builder builder = context.getAnnotationBuilder();
-        builder.setStringValue(this.value);
-        return builder.build();
-    }
-
-    @Override
-    public TAnnotationValue apply(AnnotationValueThriftMapper context) {
-        return TAnnotationValue.stringValue(this.value);
     }
 
     @Override

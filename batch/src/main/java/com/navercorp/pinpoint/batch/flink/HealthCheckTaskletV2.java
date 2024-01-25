@@ -15,18 +15,21 @@
  */
 package com.navercorp.pinpoint.batch.flink;
 
-import com.navercorp.pinpoint.batch.common.BatchConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.batch.common.BatchProperties;
+import com.navercorp.pinpoint.common.util.CollectionUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,8 +41,8 @@ import java.util.Objects;
  */
 public class HealthCheckTaskletV2 implements Tasklet {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final static String URL_FORMAT = "http://%s:8081/jobs/overview";
+    private final Logger logger = LogManager.getLogger(this.getClass());
+    private final static String URL_FORMAT = "http://%s:%d/jobs/overview";
     private final static String NAME = "name";
     private final static String STATE = "state";
     private final static String RUNNING = "RUNNING";
@@ -47,18 +50,18 @@ public class HealthCheckTaskletV2 implements Tasklet {
 
     private final RestTemplate restTemplate;
 
-    private final BatchConfiguration batchConfiguration;
+    private final BatchProperties batchProperties;
 
-    public HealthCheckTaskletV2(BatchConfiguration batchConfiguration, RestTemplate restTemplate) {
+    public HealthCheckTaskletV2(BatchProperties batchProperties, RestTemplate restTemplate) {
         this.jobNameList = new ArrayList<>(1);
         jobNameList.add("Aggregation Stat Data");
 
-        this.batchConfiguration = Objects.requireNonNull(batchConfiguration, "batchConfiguration");
+        this.batchProperties = Objects.requireNonNull(batchProperties, "batchProperties");
         this.restTemplate = Objects.requireNonNull(restTemplate, "restTemplate");
     }
 
     @Override
-    public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+    public RepeatStatus execute(@Nonnull StepContribution contribution, @Nonnull ChunkContext chunkContext) throws Exception {
         List<String> urlList = generatedFlinkManagerServerApi();
 
         if (urlList.isEmpty()) {
@@ -69,7 +72,8 @@ public class HealthCheckTaskletV2 implements Tasklet {
 
         for (String url : urlList) {
             try {
-                ResponseEntity<Map> responseEntity = this.restTemplate.exchange(url, HttpMethod.GET, null, Map.class);
+                ParameterizedTypeReference<Map<?, ?>> type = new ParameterizedTypeReference<>() {};
+                ResponseEntity<Map<?, ?>> responseEntity = this.restTemplate.exchange(url, HttpMethod.GET, null, type);
 
                 if (responseEntity.getStatusCode() != HttpStatus.OK) {
                     continue;
@@ -88,7 +92,7 @@ public class HealthCheckTaskletV2 implements Tasklet {
             }
         }
 
-        if (notExecuteJobList.size() > 0) {
+        if (CollectionUtils.hasLength(notExecuteJobList)) {
             String exceptionMessage = String.format("job fail : %s", notExecuteJobList);
             throw new Exception(exceptionMessage);
         }
@@ -96,30 +100,33 @@ public class HealthCheckTaskletV2 implements Tasklet {
         return RepeatStatus.FINISHED;
     }
 
-    private void checkJobExecuteStatus(ResponseEntity<Map> responseEntity, Map<String, Boolean> jobExecuteStatus) {
+    private void checkJobExecuteStatus(ResponseEntity<Map<?, ?>> responseEntity, Map<String, Boolean> jobExecuteStatus) {
         Map<?, ?> responseData = responseEntity.getBody();
-        List<?> jobs = (List<?>)responseData.get("jobs");
+        if(responseData != null) {
+            List<?> jobs = (List<?>)responseData.get("jobs");
 
-        if (jobs != null) {
-            for (Object job : jobs) {
-                Map<?, ?> jobInfo = (Map<?, ?>)job;
-                final String jobName = (String) jobInfo.get(NAME);
-                if (jobExecuteStatus.containsKey(jobName)) {
-                    if (RUNNING.equals(jobInfo.get(STATE))) {
-                        jobExecuteStatus.put(jobName, true);
+            if (jobs != null) {
+                for (Object job : jobs) {
+                    Map<?, ?> jobInfo = (Map<?, ?>)job;
+                    final String jobName = (String) jobInfo.get(NAME);
+                    if (jobExecuteStatus.containsKey(jobName)) {
+                        if (RUNNING.equals(jobInfo.get(STATE))) {
+                            jobExecuteStatus.put(jobName, true);
+                        }
                     }
                 }
             }
         }
     }
 
-
-    private List<String> generatedFlinkManagerServerApi() {
-        List<String> flinkServerList = batchConfiguration.getFlinkServerList();
+    // @VisibleForTesting
+    List<String> generatedFlinkManagerServerApi() {
+        List<String> flinkServerList = batchProperties.getFlinkServerList();
+        int flinkRestPort = batchProperties.getFlinkRestPort();
         List<String> urlList = new ArrayList<>(flinkServerList.size());
 
         for (String flinkServerIp : flinkServerList) {
-            urlList.add(String.format(URL_FORMAT, flinkServerIp));
+            urlList.add(String.format(URL_FORMAT, flinkServerIp, flinkRestPort));
         }
 
         return urlList;

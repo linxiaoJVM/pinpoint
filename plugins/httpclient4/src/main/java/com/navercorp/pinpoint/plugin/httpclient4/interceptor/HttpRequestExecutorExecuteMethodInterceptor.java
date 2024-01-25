@@ -17,8 +17,17 @@
 package com.navercorp.pinpoint.plugin.httpclient4.interceptor;
 
 import com.navercorp.pinpoint.bootstrap.context.AttributeRecorder;
+import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
+import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
+import com.navercorp.pinpoint.bootstrap.context.Trace;
+import com.navercorp.pinpoint.bootstrap.context.TraceContext;
+import com.navercorp.pinpoint.bootstrap.context.TraceId;
+import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.interceptor.scope.InterceptorScope;
 import com.navercorp.pinpoint.bootstrap.interceptor.scope.InterceptorScopeInvocation;
+import com.navercorp.pinpoint.bootstrap.logging.PLogger;
+import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
+import com.navercorp.pinpoint.bootstrap.pair.NameIntValuePair;
 import com.navercorp.pinpoint.bootstrap.plugin.request.ClientHeaderAdaptor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.ClientRequestAdaptor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.ClientRequestRecorder;
@@ -32,10 +41,12 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorderFactor
 import com.navercorp.pinpoint.bootstrap.plugin.response.ResponseHeaderRecorderFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.response.ServerResponseHeaderRecorder;
 import com.navercorp.pinpoint.common.plugin.util.HostAndPort;
-import com.navercorp.pinpoint.common.util.ArrayUtils;
+import com.navercorp.pinpoint.common.trace.AnnotationKey;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.common.util.IntBooleanIntBooleanValue;
 import com.navercorp.pinpoint.plugin.httpclient4.HttpCallContext;
 import com.navercorp.pinpoint.plugin.httpclient4.HttpCallContextFactory;
+import com.navercorp.pinpoint.plugin.httpclient4.HttpClient4Constants;
 import com.navercorp.pinpoint.plugin.httpclient4.HttpClient4CookieExtractor;
 import com.navercorp.pinpoint.plugin.httpclient4.HttpClient4PluginConfig;
 import com.navercorp.pinpoint.plugin.httpclient4.HttpClient4RequestWrapper;
@@ -44,18 +55,6 @@ import com.navercorp.pinpoint.plugin.httpclient4.HttpResponse4ClientHeaderAdapto
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
-
-import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
-import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
-import com.navercorp.pinpoint.bootstrap.context.Trace;
-import com.navercorp.pinpoint.bootstrap.context.TraceContext;
-import com.navercorp.pinpoint.bootstrap.context.TraceId;
-import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
-import com.navercorp.pinpoint.bootstrap.logging.PLogger;
-import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
-import com.navercorp.pinpoint.bootstrap.pair.NameIntValuePair;
-import com.navercorp.pinpoint.common.trace.AnnotationKey;
-import com.navercorp.pinpoint.plugin.httpclient4.HttpClient4Constants;
 
 /**
  * @author minwoo.jung
@@ -84,7 +83,7 @@ public class HttpRequestExecutorExecuteMethodInterceptor implements AroundInterc
         final HttpClient4PluginConfig profilerConfig = new HttpClient4PluginConfig(traceContext.getProfilerConfig());
 
         ClientRequestAdaptor<ClientRequestWrapper> clientRequestAdaptor = ClientRequestWrapperAdaptor.INSTANCE;
-        this.clientRequestRecorder = new ClientRequestRecorder<ClientRequestWrapper>(profilerConfig.isParam(), clientRequestAdaptor);
+        this.clientRequestRecorder = new ClientRequestRecorder<>(profilerConfig.isParam(), clientRequestAdaptor);
 
         CookieExtractor<HttpRequest> cookieExtractor = HttpClient4CookieExtractor.INSTANCE;
         this.cookieRecorder = CookieRecorderFactory.newCookieRecorder(profilerConfig.getHttpDumpConfig(), cookieExtractor);
@@ -140,12 +139,7 @@ public class HttpRequestExecutorExecuteMethodInterceptor implements AroundInterc
     }
 
     private HttpRequest getHttpRequest(Object[] args) {
-        final Object httpRequest = ArrayUtils.get(args, 0);
-        if (httpRequest instanceof HttpRequest) {
-            return (HttpRequest) httpRequest;
-        }
-
-        return null;
+        return ArrayArgumentUtils.getArgument(args, 0, HttpRequest.class);
     }
 
     private NameIntValuePair<String> getHost() {
@@ -153,9 +147,9 @@ public class HttpRequestExecutorExecuteMethodInterceptor implements AroundInterc
         final Object attachment = getAttachment(transaction);
         if (attachment instanceof HttpCallContext) {
             HttpCallContext callContext = (HttpCallContext) attachment;
-            return new NameIntValuePair<String>(callContext.getHost(), callContext.getPort());
+            return new NameIntValuePair<>(callContext.getHost(), callContext.getPort());
         }
-        return new NameIntValuePair<String>(null, -1);
+        return new NameIntValuePair<>(null, -1);
     }
 
     @Override

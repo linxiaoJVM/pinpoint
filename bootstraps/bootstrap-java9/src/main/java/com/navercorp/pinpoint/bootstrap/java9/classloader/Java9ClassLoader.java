@@ -56,12 +56,20 @@ public class Java9ClassLoader extends URLClassLoader {
     }
 
     @Override
-    public InputStream getResourceAsStream(String name) {
-        return super.getResourceAsStream(name);
+    protected Class<?> findClass(String moduleName, String name) {
+        if (getName().equals(moduleName)) {
+            try {
+                return this.findClass(name);
+            } catch (ClassNotFoundException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
-    private Object getClassLoadingLock0(String name) {
-        return getClassLoadingLock(name);
+    @Override
+    public InputStream getResourceAsStream(String name) {
+        return super.getResourceAsStream(name);
     }
 
     @Override
@@ -94,7 +102,7 @@ public class Java9ClassLoader extends URLClassLoader {
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        synchronized (getClassLoadingLock0(name)) {
+        synchronized (getClassLoadingLock(name)) {
             // First, check if the class has already been loaded
             Class clazz = findLoadedClass(name);
             if (clazz == null) {
@@ -109,7 +117,7 @@ public class Java9ClassLoader extends URLClassLoader {
                         } else {
                             clazz = bootLoader.findBootstrapClassOrNull(this, name);
                         }
-                    } catch (ClassNotFoundException ignore) {
+                    } catch (ClassNotFoundException ignored) {
                     }
                     if (clazz == null) {
                         // if not found, try to load a class by this ClassLoader

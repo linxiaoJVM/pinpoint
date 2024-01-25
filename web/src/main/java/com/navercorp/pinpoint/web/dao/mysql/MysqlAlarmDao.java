@@ -60,11 +60,6 @@ public class MysqlAlarmDao implements AlarmDao {
     }
 
     @Override
-    public void deleteRuleByUserGroupId(String userGroupId) {
-        sqlSessionTemplate.insert(NAMESPACE + "deleteRuleByUserGroupId", userGroupId);
-    }
-
-    @Override
     public List<Rule> selectRuleByUserGroupId(String userGroupId) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectRuleByUserGroupId", userGroupId);
     }
@@ -72,6 +67,11 @@ public class MysqlAlarmDao implements AlarmDao {
     @Override
     public List<Rule> selectRuleByApplicationId(String applicationId) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectRuleByApplicationId", applicationId);
+    }
+
+    @Override
+    public List<String> selectApplicationId() {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectApplicationId");
     }
 
     @Override

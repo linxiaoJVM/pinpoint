@@ -22,18 +22,17 @@ import com.navercorp.pinpoint.collector.dao.hbase.statistics.BulkIncrementerTest
 import com.navercorp.pinpoint.collector.dao.hbase.statistics.BulkIncrementerTestClazz.TestData;
 import com.navercorp.pinpoint.collector.dao.hbase.statistics.BulkIncrementerTestClazz.TestDataSet;
 import com.navercorp.pinpoint.collector.dao.hbase.statistics.BulkIncrementerTestClazz.TestVerifier;
-
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +48,7 @@ import static org.mockito.Mockito.when;
 /**
  * @author HyunGil Jeong
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class DefaultBulkUpdaterTest {
 
     private static final byte[] CF = Bytes.toBytes("CF");
@@ -60,15 +59,15 @@ public class DefaultBulkUpdaterTest {
     private final BulkIncrementer bulkIncrementer = bulkIncrementerFactory.wrap(
             new DefaultBulkIncrementer(new RowKeyMerge(CF)), Integer.MAX_VALUE, reporter);
 
-    @AfterClass
-    public static void afterClass() throws Exception {
+    @AfterAll
+    public static void afterClass() {
         bulkIncrementerFactory.close();
     }
 
     @Mock
     private RowKeyDistributorByHashPrefix rowKeyDistributor;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         when(rowKeyDistributor.getDistributedKey(any(byte[].class))).then(invocation -> invocation.getArgument(0));
     }
@@ -179,16 +178,12 @@ public class DefaultBulkUpdaterTest {
     @Test
     public void multipleTablesConcurrent() throws Exception {
         // Given
-        final int numTables = 50;
-        final int numRowIds = 100;
-        final int numColumnIds = 20;
+        final int numTables = 10;
+        final int numRowIds = 20;
+        final int numColumnIds = 10;
         final int maxCallCount = 200;
 
         List<TestDataSet> testDataSets = BulkIncrementerTestClazz.createRandomTestDataSetList(numTables, numRowIds, numColumnIds, maxCallCount);
-        List<TableName> tableNames = new ArrayList<>(numTables);
-        for (int i = 0; i < numTables; i++) {
-            tableNames.add(TableName.valueOf(i + ""));
-        }
 
         final int maxNumTestDatas = numTables * numRowIds * numColumnIds * maxCallCount;
         List<TestData> testDatas = new ArrayList<>(maxNumTestDatas);

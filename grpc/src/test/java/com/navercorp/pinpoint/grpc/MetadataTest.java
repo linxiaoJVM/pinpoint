@@ -19,15 +19,15 @@ package com.navercorp.pinpoint.grpc;
 import com.navercorp.pinpoint.common.util.BytesUtils;
 import io.grpc.InternalMetadata;
 import io.grpc.Metadata;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Test;
 
 public class MetadataTest {
-    private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryTest.class);
+    private static final Logger logger = LogManager.getLogger(ChannelFactoryTest.class);
 
     @Test
-    public void metadataTest() throws Exception {
+    public void metadataTest() {
         Metadata.Key<String> dd = Metadata.Key.of("key", Metadata.ASCII_STRING_MARSHALLER);
         Metadata metadata = InternalMetadata.newMetadata(BytesUtils.toBytes("key"), BytesUtils.toBytes("value"));
 

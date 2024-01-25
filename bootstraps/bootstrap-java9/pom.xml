@@ -22,14 +22,14 @@
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint</artifactId>
         <relativePath>../../pom.xml</relativePath>
-        <version>2.3.1-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
 
     <properties>
         <jdk.version>9</jdk.version>
-        <jdk.home>${env.JAVA_9_HOME}</jdk.home>
+        <jdk.home>${env.JAVA_11_HOME}</jdk.home>
+        <javadoc.source>8</javadoc.source>
 
-        <plugin.animal-sniffer.skip>true</plugin.animal-sniffer.skip>
     </properties>
 
     <artifactId>pinpoint-bootstrap-java9</artifactId>
@@ -44,32 +44,20 @@
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-commons</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-bootstrap-java9-internal</artifactId>
+        </dependency>
 
         <!-- Logging dependencies -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-jcl</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -105,11 +93,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <compilerArgs>
-                        <arg>--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED</arg>
-                        <arg>--add-exports=java.base/jdk.internal.module=ALL-UNNAMED</arg>
-                        <arg>--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED</arg>
-                    </compilerArgs>
+                    <release>${jdk.version}</release>
                 </configuration>
             </plugin>
 
@@ -121,8 +105,8 @@
                         --add-exports java.base/jdk.internal.loader=ALL-UNNAMED
                         --add-exports java.base/jdk.internal.module=ALL-UNNAMED
                         --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
-                        -Dfile.encoding=${encoding}
                     </argLine>
+                    <encoding>${encoding}</encoding>
                 </configuration>
             </plugin>
 

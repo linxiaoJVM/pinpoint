@@ -6,7 +6,7 @@
     <parent>
         <artifactId>pinpoint-hbase</artifactId>
         <groupId>com.navercorp.pinpoint</groupId>
-        <version>2.3.1-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-hbase-schema-manager</artifactId>
@@ -18,10 +18,6 @@
             <artifactId>pinpoint-hbase-schema</artifactId>
             <exclusions>
                 <exclusion>
-                    <groupId>log4j</groupId>
-                    <artifactId>log4j</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-log4j12</artifactId>
                 </exclusion>
@@ -30,7 +26,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
+            <version>${spring.boot.version}</version>
             <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
         </dependency>
 
         <dependency>
@@ -52,6 +53,8 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-1.2-api</artifactId>
+            <version>${log4j2.version}</version>
+            <scope>runtime</scope>
         </dependency>
 
 
@@ -65,9 +68,6 @@
 
     <build>
         <resources>
-            <resource>
-                <directory>${basedir}/src/main/resources-${env}</directory>
-            </resource>
         </resources>
 
         <plugins>

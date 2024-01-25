@@ -18,11 +18,10 @@
 package com.navercorp.pinpoint.profiler.jdbc;
 
 import com.navercorp.pinpoint.common.util.StringUtils;
-import org.junit.Assert;
-
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -30,35 +29,35 @@ import java.util.Date;
 import java.util.UUID;
 
 public class BindValueConverterTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private BindValueConverter bindValueConverter = BindValueConverter.defaultBindValueConverter();
 
     @Test
-    public void testBindValueToString() throws Exception {
+    public void testBindValueToString() {
         Date d = new Date();
         logger.debug("{}", d);
 
-        byte[] bytes = new byte[] {1, 2, 4};
+        byte[] bytes = new byte[]{1, 2, 4};
         String s = Arrays.toString(bytes);
         logger.debug(s);
     }
 
     @Test
-    public void testBindValueBoolean() throws Exception {
+    public void testBindValueBoolean() {
         String setBoolean = bindValueConverter.convert("setBoolean", new Object[]{null, Boolean.TRUE});
-        Assert.assertEquals(setBoolean, Boolean.TRUE.toString());
+        Assertions.assertEquals(setBoolean, Boolean.TRUE.toString());
     }
 
     @Test
-    public void testBindValueNotSupport() throws Exception {
+    public void testBindValueNotSupport() {
         // Should not throw even if given arguments are not supported value
         String setBoolean = bindValueConverter.convert("setXxxx", new Object[]{null, "XXX"});
-        Assert.assertEquals(setBoolean, "");
+        Assertions.assertEquals(setBoolean, "");
     }
 
     @Test
-    public void testBindValueBytes() throws Exception {
+    public void testBindValueBytes() {
         UUID uuid = UUID.randomUUID();
         ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
         bb.putLong(uuid.getMostSignificantBits());
@@ -69,15 +68,15 @@ public class BindValueConverterTest {
         BindValueConverter bindValueConverter = BindValueConverter.defaultBindValueConverter();
         bindValueConverter.setHexBytesConverter();
         String setBytes = bindValueConverter.convert("setBytes", new Object[]{null, bytes});
-        Assert.assertEquals(setBytes, uuidHex);
+        Assertions.assertEquals(setBytes, uuidHex);
     }
 
     @Test
-    public void testMaxWidth() throws Exception {
+    public void testMaxWidth() {
         int maxWidth = 2;
         BindValueConverter converter = BindValueConverter.defaultBindValueConverter(maxWidth);
 
         String stringValue = converter.convert("setString", new Object[]{null, "abc"});
-        Assert.assertEquals(StringUtils.abbreviate("abc", maxWidth), stringValue);
+        Assertions.assertEquals(StringUtils.abbreviate("abc", maxWidth), stringValue);
     }
 }

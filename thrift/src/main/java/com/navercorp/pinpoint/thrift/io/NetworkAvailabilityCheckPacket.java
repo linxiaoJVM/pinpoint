@@ -24,11 +24,15 @@ import org.apache.thrift.protocol.TProtocol;
 /**
  * @author netspider
  */
-public class NetworkAvailabilityCheckPacket implements org.apache.thrift.TBase<NetworkAvailabilityCheckPacket, org.apache.thrift.TFieldIdEnum>, java.io.Serializable, Cloneable, Comparable<NetworkAvailabilityCheckPacket> {
+public class NetworkAvailabilityCheckPacket implements
+        org.apache.thrift.TBase<NetworkAvailabilityCheckPacket, org.apache.thrift.TFieldIdEnum>,
+        java.io.Serializable,
+        Cloneable,
+        Comparable<NetworkAvailabilityCheckPacket> {
 
     private static final long serialVersionUID = -1170704876834222604L;
 
-    public transient static final byte[] DATA_OK = BytesUtils.toBytes("OK");
+    public static final byte[] DATA_OK = BytesUtils.toBytes("OK");
 
     @Override
     public void read(TProtocol tProtocol) throws TException {
@@ -70,4 +74,14 @@ public class NetworkAvailabilityCheckPacket implements org.apache.thrift.TBase<N
     public int compareTo(NetworkAvailabilityCheckPacket o) {
         return 0;
     }
+
+    @Override
+    public NetworkAvailabilityCheckPacket clone() {
+        try {
+            return (NetworkAvailabilityCheckPacket) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
+    }
+
 }

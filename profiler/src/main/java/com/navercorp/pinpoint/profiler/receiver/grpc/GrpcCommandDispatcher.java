@@ -16,22 +16,21 @@
 
 package com.navercorp.pinpoint.profiler.receiver.grpc;
 
-import java.util.Objects;
+import com.google.protobuf.StringValue;
+import com.navercorp.pinpoint.common.profiler.message.RouteResult;
 import com.navercorp.pinpoint.grpc.trace.PCmdMessage;
 import com.navercorp.pinpoint.grpc.trace.PCmdRequest;
 import com.navercorp.pinpoint.grpc.trace.PCmdResponse;
 import com.navercorp.pinpoint.grpc.trace.ProfilerCommandServiceGrpc;
 import com.navercorp.pinpoint.profiler.receiver.ProfilerCommandService;
 import com.navercorp.pinpoint.profiler.receiver.ProfilerCommandServiceLocator;
-import com.navercorp.pinpoint.thrift.dto.command.TRouteResult;
-
-import com.google.protobuf.StringValue;
 import io.grpc.stub.StreamObserver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -39,7 +38,7 @@ import java.util.Set;
  */
 public class GrpcCommandDispatcher {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final ProfilerCommandServiceGrpc.ProfilerCommandServiceStub profilerCommandServiceStub;
     private final ProfilerCommandServiceLocator commandServiceLocator;
@@ -65,7 +64,7 @@ public class GrpcCommandDispatcher {
                 }
             }
         } else {
-            PCmdResponse failMessage = createFailMessage(commandRequest, TRouteResult.NOT_SUPPORTED_REQUEST.name());
+            PCmdResponse failMessage = createFailMessage(commandRequest, RouteResult.NOT_SUPPORTED_REQUEST.name());
             if (streamObserver != null) {
                 streamObserver.onNext(PCmdMessage.newBuilder().setFailMessage(failMessage).build());
             }

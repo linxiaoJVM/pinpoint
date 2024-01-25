@@ -17,6 +17,8 @@
 package com.navercorp.pinpoint.common.server.bo;
 
 import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetaDataRowKey;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.Objects;
 
@@ -24,8 +26,8 @@ import java.util.Objects;
  * @author emeroad
  */
 public class StringMetaDataBo implements MetaDataRowKey {
-    private final String agentId;
-    private final long startTime;
+    @NotBlank private final String agentId;
+    @PositiveOrZero private final long startTime;
 
     private final int stringId;
     private final String stringValue;

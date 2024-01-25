@@ -16,38 +16,28 @@
 
 package com.navercorp.pinpoint.web.applicationmap;
 
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.web.applicationmap.appender.histogram.NodeHistogramAppenderFactory;
-import com.navercorp.pinpoint.web.applicationmap.appender.metric.DefaultMetricInfoAppenderFactory;
-import com.navercorp.pinpoint.web.applicationmap.appender.metric.MetricInfoAppenderFactory;
 import com.navercorp.pinpoint.web.applicationmap.appender.server.ServerInfoAppenderFactory;
-import com.navercorp.pinpoint.web.vo.Range;
-import org.springframework.stereotype.Component;
 
-import java.util.Objects;
-import java.util.Optional;
 
 /**
  * @author HyunGil Jeong
  */
-@Component
 public class ApplicationMapBuilderFactory {
 
     private final NodeHistogramAppenderFactory nodeHistogramAppenderFactory;
 
     private final ServerInfoAppenderFactory serverInfoAppenderFactory;
-    private final MetricInfoAppenderFactory metricInfoAppenderFactory;
 
     public ApplicationMapBuilderFactory(
             NodeHistogramAppenderFactory nodeHistogramAppenderFactory,
-            ServerInfoAppenderFactory serverInfoAppenderFactory,
-            Optional<MetricInfoAppenderFactory> metricInfoAppenderFactory) {
+            ServerInfoAppenderFactory serverInfoAppenderFactory) {
         this.nodeHistogramAppenderFactory = nodeHistogramAppenderFactory;
         this.serverInfoAppenderFactory = serverInfoAppenderFactory;
-        this.metricInfoAppenderFactory = Objects.requireNonNull(metricInfoAppenderFactory, "metricInfoAppenderFactory").orElseGet(DefaultMetricInfoAppenderFactory::new);
-
     }
 
     public ApplicationMapBuilder createApplicationMapBuilder(Range range) {
-        return new ApplicationMapBuilder(range, nodeHistogramAppenderFactory, serverInfoAppenderFactory, metricInfoAppenderFactory);
+        return new ApplicationMapBuilder(range, nodeHistogramAppenderFactory, serverInfoAppenderFactory);
     }
 }

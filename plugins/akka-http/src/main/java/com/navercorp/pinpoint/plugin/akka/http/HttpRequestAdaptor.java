@@ -51,10 +51,7 @@ public class HttpRequestAdaptor implements RequestAdaptor<HttpRequest> {
 
     private String getRealIpHeader(AkkaHttpConfig config) {
         String realIpHeader = config.getRealIpHeader();
-        if (StringUtils.isEmpty(realIpHeader)) {
-            return DEFAULT_REMOTE_ADDRESS_HEADER;
-        }
-        return realIpHeader;
+        return StringUtils.defaultIfEmpty(realIpHeader, DEFAULT_REMOTE_ADDRESS_HEADER);
     }
 
     @Override
@@ -108,6 +105,11 @@ public class HttpRequestAdaptor implements RequestAdaptor<HttpRequest> {
             return uri.getPathString();
         }
         return UNKNOWN;
+    }
+
+    @Override
+    public String getMethodName(HttpRequest request) {
+        return request.method().name();
     }
 
     private boolean validateRpcName(Uri uri) {

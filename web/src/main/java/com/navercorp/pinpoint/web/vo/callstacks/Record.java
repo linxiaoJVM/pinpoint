@@ -53,6 +53,8 @@ public interface Record {
 
     String getApplicationName();
 
+    String getApplicationServiceType();
+
     String getApiType();
 
     boolean isExcludeFromTimeline();
@@ -73,6 +75,8 @@ public interface Record {
 
     boolean getHasException();
 
+    long getExceptionChainId();
+
     String getTransactionId();
 
     long getSpanId();
@@ -82,4 +86,8 @@ public interface Record {
     MethodTypeEnum getMethodTypeEnum();
 
     boolean isAuthorized();
+
+    int getLineNumber();
+
+    String getLocation();
 }

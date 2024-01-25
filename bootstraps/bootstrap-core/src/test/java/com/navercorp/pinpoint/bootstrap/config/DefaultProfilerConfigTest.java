@@ -16,20 +16,20 @@
 
 package com.navercorp.pinpoint.bootstrap.config;
 
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.MatcherAssert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
 import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author emeroad
  */
 public class DefaultProfilerConfigTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
     public void readProperty() {
@@ -49,9 +49,9 @@ public class DefaultProfilerConfigTest {
 
         ProfilerConfig profilerConfig = ProfilerConfigLoader.load(properties);
 
-        MatcherAssert.assertThat(profilerConfig.readList("profiler.test.list1"), CoreMatchers.hasItems("foo", "bar"));
-        MatcherAssert.assertThat(profilerConfig.readList("profiler.test.list2"), CoreMatchers.hasItems("foo", "bar"));
-        MatcherAssert.assertThat(profilerConfig.readList("profiler.test.list3"), CoreMatchers.hasItems("foo", "bar"));
-        MatcherAssert.assertThat(profilerConfig.readList("profiler.test.list4"), CoreMatchers.hasItems("foo", "bar"));
+        assertThat(profilerConfig.readList("profiler.test.list1")).contains("foo", "bar");
+        assertThat(profilerConfig.readList("profiler.test.list2")).contains("foo", "bar");
+        assertThat(profilerConfig.readList("profiler.test.list3")).contains("foo", "bar");
+        assertThat(profilerConfig.readList("profiler.test.list4")).contains("foo", "bar");
     }
 }

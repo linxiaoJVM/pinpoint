@@ -20,9 +20,8 @@ import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
-import com.navercorp.pinpoint.bootstrap.logging.PLogger;
-import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.common.plugin.util.HostAndPort;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.common.util.BytesUtils;
 import com.navercorp.pinpoint.plugin.paho.mqtt.accessor.MqttV3ClientCommsGetter;
 import com.navercorp.pinpoint.plugin.paho.mqtt.accessor.SocketGetter;
@@ -40,8 +39,6 @@ import static com.navercorp.pinpoint.plugin.paho.mqtt.PahoMqttConstants.UNKNOWN;
  * @author Younsung Hwang
  */
 public class MqttV3CallbackMessageArrivedInterceptor extends MqttCallbackMessageArrivedInterceptor {
-
-    private final PLogger logger = PLoggerFactory.getLogger(getClass());
 
     public MqttV3CallbackMessageArrivedInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor) {
         super(traceContext, methodDescriptor);
@@ -65,11 +62,8 @@ public class MqttV3CallbackMessageArrivedInterceptor extends MqttCallbackMessage
 
     @Override
     protected void recordDataByVersion(Object target, SpanRecorder recorder, Object[] args) {
-
-        if (args[0] instanceof MqttPublish) {
-
-            MqttPublish mqttPublish = (MqttPublish) args[0];
-
+        MqttPublish mqttPublish = ArrayArgumentUtils.getArgument(args, 0, MqttPublish.class);
+        if (mqttPublish != null) {
             recorder.recordRpcName(buildRpcName(mqttPublish.getTopicName(), mqttPublish.getMessage().getQos()));
 
             MqttMessage mqttMessage = mqttPublish.getMessage();

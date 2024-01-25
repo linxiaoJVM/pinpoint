@@ -17,9 +17,8 @@
 package com.navercorp.pinpoint.bootstrap.util;
 
 import com.navercorp.pinpoint.common.Version;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author emeroad
@@ -27,41 +26,43 @@ import org.junit.Test;
 public class AntPathMatcherTest {
     @Test
     public void isAntStyle() {
-        Assert.assertTrue(AntPathMatcher.isAntStylePattern("/*/test"));
-        Assert.assertTrue(AntPathMatcher.isAntStylePattern("/*/?"));
-        Assert.assertTrue(AntPathMatcher.isAntStylePattern("*.test"));
-        Assert.assertTrue(AntPathMatcher.isAntStylePattern("*.?"));
+        Assertions.assertTrue(AntPathMatcher.isAntStylePattern("/*/test"));
+        Assertions.assertTrue(AntPathMatcher.isAntStylePattern("/*/?"));
+        Assertions.assertTrue(AntPathMatcher.isAntStylePattern("*.test"));
+        Assertions.assertTrue(AntPathMatcher.isAntStylePattern("*.?"));
 
-        Assert.assertFalse(AntPathMatcher.isAntStylePattern("/abc/test"));
-        Assert.assertFalse(AntPathMatcher.isAntStylePattern("abc.test"));
+        Assertions.assertFalse(AntPathMatcher.isAntStylePattern("/abc/test"));
+        Assertions.assertFalse(AntPathMatcher.isAntStylePattern("abc.test"));
     }
 
     @Test
     public void isMatched() {
 
         AntPathMatcher matcher = new AntPathMatcher("/test/?bc");
-        Assert.assertTrue(matcher.isMatched("/test/abc"));
+        Assertions.assertTrue(matcher.isMatched("/test/abc"));
 
-        Assert.assertFalse(matcher.isMatched("/test/axx"));
+        Assertions.assertFalse(matcher.isMatched("/test/axx"));
 
 
-        Assert.assertFalse(matcher.isMatched(null));
-        Assert.assertFalse(matcher.isMatched(""));
-        Assert.assertFalse(matcher.isMatched("test"));
+        Assertions.assertFalse(matcher.isMatched(null));
+        Assertions.assertFalse(matcher.isMatched(""));
+        Assertions.assertFalse(matcher.isMatched("test"));
     }
 
     @Test
-    public void  asteriskTest() {
-        String linuxPath = "/home/.m2/repository/pinpoint-mssql-jdbc-driver-plugin/2.3.1-SNAPSHOT/pinpoint-mssql-jdbc-driver-plugin-2.3.1-SNAPSHOT.jar";
-        String windowsPath = "C:\\.m2\\repository\\pinpoint-mssql-jdbc-driver-plugin\\2.3.1-SNAPSHOT\\pinpoint-mssql-jdbc-driver-plugin-2.3.1-SNAPSHOT.jar";
+    public void asteriskTest() {
+        String version = Version.VERSION;
 
-        AntPathMatcher linuxMatcher = new AntPathMatcher("/**/pinpoint-*-plugin-" + Version.VERSION + ".jar");
-        Assert.assertTrue(linuxMatcher.isMatched(linuxPath));
-        Assert.assertFalse(linuxMatcher.isMatched(windowsPath));
+        String linuxPath = "/home/.m2/repository/pinpoint-mssql-jdbc-driver-plugin/" + version + "/pinpoint-mssql-jdbc-driver-plugin-" + version + ".jar";
+        String windowsPath = "C:\\.m2\\repository\\pinpoint-mssql-jdbc-driver-plugin\\" + version + "\\pinpoint-mssql-jdbc-driver-plugin-" + version + ".jar";
 
-        AntPathMatcher windowsMatcher = new AntPathMatcher("**\\pinpoint-*-plugin-" + Version.VERSION + ".jar");
-        Assert.assertFalse(windowsMatcher.isMatched(linuxPath));
-        Assert.assertTrue(windowsMatcher.isMatched(windowsPath));
+        AntPathMatcher linuxMatcher = new AntPathMatcher("/**/pinpoint-*-plugin-" + version + ".jar");
+        Assertions.assertTrue(linuxMatcher.isMatched(linuxPath));
+        Assertions.assertFalse(linuxMatcher.isMatched(windowsPath));
+
+        AntPathMatcher windowsMatcher = new AntPathMatcher("**\\pinpoint-*-plugin-" + version + ".jar");
+        Assertions.assertFalse(windowsMatcher.isMatched(linuxPath));
+        Assertions.assertTrue(windowsMatcher.isMatched(windowsPath));
     }
 
 
@@ -69,14 +70,14 @@ public class AntPathMatcherTest {
     public void isMatchedDotSeparator() {
         final String pathSeparator = ".";
         AntPathMatcher matcher = new AntPathMatcher("test.?bc", pathSeparator);
-        Assert.assertTrue(matcher.isMatched("test.abc"));
+        Assertions.assertTrue(matcher.isMatched("test.abc"));
 
-        Assert.assertFalse(matcher.isMatched("test.axx"));
+        Assertions.assertFalse(matcher.isMatched("test.axx"));
 
 
-        Assert.assertFalse(matcher.isMatched(null));
-        Assert.assertFalse(matcher.isMatched(""));
-        Assert.assertFalse(matcher.isMatched("test"));
+        Assertions.assertFalse(matcher.isMatched(null));
+        Assertions.assertFalse(matcher.isMatched(""));
+        Assertions.assertFalse(matcher.isMatched("test"));
     }
 
 }

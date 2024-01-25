@@ -19,6 +19,7 @@ import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessor;
 import com.navercorp.pinpoint.bootstrap.context.AsyncContext;
 import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
+import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.AsyncContextSpanEventSimpleAroundInterceptor;
 import com.navercorp.pinpoint.common.trace.AnnotationKey;
@@ -32,7 +33,7 @@ import io.vertx.core.http.impl.HttpClientResponseImpl;
  */
 public class HttpClientRequestImplDoHandleResponseInterceptor extends AsyncContextSpanEventSimpleAroundInterceptor {
 
-    private boolean statusCode;
+    private final boolean statusCode;
 
     public HttpClientRequestImplDoHandleResponseInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor) {
         super(traceContext, methodDescriptor);
@@ -42,32 +43,32 @@ public class HttpClientRequestImplDoHandleResponseInterceptor extends AsyncConte
     }
 
     @Override
+    public void beforeTrace(AsyncContext asyncContext, Trace trace, SpanEventRecorder recorder, Object target, Object[] args) {
+        if (trace.canSampled()) {
+            if (!validate(args)) {
+                return;
+            }
+
+            final HttpClientResponseImpl response = (HttpClientResponseImpl) args[0];
+            if (statusCode) {
+                recorder.recordAttribute(AnnotationKey.HTTP_STATUS_CODE, response.statusCode());
+            }
+
+            ((AsyncContextAccessor) response)._$PINPOINT$_setAsyncContext(asyncContext);
+        }
+    }
+
+    @Override
     public void doInBeforeTrace(SpanEventRecorder recorder, AsyncContext asyncContext, Object target, Object[] args) {
-        if (!validate(args)) {
-            return;
-        }
-
-        final HttpClientResponseImpl response = (HttpClientResponseImpl) args[0];
-        if (statusCode) {
-            recorder.recordAttribute(AnnotationKey.HTTP_STATUS_CODE, response.statusCode());
-        }
-
-        ((AsyncContextAccessor) response)._$PINPOINT$_setAsyncContext(asyncContext);
     }
 
     private boolean validate(final Object[] args) {
         Object httpClientResponseImpl = ArrayUtils.get(args, 0);
         if (!(httpClientResponseImpl instanceof HttpClientResponseImpl)) {
-            if (isDebug) {
-                logger.debug("Invalid args[0] object. args={}.", args);
-            }
             return false;
         }
 
         if (!(httpClientResponseImpl instanceof AsyncContextAccessor)) {
-            if (isDebug) {
-                logger.debug("Invalid args[0] object. Need metadata accessor({}).", AsyncContextAccessor.class.getName());
-            }
             return false;
         }
 
@@ -75,9 +76,15 @@ public class HttpClientRequestImplDoHandleResponseInterceptor extends AsyncConte
     }
 
     @Override
+    public void afterTrace(AsyncContext asyncContext, Trace trace, SpanEventRecorder recorder, Object target, Object[] args, Object result, Throwable throwable) {
+        if (trace.canSampled()) {
+            recorder.recordApi(methodDescriptor);
+            recorder.recordServiceType(VertxConstants.VERTX_HTTP_CLIENT_INTERNAL);
+            recorder.recordException(throwable);
+        }
+    }
+
+    @Override
     public void doInAfterTrace(SpanEventRecorder recorder, Object target, Object[] args, Object result, Throwable throwable) {
-        recorder.recordApi(methodDescriptor);
-        recorder.recordServiceType(VertxConstants.VERTX_HTTP_CLIENT_INTERNAL);
-        recorder.recordException(throwable);
     }
 }

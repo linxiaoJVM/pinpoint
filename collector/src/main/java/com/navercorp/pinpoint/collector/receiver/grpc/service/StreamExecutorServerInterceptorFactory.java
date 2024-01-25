@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.collector.receiver.grpc.service;
 
-import com.navercorp.pinpoint.collector.grpc.config.GrpcStreamConfiguration;
+import com.navercorp.pinpoint.collector.grpc.config.GrpcStreamProperties;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.grpc.server.flowcontrol.IdleTimeoutFactory;
 import com.navercorp.pinpoint.grpc.server.flowcontrol.RejectedExecutionListenerFactory;
@@ -43,10 +43,11 @@ public class StreamExecutorServerInterceptorFactory implements FactoryBean<Serve
     private final int periodMillis;
     private final int recoveryMessagesCount;
     private final long idleTimeout;
+    private final long throttledLoggerRatio;
 
     public StreamExecutorServerInterceptorFactory(Executor executor,
                                                   ScheduledExecutorService scheduledExecutorService,
-                                                  GrpcStreamConfiguration streamConfiguration) {
+                                                  GrpcStreamProperties streamConfiguration) {
         this.executor = Objects.requireNonNull(executor, "executor");
         this.scheduledExecutorService = Objects.requireNonNull(scheduledExecutorService, "scheduledExecutorService");
 
@@ -57,6 +58,7 @@ public class StreamExecutorServerInterceptorFactory implements FactoryBean<Serve
         Assert.isTrue(periodMillis > 0, "periodMillis must be positive");
         this.recoveryMessagesCount = streamConfiguration.getSchedulerRecoveryMessageCount();
         this.idleTimeout = streamConfiguration.getIdleTimeout();
+        this.throttledLoggerRatio = streamConfiguration.getThrottledLoggerRatio();
     }
 
     @Override
@@ -71,7 +73,7 @@ public class StreamExecutorServerInterceptorFactory implements FactoryBean<Serve
         RejectedExecutionListenerFactory listenerFactory = new RejectedExecutionListenerFactory(this.beanName, recoveryMessagesCount, idleTimeoutFactory);
 
         return new StreamExecutorServerInterceptor(this.beanName, this.executor, initRequestCount,
-                scheduledExecutor, listenerFactory);
+                scheduledExecutor, listenerFactory, throttledLoggerRatio);
     }
 
     @Override

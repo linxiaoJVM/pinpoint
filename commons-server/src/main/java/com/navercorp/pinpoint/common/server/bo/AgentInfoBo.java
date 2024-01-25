@@ -18,10 +18,7 @@ package com.navercorp.pinpoint.common.server.bo;
 
 import com.navercorp.pinpoint.common.buffer.AutomaticBuffer;
 import com.navercorp.pinpoint.common.buffer.Buffer;
-import org.apache.commons.lang3.StringUtils;
-
-
-import java.util.Comparator;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * @author emeroad
@@ -29,15 +26,12 @@ import java.util.Comparator;
  */
 public class AgentInfoBo {
 
-    public static final Comparator<AgentInfoBo> AGENT_NAME_ASC_COMPARATOR
-            = Comparator.comparing(agentInfoBo -> StringUtils.defaultString(agentInfoBo.getAgentId()));
-
     private final String hostName;
     private final String ip;
     private final String ports;
-    private final String agentId;
+    @NotBlank private final String agentId;
     private final String agentName;
-    private final String applicationName;
+    @NotBlank private final String applicationName;
     private final short serviceTypeCode;
     private final int pid;
     private final String vmVersion;
@@ -151,7 +145,7 @@ public class AgentInfoBo {
         buffer.putLong(this.getStartTime());
         buffer.putLong(this.getEndTimeStamp());
         buffer.putInt(this.getEndStatus());
-        
+
         buffer.putPrefixedString(this.getVmVersion());
 
         buffer.putBoolean(this.isContainer());
@@ -176,7 +170,7 @@ public class AgentInfoBo {
             return false;
         if (getClass() != obj.getClass())
             return false;
-        AgentInfoBo other = (AgentInfoBo)obj;
+        AgentInfoBo other = (AgentInfoBo) obj;
         if (agentId == null) {
             if (other.agentId != null)
                 return false;
@@ -187,22 +181,24 @@ public class AgentInfoBo {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("AgentInfoBo{");
-        sb.append("hostName='").append(hostName).append('\'');
-        sb.append(", ip='").append(ip).append('\'');
-        sb.append(", ports='").append(ports).append('\'');
-        sb.append(", agentId='").append(agentId).append('\'');
-        sb.append(", agentName='").append(agentName).append('\'');
-        sb.append(", applicationName='").append(applicationName).append('\'');
-        sb.append(", serviceTypeCode=").append(serviceTypeCode);
-        sb.append(", pid=").append(pid);
-        sb.append(", vmVersion=").append(vmVersion).append('\'');
-        sb.append(", agentVersion='").append(agentVersion).append('\'');
-        sb.append(", startTime=").append(startTime);
-        sb.append(", endTimeStamp=").append(endTimeStamp);
-        sb.append(", endStatus=").append(endStatus);
-        sb.append('}');
-        return sb.toString();
+        return "AgentInfoBo{" +
+                "hostName='" + hostName + '\'' +
+                ", ip='" + ip + '\'' +
+                ", ports='" + ports + '\'' +
+                ", agentId='" + agentId + '\'' +
+                ", agentName='" + agentName + '\'' +
+                ", applicationName='" + applicationName + '\'' +
+                ", serviceTypeCode=" + serviceTypeCode +
+                ", pid=" + pid +
+                ", vmVersion='" + vmVersion + '\'' +
+                ", agentVersion='" + agentVersion + '\'' +
+                ", startTime=" + startTime +
+                ", endTimeStamp=" + endTimeStamp +
+                ", endStatus=" + endStatus +
+                ", container=" + container +
+                ", serverMetaData=" + serverMetaData +
+                ", jvmInfo=" + jvmInfo +
+                '}';
     }
 
     public static class Builder {
@@ -222,7 +218,7 @@ public class AgentInfoBo {
         private int endStatus;
 
         private boolean container;
-        
+
         // Should be serialized separately
         private ServerMetaDataBo serverMetaData;
         private JvmInfoBo jvmInfo;
@@ -265,7 +261,7 @@ public class AgentInfoBo {
         public void setPid(int pid) {
             this.pid = pid;
         }
-        
+
         public void setVmVersion(String vmVersion) {
             this.vmVersion = vmVersion;
         }
@@ -289,7 +285,7 @@ public class AgentInfoBo {
         public void isContainer(boolean container) {
             this.container = container;
         }
-        
+
         public void setServerMetaData(ServerMetaDataBo serverMetaData) {
             this.serverMetaData = serverMetaData;
         }

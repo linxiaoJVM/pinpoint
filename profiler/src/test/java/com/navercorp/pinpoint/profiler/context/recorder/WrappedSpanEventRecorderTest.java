@@ -18,25 +18,34 @@ package com.navercorp.pinpoint.profiler.context.recorder;
 
 import com.navercorp.pinpoint.profiler.context.AsyncContextFactory;
 import com.navercorp.pinpoint.profiler.context.SpanEvent;
+import com.navercorp.pinpoint.profiler.context.SqlCountService;
 import com.navercorp.pinpoint.profiler.context.errorhandler.BypassErrorHandler;
 import com.navercorp.pinpoint.profiler.context.errorhandler.IgnoreErrorHandler;
+import com.navercorp.pinpoint.profiler.context.exception.ExceptionRecordingService;
 import com.navercorp.pinpoint.profiler.context.id.Shared;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
 import com.navercorp.pinpoint.profiler.metadata.SqlMetaDataService;
 import com.navercorp.pinpoint.profiler.metadata.StringMetaDataService;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.only;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 /**
  * @author Woonduk Kang(emeroad)
  */
-@RunWith(org.mockito.junit.MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class WrappedSpanEventRecorderTest {
+    private WrappedSpanEventRecorder sut;
 
     @Mock
     private TraceRoot traceRoot;
@@ -53,44 +62,51 @@ public class WrappedSpanEventRecorderTest {
     @Mock
     private SqlMetaDataService sqlMetaDataService;
 
+    @Mock
+    private ExceptionRecordingService exceptionRecordingService;
+
+    @Mock
+    private SqlCountService sqlCountService;
+
     private final IgnoreErrorHandler errorHandler = new BypassErrorHandler();
+
+    @BeforeEach
+    void setUp() {
+        sut = new WrappedSpanEventRecorder(traceRoot, asyncContextFactory, stringMetaDataService, sqlMetaDataService, errorHandler, exceptionRecordingService, sqlCountService);
+    }
 
     @Test
     public void testSetExceptionInfo_RootMarkError() throws Exception {
         when(traceRoot.getShared()).thenReturn(shared);
 
         SpanEvent spanEvent = new SpanEvent();
-        WrappedSpanEventRecorder recorder = new WrappedSpanEventRecorder(traceRoot, asyncContextFactory, stringMetaDataService, sqlMetaDataService, errorHandler);
-        recorder.setWrapped(spanEvent);
+        sut.setWrapped(spanEvent);
 
         final String exceptionMessage1 = "exceptionMessage1";
         final Exception exception1 = new Exception(exceptionMessage1);
-        recorder.recordException(false, exception1);
+        sut.recordException(false, exception1);
 
-        Assert.assertEquals("Exception recoding", exceptionMessage1, spanEvent.getExceptionInfo().getStringValue());
+        Assertions.assertEquals(spanEvent.getExceptionInfo().getStringValue(), exceptionMessage1, "Exception recoding");
         verify(shared, never()).maskErrorCode(anyInt());
 
 
         final String exceptionMessage2 = "exceptionMessage2";
         final Exception exception2 = new Exception(exceptionMessage2);
-        recorder.recordException(true, exception2);
+        sut.recordException(true, exception2);
 
-        Assert.assertEquals("Exception recoding", exceptionMessage2, spanEvent.getExceptionInfo().getStringValue());
+        Assertions.assertEquals(spanEvent.getExceptionInfo().getStringValue(), exceptionMessage2, "Exception recoding");
         verify(shared, only()).maskErrorCode(1);
     }
 
     @Test
     public void testRecordAPIId() throws Exception {
         SpanEvent spanEvent = new SpanEvent();
-        WrappedSpanEventRecorder recorder = new WrappedSpanEventRecorder(traceRoot, asyncContextFactory, stringMetaDataService, sqlMetaDataService, errorHandler);
-        recorder.setWrapped(spanEvent);
+        sut.setWrapped(spanEvent);
 
 
         final int API_ID = 1000;
-        recorder.recordApiId(API_ID);
+        sut.recordApiId(API_ID);
 
-        Assert.assertEquals("API ID", spanEvent.getApiId(), API_ID);
+        Assertions.assertEquals(spanEvent.getApiId(), API_ID, "API ID");
     }
-
-
 }

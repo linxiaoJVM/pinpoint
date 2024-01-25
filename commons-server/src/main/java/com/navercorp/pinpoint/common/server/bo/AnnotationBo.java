@@ -21,17 +21,27 @@ package com.navercorp.pinpoint.common.server.bo;
  */
 public class AnnotationBo {
 
-    private int key;
-    private Object value;
+    private final int key;
+    private final Object value;
 
-    private boolean isAuthorized = true;
+    private final boolean isAuthorized;
 
-    public AnnotationBo() {
+    public static AnnotationBo of(int key, Object value) {
+        return of(key, value, true);
     }
 
-    public AnnotationBo(int key, Object value) {
+    public static AnnotationBo of(int key, Object value, boolean isAuthorized) {
+        return new AnnotationBo(key, value, isAuthorized);
+    }
+
+    public static AnnotationBo unauthorized(int key, Object value) {
+        return of(key, value, false);
+    }
+
+    AnnotationBo(int key, Object value, boolean isAuthorized) {
         this.key = key;
         this.value = value;
+        this.isAuthorized = isAuthorized;
     }
 
     public int getKey() {
@@ -39,25 +49,13 @@ public class AnnotationBo {
     }
 
 
-    public void setKey(int key) {
-        this.key = key;
-    }
-
-
     public Object getValue() {
         return value;
     }
 
-    public void setValue(Object value) {
-        this.value = value;
-    }
 
     public boolean isAuthorized() {
         return isAuthorized;
-    }
-
-    public void setAuthorized(boolean isAuthorized) {
-        this.isAuthorized = isAuthorized;
     }
 
 

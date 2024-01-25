@@ -16,29 +16,17 @@
 
 package com.navercorp.pinpoint.profiler.context.annotation;
 
-import com.navercorp.pinpoint.grpc.trace.PAnnotationValue;
 import com.navercorp.pinpoint.profiler.context.Annotation;
-import com.navercorp.pinpoint.profiler.context.grpc.GrpcAnnotationSerializable;
-import com.navercorp.pinpoint.profiler.context.grpc.GrpcAnnotationValueMapper;
-import com.navercorp.pinpoint.profiler.context.thrift.AnnotationValueThriftMapper;
-import com.navercorp.pinpoint.profiler.context.thrift.ThriftAnnotationSerializable;
-import com.navercorp.pinpoint.thrift.dto.TAnnotationValue;
 
 /**
  * @author emeroad
  */
-public class NullAnnotation<T> implements Annotation<T>,
-        GrpcAnnotationSerializable, ThriftAnnotationSerializable {
+public class NullAnnotation<T> implements Annotation<T> {
 
     private final int key;
 
     NullAnnotation(int key) {
         this.key = key;
-    }
-
-    @Override
-    public int getAnnotationKey() {
-        return getKey();
     }
 
     @Override
@@ -48,17 +36,6 @@ public class NullAnnotation<T> implements Annotation<T>,
 
     @Override
     public T getValue() {
-        return null;
-    }
-
-
-    @Override
-    public PAnnotationValue apply(GrpcAnnotationValueMapper context) {
-        return null;
-    }
-
-    @Override
-    public TAnnotationValue apply(AnnotationValueThriftMapper context) {
         return null;
     }
 

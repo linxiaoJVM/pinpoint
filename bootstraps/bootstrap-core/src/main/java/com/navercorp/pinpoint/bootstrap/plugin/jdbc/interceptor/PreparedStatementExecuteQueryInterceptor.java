@@ -63,9 +63,7 @@ public class PreparedStatementExecuteQueryInterceptor extends SpanEventSimpleAro
             databaseInfo = UnKnownDatabaseInfo.INSTANCE;
         }
 
-        recorder.recordServiceType(databaseInfo.getExecuteQueryType());
-        recorder.recordEndPoint(databaseInfo.getMultipleHost());
-        recorder.recordDestinationId(databaseInfo.getDatabaseId());
+        recorder.recordDatabaseInfo(databaseInfo, true);
 
         ParsingResult parsingResult = null;
         if (target instanceof ParsingResultAccessor) {
@@ -93,7 +91,7 @@ public class PreparedStatementExecuteQueryInterceptor extends SpanEventSimpleAro
 
     private void clean(Object target) {
         if (target instanceof BindValueAccessor) {
-            ((BindValueAccessor)target)._$PINPOINT$_setBindValue(new HashMap<Integer, String>());
+            ((BindValueAccessor) target)._$PINPOINT$_setBindValue(new HashMap<>());
         }
     }
 

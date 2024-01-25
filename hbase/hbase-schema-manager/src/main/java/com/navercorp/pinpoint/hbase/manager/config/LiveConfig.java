@@ -19,18 +19,17 @@ package com.navercorp.pinpoint.hbase.manager.config;
 import com.navercorp.pinpoint.common.hbase.AdminFactory;
 import com.navercorp.pinpoint.common.hbase.HBaseAdminTemplate;
 import com.navercorp.pinpoint.common.hbase.HbaseAdminOperation;
-import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
+import com.navercorp.pinpoint.common.hbase.HbaseOperations;
 import com.navercorp.pinpoint.hbase.manager.ProgramOptions;
 import com.navercorp.pinpoint.hbase.schema.dao.SchemaChangeLogDao;
 import com.navercorp.pinpoint.hbase.schema.dao.hbase.HbaseSchemaChangeLogDao;
 import com.navercorp.pinpoint.hbase.schema.dao.hbase.codec.SchemaChangeLogCodec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.annotation.PostConstruct;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import javax.annotation.PostConstruct;
 
 /**
  * @author HyunGil Jeong
@@ -39,7 +38,7 @@ import javax.annotation.PostConstruct;
 @ConditionalOnProperty(value = ProgramOptions.DRY_RUN, havingValue = "false", matchIfMissing = true)
 public class LiveConfig {
 
-    private final Logger logger = LoggerFactory.getLogger(LiveConfig.class);
+    private final Logger logger = LogManager.getLogger(LiveConfig.class);
 
     @PostConstruct
     public void init() {
@@ -53,8 +52,8 @@ public class LiveConfig {
 
     @Bean
     public SchemaChangeLogDao schemaChangeLogDao(HbaseAdminOperation hbaseAdminOperation,
-                                                 HbaseOperations2 hbaseOperations2,
+                                                 HbaseOperations hbaseOperations,
                                                  SchemaChangeLogCodec schemaChangeLogCodec) {
-        return new HbaseSchemaChangeLogDao(hbaseAdminOperation, hbaseOperations2, schemaChangeLogCodec);
+        return new HbaseSchemaChangeLogDao(hbaseAdminOperation, hbaseOperations, schemaChangeLogCodec);
     }
 }

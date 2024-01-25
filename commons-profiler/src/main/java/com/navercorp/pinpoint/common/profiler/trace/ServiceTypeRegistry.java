@@ -41,7 +41,7 @@ public class ServiceTypeRegistry implements ServiceTypeLocator {
 
     private final Map<String, List<ServiceType>> descLookupTable;
 
-    private ServiceTypeRegistry(HashMap<Integer, ServiceType> buildMap) {
+    private ServiceTypeRegistry(Map<Integer, ServiceType> buildMap) {
         Objects.requireNonNull(buildMap, "buildMap");
 
         this.codeLookupTable = IntHashMapUtils.copy(buildMap);
@@ -91,11 +91,7 @@ public class ServiceTypeRegistry implements ServiceTypeLocator {
 
         for (ServiceType serviceType : serviceTypes) {
             if (serviceType.isRecordStatistics() || serviceType.isAlias()) {
-                List<ServiceType> serviceTypeList = table.get(serviceType.getDesc());
-                if (serviceTypeList == null) {
-                    serviceTypeList = new ArrayList<>();
-                    table.put(serviceType.getDesc(), serviceTypeList);
-                }
+                List<ServiceType> serviceTypeList = table.computeIfAbsent(serviceType.getDesc(), k -> new ArrayList<>());
                 serviceTypeList.add(serviceType);
             }
         }
@@ -115,7 +111,7 @@ public class ServiceTypeRegistry implements ServiceTypeLocator {
 
     static class Builder {
 
-        private final HashMap<Integer, ServiceType> buildMap = new HashMap<>();
+        private final Map<Integer, ServiceType> buildMap = new HashMap<>();
 
         void addServiceType(ServiceType serviceType) {
             Objects.requireNonNull(serviceType, "serviceType");

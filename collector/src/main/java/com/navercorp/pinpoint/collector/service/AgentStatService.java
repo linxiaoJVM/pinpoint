@@ -16,10 +16,11 @@
 package com.navercorp.pinpoint.collector.service;
 
 import com.navercorp.pinpoint.common.server.bo.stat.AgentStatBo;
+import jakarta.validation.Valid;
 
 /**
  * @author minwoo.jung
  */
 public interface AgentStatService {
-    void save(AgentStatBo agentStatBo);
+    void save(@Valid AgentStatBo agentStatBo);
 }

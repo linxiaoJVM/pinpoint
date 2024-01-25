@@ -16,37 +16,34 @@
 
 package com.navercorp.pinpoint.batch.alarm.checker;
 
-import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
+import com.navercorp.pinpoint.batch.alarm.collector.DataSourceDataCollector;
 import com.navercorp.pinpoint.common.server.bo.stat.DataSourceBo;
 import com.navercorp.pinpoint.common.server.bo.stat.DataSourceListBo;
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.common.trace.ServiceType;
-import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.web.alarm.CheckerCategory;
-import com.navercorp.pinpoint.batch.alarm.collector.DataSourceDataCollector;
+import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
-import com.navercorp.pinpoint.web.dao.ApplicationIndexDao;
 import com.navercorp.pinpoint.web.dao.stat.AgentStatDao;
-import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.Range;
 import org.apache.commons.lang3.RandomUtils;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 /**
  * @author Taejin Koo
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class DataSourceConnectionUsageRateCheckerTest {
 
     private static final String APPLICATION_NAME = "local_service";
@@ -58,25 +55,23 @@ public class DataSourceConnectionUsageRateCheckerTest {
     private static final long INTERVAL_MILLIS = 300000;
     private static final long START_TIME_MILLIS = CURRENT_TIME_MILLIS - INTERVAL_MILLIS;
 
+    private static final List<String> mockAgentIds = List.of(AGENT_ID);
+
 
     private static final long TIMESTAMP_INTERVAL = 5000L;
 
     @Mock
     private AgentStatDao<DataSourceListBo> mockDataSourceDao;
 
-    @Mock
-    private ApplicationIndexDao mockApplicationIndexDao;
-
-    @Before
+    @BeforeEach
     public void before() {
-        when(mockApplicationIndexDao.selectAgentIds(APPLICATION_NAME)).thenReturn(Arrays.asList(AGENT_ID));
-
         Range range = Range.newUncheckedRange(START_TIME_MILLIS, CURRENT_TIME_MILLIS);
 
-        List<DataSourceListBo> dataSourceListBoList = new ArrayList<>();
-        dataSourceListBoList.add(createDataSourceListBo(1, 30, 40, 3));
-        dataSourceListBoList.add(createDataSourceListBo(2, 25, 40, 3));
-        dataSourceListBoList.add(createDataSourceListBo(3, 10, 40, 3));
+        List<DataSourceListBo> dataSourceListBoList = List.of(
+                createDataSourceListBo(1, 30, 40, 3),
+                createDataSourceListBo(2, 25, 40, 3),
+                createDataSourceListBo(3, 10, 40, 3)
+        );
 
         when(mockDataSourceDao.getAgentStatList(AGENT_ID, range)).thenReturn(dataSourceListBoList);
     }
@@ -84,35 +79,33 @@ public class DataSourceConnectionUsageRateCheckerTest {
     @Test
     public void checkTest1() {
         Rule rule = new Rule(APPLICATION_NAME, SERVICE_TYPE, CheckerCategory.ERROR_COUNT.getName(), 50, "testGroup", false, false, false, "");
-        Application application = new Application(APPLICATION_NAME, ServiceType.STAND_ALONE);
 
-        DataSourceDataCollector collector = new DataSourceDataCollector(DataCollectorCategory.DATA_SOURCE_STAT, application, mockDataSourceDao, mockApplicationIndexDao, CURRENT_TIME_MILLIS, INTERVAL_MILLIS);
+        DataSourceDataCollector collector = new DataSourceDataCollector(DataCollectorCategory.DATA_SOURCE_STAT, mockDataSourceDao, mockAgentIds, CURRENT_TIME_MILLIS, INTERVAL_MILLIS);
         DataSourceConnectionUsageRateChecker checker = new DataSourceConnectionUsageRateChecker(collector, rule);
         checker.check();
-        Assert.assertTrue(checker.isDetected());
+        Assertions.assertTrue(checker.isDetected());
 
-        String emailMessage = checker.getEmailMessage();
-        Assert.assertTrue(StringUtils.hasLength(emailMessage));
+        String emailMessage = checker.getEmailMessage("pinpointUrl", "applicationId", "serviceType", "currentTime");
+        Assertions.assertTrue(StringUtils.hasLength(emailMessage));
 
         List<String> smsMessage = checker.getSmsMessage();
-        Assert.assertEquals(2, smsMessage.size());
+        assertThat(smsMessage).hasSize(2);
     }
 
     @Test
     public void checkTest2() {
         Rule rule = new Rule(APPLICATION_NAME, SERVICE_TYPE, CheckerCategory.ERROR_COUNT.getName(), 80, "testGroup", false, false, false, "");
-        Application application = new Application(APPLICATION_NAME, ServiceType.STAND_ALONE);
 
-        DataSourceDataCollector collector = new DataSourceDataCollector(DataCollectorCategory.DATA_SOURCE_STAT, application, mockDataSourceDao, mockApplicationIndexDao, CURRENT_TIME_MILLIS, INTERVAL_MILLIS);
+        DataSourceDataCollector collector = new DataSourceDataCollector(DataCollectorCategory.DATA_SOURCE_STAT, mockDataSourceDao, mockAgentIds, CURRENT_TIME_MILLIS, INTERVAL_MILLIS);
         DataSourceConnectionUsageRateChecker checker = new DataSourceConnectionUsageRateChecker(collector, rule);
         checker.check();
-        Assert.assertFalse(checker.isDetected());
+        Assertions.assertFalse(checker.isDetected());
 
-        String emailMessage = checker.getEmailMessage();
-        Assert.assertTrue(StringUtils.isEmpty(emailMessage));
+        String emailMessage = checker.getEmailMessage("pinpointUrl", "applicationId", "serviceType", "currentTime");
+        Assertions.assertTrue(StringUtils.isEmpty(emailMessage));
 
         List<String> smsMessage = checker.getSmsMessage();
-        Assert.assertTrue(CollectionUtils.isEmpty(smsMessage));
+        assertThat(smsMessage).isEmpty();
     }
 
     private DataSourceListBo createDataSourceListBo(int id, int activeConnectionSize, int maxConnectionSize, int numValues) {

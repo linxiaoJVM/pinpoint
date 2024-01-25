@@ -17,13 +17,13 @@
 package com.navercorp.pinpoint.web.view;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.navercorp.pinpoint.common.server.util.json.JacksonWriterUtils;
 import com.navercorp.pinpoint.web.applicationmap.histogram.Histogram;
 import com.navercorp.pinpoint.web.applicationmap.histogram.NodeHistogram;
 import com.navercorp.pinpoint.web.applicationmap.nodes.NodeHistogramSummary;
-import com.navercorp.pinpoint.web.applicationmap.nodes.ServerInstanceList;
+import com.navercorp.pinpoint.web.applicationmap.nodes.ServerGroupList;
 import com.navercorp.pinpoint.web.vo.ResponseTimeStatics;
 
 import java.io.IOException;
@@ -36,12 +36,12 @@ import java.util.Map;
 public class NodeHistogramSummarySerializer extends JsonSerializer<NodeHistogramSummary> {
 
     @Override
-    public void serialize(NodeHistogramSummary nodeHistogramSummary, JsonGenerator jgen, SerializerProvider serializers) throws IOException, JsonProcessingException {
+    public void serialize(NodeHistogramSummary nodeHistogramSummary, JsonGenerator jgen, SerializerProvider serializers) throws IOException {
         jgen.writeStartObject();
         jgen.writeNumberField("currentServerTime", new ServerTime().getCurrentServerTime());
 
-        ServerInstanceList serverInstanceList = nodeHistogramSummary.getServerInstanceList();
-        jgen.writeObjectField("serverList", serverInstanceList);
+        ServerGroupList serverGroupList = nodeHistogramSummary.getServerGroupList();
+        jgen.writeObjectField("serverList", serverGroupList);
 
 
         writeHistogram(jgen, nodeHistogramSummary);
@@ -55,14 +55,14 @@ public class NodeHistogramSummarySerializer extends JsonSerializer<NodeHistogram
         ResponseTimeStatics responseTimeStatics = ResponseTimeStatics.fromHistogram(applicationHistogram);
         jgen.writeObjectField(ResponseTimeStatics.RESPONSE_STATISTICS, responseTimeStatics);
         if (applicationHistogram == null) {
-            writeEmptyObject(jgen, "histogram");
+            JacksonWriterUtils.writeEmptyObject(jgen, "histogram");
         } else {
             jgen.writeObjectField("histogram", applicationHistogram);
         }
         Map<String, Histogram> agentHistogramMap = nodeHistogram.getAgentHistogramMap();
         if (agentHistogramMap == null) {
-            writeEmptyObject(jgen, "agentHistogram");
-            writeEmptyObject(jgen, ResponseTimeStatics.AGENT_RESPONSE_STATISTICS);
+            JacksonWriterUtils.writeEmptyObject(jgen, "agentHistogram");
+            JacksonWriterUtils.writeEmptyObject(jgen, ResponseTimeStatics.AGENT_RESPONSE_STATISTICS);
         } else {
             jgen.writeObjectField("agentHistogram", agentHistogramMap);
             jgen.writeObjectField(ResponseTimeStatics.AGENT_RESPONSE_STATISTICS, nodeHistogram.getAgentResponseStatisticsMap());
@@ -70,7 +70,7 @@ public class NodeHistogramSummarySerializer extends JsonSerializer<NodeHistogram
 
         List<TimeViewModel> applicationTimeSeriesHistogram = nodeHistogram.getApplicationTimeHistogram(nodeHistogramSummary.getTimeHistogramFormat());
         if (applicationTimeSeriesHistogram == null) {
-            writeEmptyArray(jgen, "timeSeriesHistogram");
+            JacksonWriterUtils.writeEmptyArray(jgen, "timeSeriesHistogram");
         } else {
             jgen.writeObjectField("timeSeriesHistogram", applicationTimeSeriesHistogram);
         }
@@ -79,15 +79,4 @@ public class NodeHistogramSummarySerializer extends JsonSerializer<NodeHistogram
         jgen.writeObject(agentTimeSeriesHistogram);
     }
 
-    private void writeEmptyArray(JsonGenerator jgen, String fieldName) throws IOException {
-        jgen.writeFieldName(fieldName);
-        jgen.writeStartArray();
-        jgen.writeEndArray();
-    }
-
-    private void writeEmptyObject(JsonGenerator jgen, String fieldName) throws IOException {
-        jgen.writeFieldName(fieldName);
-        jgen.writeStartObject();
-        jgen.writeEndObject();
-    }
 }

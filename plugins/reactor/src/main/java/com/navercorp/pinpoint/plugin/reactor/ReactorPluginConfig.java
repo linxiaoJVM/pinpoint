@@ -18,7 +18,6 @@ package com.navercorp.pinpoint.plugin.reactor;
 
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -26,50 +25,95 @@ import java.util.Objects;
  */
 public class ReactorPluginConfig {
     private final boolean enable;
-    private final boolean traceSubscribeError;
-    private final List<String> traceSubscribeErrorExcludeMessageList;
-    private final boolean traceSchedule;
-    private final boolean traceSchedulePeriodically;
+
+    private final boolean traceOnError;
+    private final boolean tracePublishOn;
+    private final boolean traceSubscribeOn;
+    private final boolean traceDelay;
+    private final boolean traceInterval;
+    private final boolean traceRetry;
+    private final boolean traceTimeout;
+    private final boolean traceSubscribe;
+    private final boolean markErrorRetry;
+    private final boolean markErrorOnError;
 
     public ReactorPluginConfig(ProfilerConfig config) {
         Objects.requireNonNull(config, "config");
 
         // plugin
         this.enable = config.readBoolean("profiler.reactor.enable", true);
-        this.traceSubscribeError = config.readBoolean("profiler.reactor.trace.subscribe.error", true);
-        this.traceSubscribeErrorExcludeMessageList = config.readList("profiler.reactor.trace.subscribe.error.exclude.message");
-        this.traceSchedule = config.readBoolean("profiler.reactor.trace.schedule", true);
-        this.traceSchedulePeriodically = config.readBoolean("profiler.reactor.trace.schedule.periodically", false);
+        this.traceOnError = config.readBoolean("profiler.reactor.trace.onError", false);
+        this.markErrorOnError = config.readBoolean("profiler.reactor.mark.error.onError", false);
+        this.tracePublishOn = config.readBoolean("profiler.reactor.trace.publishOn", true);
+        this.traceSubscribeOn = config.readBoolean("profiler.reactor.trace.subscribeOn", true);
+        this.traceDelay = config.readBoolean("profiler.reactor.trace.delay", true);
+        this.traceInterval = config.readBoolean("profiler.reactor.trace.interval", true);
+
+        this.traceRetry = config.readBoolean("profiler.reactor.trace.retry", true);
+        this.markErrorRetry = config.readBoolean("profiler.reactor.mark.error.retry", false);
+
+        this.traceTimeout = config.readBoolean("profiler.reactor.trace.timeout", true);
+        this.traceSubscribe = config.readBoolean("profiler.reactor.trace.subscribe", true);
     }
 
     public boolean isEnable() {
         return enable;
     }
 
-    public boolean isTraceSubscribeError() {
-        return traceSubscribeError;
+    public boolean isTraceOnError() {
+        return traceOnError;
     }
 
-    public List<String> getTraceSubscribeErrorExcludeMessageList() {
-        return traceSubscribeErrorExcludeMessageList;
+    public boolean isTracePublishOn() {
+        return tracePublishOn;
     }
 
-    public boolean isTraceSchedule() {
-        return traceSchedule;
+    public boolean isTraceSubscribeOn() {
+        return traceSubscribeOn;
     }
 
-    public boolean isTraceSchedulePeriodically() {
-        return traceSchedulePeriodically;
+    public boolean isTraceDelay() {
+        return traceDelay;
+    }
+
+    public boolean isTraceInterval() {
+        return traceInterval;
+    }
+
+    public boolean isTraceRetry() {
+        return traceRetry;
+    }
+
+    public boolean isTraceTimeout() {
+        return traceTimeout;
+    }
+
+    public boolean isTraceSubscribe() {
+        return traceSubscribe;
+    }
+
+    public boolean isMarkErrorRetry() {
+        return markErrorRetry;
+    }
+
+    public boolean isMarkErrorOnError() {
+        return markErrorOnError;
     }
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("ReactorPluginConfig{");
-        sb.append("enable=").append(enable);
-        sb.append(", traceSubscribeError=").append(traceSubscribeError);
-        sb.append(", traceSubscribeErrorExcludeMessageList=").append(traceSubscribeErrorExcludeMessageList);
-        sb.append(", traceSchedulePeriodically=").append(traceSchedulePeriodically);
-        sb.append('}');
-        return sb.toString();
+        return "ReactorPluginConfig{" +
+                "enable=" + enable +
+                ", traceOnError=" + traceOnError +
+                ", tracePublishOn=" + tracePublishOn +
+                ", traceSubscribeOn=" + traceSubscribeOn +
+                ", traceDelay=" + traceDelay +
+                ", traceInterval=" + traceInterval +
+                ", traceRetry=" + traceRetry +
+                ", traceTimeout=" + traceTimeout +
+                ", traceSubscribe=" + traceSubscribe +
+                ", markErrorRetry=" + markErrorRetry +
+                ", markErrorOnError=" + markErrorOnError +
+                '}';
     }
 }

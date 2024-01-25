@@ -35,9 +35,14 @@ public class TomcatConfig {
 
     private final boolean traceRequestParam;
     private final Filter<String> excludeUrlFilter;
+    private final Filter<String> traceExcludeMethodFilter;
     private final String realIpHeader;
     private final String realIpEmptyValue;
     private final Filter<String> excludeProfileMethodFilter;
+
+    private final boolean uriStatEnable;
+    private final boolean uriStatUseUserInput;
+    private final boolean uriStatCollectMethod;
 
     public TomcatConfig(ProfilerConfig config) {
         Objects.requireNonNull(config, "config");
@@ -50,9 +55,14 @@ public class TomcatConfig {
         this.hidePinpointHeader = serverConfig.isHidePinpointHeader("profiler.tomcat.hidepinpointheader");
         this.traceRequestParam = serverConfig.isTraceRequestParam("profiler.tomcat.tracerequestparam");
         this.excludeUrlFilter = serverConfig.getExcludeUrlFilter("profiler.tomcat.excludeurl");
+        this.traceExcludeMethodFilter = serverConfig.getTraceExcludeMethodFilter("profiler.tomcat.trace.excludemethod");
         this.realIpHeader = serverConfig.getRealIpHeader("profiler.tomcat.realipheader");
         this.realIpEmptyValue = serverConfig.getRealIpEmptyValue("profiler.tomcat.realipemptyvalue");
         this.excludeProfileMethodFilter = serverConfig.getExcludeMethodFilter("profiler.tomcat.excludemethod");
+        // uri stat
+        this.uriStatEnable = config.readBoolean("profiler.uri.stat.enable", true);
+        this.uriStatUseUserInput = config.readBoolean("profiler.uri.stat.tomcat.useuserinput", false);
+        this.uriStatCollectMethod = config.readBoolean("profiler.uri.stat.collect.http.method", false);
     }
 
     public boolean isEnable() {
@@ -75,6 +85,10 @@ public class TomcatConfig {
         return excludeUrlFilter;
     }
 
+    public Filter<String> getTraceExcludeMethodFilter() {
+        return traceExcludeMethodFilter;
+    }
+
     public String getRealIpHeader() {
         return realIpHeader;
     }
@@ -87,6 +101,18 @@ public class TomcatConfig {
         return excludeProfileMethodFilter;
     }
 
+    public boolean isUriStatEnable() {
+        return uriStatEnable;
+    }
+
+    public boolean isUriStatUseUserInput() {
+        return uriStatUseUserInput;
+    }
+
+    public boolean isUriStatCollectMethod() {
+        return uriStatCollectMethod;
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("TomcatConfig{");
@@ -95,10 +121,12 @@ public class TomcatConfig {
         sb.append(", hidePinpointHeader=").append(hidePinpointHeader);
         sb.append(", traceRequestParam=").append(traceRequestParam);
         sb.append(", excludeUrlFilter=").append(excludeUrlFilter);
+        sb.append(", traceExcludeMethodFilter=").append(traceExcludeMethodFilter);
         sb.append(", realIpHeader='").append(realIpHeader).append('\'');
         sb.append(", realIpEmptyValue='").append(realIpEmptyValue).append('\'');
         sb.append(", excludeProfileMethodFilter=").append(excludeProfileMethodFilter);
         sb.append('}');
         return sb.toString();
     }
+
 }

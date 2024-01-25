@@ -17,7 +17,6 @@
 package com.navercorp.pinpoint.web.filter;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,8 +33,8 @@ import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
@@ -47,7 +46,7 @@ import org.springframework.util.Assert;
 @Component
 public class DefaultFilterBuilder implements FilterBuilder<List<SpanBo>> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final ObjectReader filterHintReader;
     private final ObjectReader filterDescriptorReader;
@@ -103,11 +102,8 @@ public class DefaultFilterBuilder implements FilterBuilder<List<SpanBo>> {
         if (value == null) {
             return null;
         }
-        try {
-            return URLDecoder.decode(value, StandardCharsets.UTF_8.name());
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalArgumentException("UTF8 decodeFail. value:" + value);
-        }
+
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
 
     private Filter<List<SpanBo>> makeFilterFromJson(String jsonFilterText) {

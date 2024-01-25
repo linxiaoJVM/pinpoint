@@ -16,29 +16,27 @@
 
 package com.navercorp.pinpoint.bootstrap.util.spring;
 
-import org.junit.Assert;
-
-import org.junit.Test;
-
-import com.navercorp.pinpoint.bootstrap.util.spring.PropertyPlaceholderHelper;
+import com.navercorp.pinpoint.common.config.util.spring.PropertyPlaceholderHelper;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
 public class PropertyPlaceholderHelperTest {
 
     @Test
-    public void testReplacePlaceholders() throws Exception {
+    public void testReplacePlaceholders() {
         Properties properties = new Properties();
         properties.setProperty("test", "a");
 
         PropertyPlaceholderHelper helper = new PropertyPlaceholderHelper("${", "}");
         String value1 = helper.replacePlaceholders("${test}", properties);
-        Assert.assertEquals("a", value1);
+        Assertions.assertEquals("a", value1);
 
         String value2 = helper.replacePlaceholders("123${test}456", properties);
-        Assert.assertEquals("123a456", value2);
+        Assertions.assertEquals("123a456", value2);
 
         String value3 = helper.replacePlaceholders("123${test}456${test}", properties);
-        Assert.assertEquals("123a456a", value3);
+        Assertions.assertEquals("123a456a", value3);
     }
 }

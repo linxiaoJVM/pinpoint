@@ -16,7 +16,8 @@
 
 package com.navercorp.pinpoint.profiler.monitor;
 
-import org.junit.Ignore;
+import com.navercorp.pinpoint.common.util.CollectionUtils;
+import org.junit.jupiter.api.Disabled;
 
 import java.util.Set;
 
@@ -28,10 +29,10 @@ public class DeadlockMonitorJobTest {
     private static final long DEADLOCK_TIME = 5000;
 
 
-    private Object lock1 = new Object();
-    private Object lock2 = new Object();
+    private final Object lock1 = new Object();
+    private final Object lock2 = new Object();
 
-    @Ignore
+    @Disabled
 //    @Test
     public void testName() throws Exception {
         Thread thread1 = null;
@@ -57,7 +58,7 @@ public class DeadlockMonitorJobTest {
 
         while (true) {
             Set<Long> deadlockedThreadIdSet = registry.getDeadlockedThreadIdSet();
-            if (deadlockedThreadIdSet != null && deadlockedThreadIdSet.size() > 0) {
+            if (CollectionUtils.hasLength(deadlockedThreadIdSet)) {
                 System.out.println(deadlockedThreadIdSet);
                 break;
             }

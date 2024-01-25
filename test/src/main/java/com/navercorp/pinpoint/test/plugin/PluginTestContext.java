@@ -14,7 +14,6 @@
  */
 package com.navercorp.pinpoint.test.plugin;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -26,51 +25,45 @@ public class PluginTestContext {
     private final String profile;
     private final String configFile;
     private final String logLocationConfig;
-
-    private final List<String> requiredLibraries;
-    private final List<String> mavenDependencyLibraries;
     private final List<String> repositoryUrls;
     private final Class<?> testClass;
     private final String testClassLocation;
 
-    private final String[] jvmArguments;
+    private final List<String> jvmArguments;
     private final boolean debug;
 
-    private final int jvmVersion;
-    private final String javaExecutable;
-
     private final List<String> importPluginIds;
+    private final List<String> transformIncludeList;
+    private final List<String> agentLibList;
+    private final List<String> sharedLibList;
+    private final List<String> junitLibList;
+    private final boolean manageTraceObject;
 
     public PluginTestContext(String agentJar, String profile, String configFile, String logLocationConfig,
-                             List<String> requiredLibraries, List<String> mavenDependencyLibraries, List<String> repositoryUrls,
-                             Class<?> testClass, String testClassLocation, String[] jvmArguments,
-                             boolean debug, int jvmVersion,
-                             String javaExecutable, List<String> importPluginIds) {
+                             List<String> repositoryUrls,
+                             Class<?> testClass, String testClassLocation, List<String> jvmArguments,
+                             boolean debug,
+                             List<String> importPluginIds, boolean manageTraceObject, List<String> transformIncludeList, List<String> agentLibList, List<String> sharedLibList, List<String> junitLibList) {
         this.agentJar = agentJar;
         this.profile = profile;
         this.configFile = configFile;
         this.logLocationConfig = logLocationConfig;
-        this.requiredLibraries = requiredLibraries;
-        this.mavenDependencyLibraries = mavenDependencyLibraries;
         this.repositoryUrls = repositoryUrls;
         this.testClass = testClass;
         this.testClassLocation = testClassLocation;
         this.jvmArguments = jvmArguments;
         this.debug = debug;
-        this.jvmVersion = jvmVersion;
-        this.javaExecutable = javaExecutable;
         this.importPluginIds = importPluginIds;
+        this.manageTraceObject = manageTraceObject;
+        this.transformIncludeList = transformIncludeList;
+        this.agentLibList = agentLibList;
+        this.sharedLibList = sharedLibList;
+        this.junitLibList = junitLibList;
     }
 
-    public List<String> getRequiredLibraries() {
-        return requiredLibraries;
+    public List<String> getRepositoryUrls() {
+        return repositoryUrls;
     }
-
-    public List<String> getMavenDependencyLibraries() {
-        return mavenDependencyLibraries;
-    }
-
-    public List<String> getRepositoryUrls() { return repositoryUrls; }
 
     public String getTestClassLocation() {
         return testClassLocation;
@@ -92,12 +85,8 @@ public class PluginTestContext {
         return logLocationConfig;
     }
 
-    public String[] getJvmArguments() {
+    public List<String> getJvmArguments() {
         return jvmArguments;
-    }
-
-    public int getJvmVersion() {
-        return jvmVersion;
     }
 
     public boolean isDebug() {
@@ -108,32 +97,27 @@ public class PluginTestContext {
         return testClass;
     }
 
-    public String getJavaExecutable() {
-        return javaExecutable;
-    }
-
     public List<String> getImportPluginIds() {
         return importPluginIds;
     }
 
-    @Override
-    public String toString() {
-        return "PinpointPluginTestContext{" +
-                "agentJar='" + agentJar + '\'' +
-                ", profile='" + profile + '\'' +
-                ", configFile='" + configFile + '\'' +
-                ", logLocationConfig='" + logLocationConfig + '\'' +
-                ", requiredLibraries=" + requiredLibraries +
-                ", mavenDependencyLibraries=" + mavenDependencyLibraries +
-                ", repositoryUrls=" + repositoryUrls +
-                ", testClass=" + testClass +
-                ", testClassLocation='" + testClassLocation + '\'' +
-                ", jvmArguments=" + Arrays.toString(jvmArguments) +
-                ", debug=" + debug +
-                ", jvmVersion=" + jvmVersion +
-                ", javaExecutable='" + javaExecutable + '\'' +
-                ", importPluginIds=" + importPluginIds +
-                '}';
+    public boolean isManageTraceObject() {
+        return manageTraceObject;
     }
 
+    public List<String> getTransformIncludeList() {
+        return transformIncludeList;
+    }
+
+    public List<String> getAgentLibList() {
+        return agentLibList;
+    }
+
+    public List<String> getSharedLibList() {
+        return sharedLibList;
+    }
+
+    public List<String> getJunitLibList() {
+        return junitLibList;
+    }
 }

@@ -18,6 +18,9 @@ package com.navercorp.pinpoint.common.server.bo;
 
 import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetaDataRowKey;
 import com.navercorp.pinpoint.common.util.LineNumber;
+import com.navercorp.pinpoint.common.util.StringUtils;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.Objects;
 
@@ -26,13 +29,14 @@ import java.util.Objects;
  * @author jaehong.kim
  */
 public class ApiMetaDataBo implements MetaDataRowKey {
-    private final String agentId;
-    private final long startTime;
+    @NotBlank private final String agentId;
+    @PositiveOrZero private final long startTime;
     private final int apiId;
 
     private final String apiInfo;
     private final int lineNumber;
     private final MethodTypeEnum methodTypeEnum;
+    private String location;
 
     public ApiMetaDataBo(String agentId, long startTime, int apiId, int lineNumber,
                          MethodTypeEnum methodTypeEnum, String apiInfo) {
@@ -42,6 +46,7 @@ public class ApiMetaDataBo implements MetaDataRowKey {
         this.lineNumber = lineNumber;
         this.apiInfo = apiInfo;
         this.methodTypeEnum = Objects.requireNonNull(methodTypeEnum, "methodTypeEnum");
+        this.location = null;
     }
 
     @Override
@@ -71,6 +76,10 @@ public class ApiMetaDataBo implements MetaDataRowKey {
         return methodTypeEnum;
     }
 
+    public String getLocation() {
+        return location;
+    }
+
     public String getDescription() {
         if (LineNumber.isLineNumber(lineNumber)) {
             return apiInfo + ":" + lineNumber;
@@ -82,14 +91,49 @@ public class ApiMetaDataBo implements MetaDataRowKey {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("ApiMetaDataBo{");
-        sb.append("agentId='").append(agentId).append('\'');
-        sb.append(", startTime=").append(startTime);
-        sb.append(", apiId=").append(apiId);
-        sb.append(", apiInfo='").append(apiInfo).append('\'');
-        sb.append(", lineNumber=").append(lineNumber);
-        sb.append(", methodTypeEnum=").append(methodTypeEnum);
-        sb.append('}');
-        return sb.toString();
+        return "ApiMetaDataBo{" +
+                "agentId='" + agentId + '\'' +
+                ", startTime=" + startTime +
+                ", apiId=" + apiId +
+                ", apiInfo='" + apiInfo + '\'' +
+                ", lineNumber=" + lineNumber +
+                ", methodTypeEnum=" + methodTypeEnum +
+                ", location='" + location + '\'' +
+                '}';
+    }
+
+    public static class Builder {
+        private final String agentId;
+        private final long startTime;
+        private final int apiId;
+        private final int lineNumber;
+        private final MethodTypeEnum methodTypeEnum;
+        private final String apiInfo;
+        private String location;
+
+        public Builder(String agentId, long startTime, int apiId, int lineNumber,
+                       MethodTypeEnum methodTypeEnum, String apiInfo) {
+            this.agentId = agentId;
+            this.startTime = startTime;
+            this.apiId = apiId;
+            this.lineNumber = lineNumber;
+            this.methodTypeEnum = methodTypeEnum;
+            this.apiInfo = apiInfo;
+            this.location = null;
+        }
+
+        public Builder setLocation(String location) {
+            if (StringUtils.isEmpty(location)) {
+                return this;
+            }
+            this.location = location;
+            return this;
+        }
+
+        public ApiMetaDataBo build() {
+            ApiMetaDataBo result = new ApiMetaDataBo(this.agentId, this.startTime, this.apiId, this.lineNumber, this.methodTypeEnum, this.apiInfo);
+            result.location = this.location;
+            return result;
+        }
     }
 }

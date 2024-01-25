@@ -16,14 +16,14 @@
 
 package com.navercorp.pinpoint.grpc.server;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ServerOptionTest {
 
     @Test
-    public void build() throws Exception {
+    public void build() {
         ServerOption.Builder builder = ServerOption.newBuilder();
         builder.setKeepAliveTime(1);
         builder.setKeepAliveTimeout(1);

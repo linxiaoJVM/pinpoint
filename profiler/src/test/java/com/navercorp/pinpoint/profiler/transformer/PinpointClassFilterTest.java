@@ -16,8 +16,8 @@
 
 package com.navercorp.pinpoint.profiler.transformer;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Woonduk Kang(emeroad)
@@ -25,29 +25,29 @@ import org.junit.Test;
 public class PinpointClassFilterTest {
 
     @Test
-    public void doFilter() throws Exception {
+    public void doFilter() {
 
         ClassFileFilter filter = new PinpointClassFilter();
 
-        Assert.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "java/test", null, null, null));
-        Assert.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "javax/test", null, null, null));
-        Assert.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "test", null, null, null));
+        Assertions.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "java/test", null, null, null));
+        Assertions.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "javax/test", null, null, null));
+        Assertions.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "test", null, null, null));
     }
 
     @Test
-    public void doFilter_Package() throws Exception {
+    public void doFilter_Package() {
 
         ClassFileFilter filter = new PinpointClassFilter();
 
-        Assert.assertEquals(ClassFileFilter.SKIP, filter.accept(null, "com/navercorp/pinpoint/", null, null, null));
+        Assertions.assertEquals(ClassFileFilter.SKIP, filter.accept(null, "com/navercorp/pinpoint/", null, null, null));
     }
 
     @Test
-    public void doFilter_Package_exclude() throws Exception {
+    public void doFilter_Package_exclude() {
 
         ClassFileFilter filter = new PinpointClassFilter();
 
-        Assert.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "com/navercorp/pinpoint/web/", null, null, null));
+        Assertions.assertEquals(ClassFileFilter.CONTINUE, filter.accept(null, "com/navercorp/pinpoint/web/", null, null, null));
 
     }
 }

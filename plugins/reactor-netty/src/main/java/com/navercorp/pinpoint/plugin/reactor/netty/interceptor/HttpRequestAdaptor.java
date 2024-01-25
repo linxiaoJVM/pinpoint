@@ -18,7 +18,6 @@ package com.navercorp.pinpoint.plugin.reactor.netty.interceptor;
 
 import com.navercorp.pinpoint.bootstrap.plugin.request.RequestAdaptor;
 import com.navercorp.pinpoint.common.plugin.util.HostAndPort;
-
 import io.netty.handler.codec.http.HttpHeaders;
 import reactor.netty.http.server.HttpServerRequest;
 
@@ -53,10 +52,16 @@ public class HttpRequestAdaptor implements RequestAdaptor<HttpServerRequest> {
     @Override
     public String getRpcName(HttpServerRequest request) {
         try {
-            return request.uri();
+            final String path = UriUtils.path(request.uri());
+            return path;
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    @Override
+    public String getMethodName(HttpServerRequest request) {
+        return request.method().name();
     }
 
     @Override

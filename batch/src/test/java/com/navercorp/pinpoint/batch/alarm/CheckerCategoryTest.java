@@ -17,35 +17,43 @@
 package com.navercorp.pinpoint.batch.alarm;
 
 import com.navercorp.pinpoint.batch.alarm.checker.SlowCountChecker;
+import com.navercorp.pinpoint.batch.configuration.AlarmCheckerConfiguration;
 import com.navercorp.pinpoint.web.alarm.CheckerCategory;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(
+        classes = AlarmCheckerConfiguration.class
+)
 public class CheckerCategoryTest {
-    private final CheckerRegistry registry = CheckerRegistry.newCheckerRegistry();
+
+    @Autowired
+    CheckerRegistry registry;
 
     @Test
-    public void createCheckerTest() {
-
-        CheckerCategory slowCount = CheckerCategory.getValue("slow count");
-        AlarmCheckerFactory checkerFactory = registry.getCheckerFactory(slowCount);
+    public void configuration() {
+        AlarmCheckerFactory checkerFactory = registry.getCheckerFactory(CheckerCategory.SLOW_COUNT);
 
         Rule rule = new Rule(null, "", CheckerCategory.SLOW_COUNT.getName(), 75, "testGroup", false, false, false, "");
         SlowCountChecker checker = (SlowCountChecker) checkerFactory.createChecker(null, rule);
         rule = new Rule(null, "", CheckerCategory.SLOW_COUNT.getName(), 63, "testGroup", false, false, false, "");
         SlowCountChecker checker2 = (SlowCountChecker) checkerFactory.createChecker(null, rule);
-        
+
         assertNotSame(checker, checker2);
-        
+
         assertNotNull(checker);
-        assertEquals(75, (int)checker.getRule().getThreshold());
-        
+        assertEquals(75, (int) checker.getRule().getThreshold());
+
         assertNotNull(checker2);
-        assertEquals(63, (int)checker2.getRule().getThreshold());
+        assertEquals(63, (int) checker2.getRule().getThreshold());
     }
-    
 }

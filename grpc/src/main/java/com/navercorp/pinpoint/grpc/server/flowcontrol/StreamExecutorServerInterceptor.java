@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.grpc.server.flowcontrol;
 
+import com.navercorp.pinpoint.common.profiler.logging.ThrottledLogger;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.grpc.Header;
 import io.grpc.Context;
@@ -24,8 +25,8 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -35,14 +36,15 @@ import java.util.concurrent.RejectedExecutionException;
  * @author jaehong.kim
  */
 public class StreamExecutorServerInterceptor implements ServerInterceptor {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
+    private final ThrottledLogger throttledLogger;
     private final String name;
     private final Executor executor;
     private final int initNumMessages;
     private final StreamExecutorRejectedExecutionRequestScheduler scheduler;
 
-    public StreamExecutorServerInterceptor(String name, final Executor executor, final int initNumMessages, final ScheduledExecutor scheduledExecutor,
-                                           RejectedExecutionListenerFactory listenerFactory) {
+    public StreamExecutorServerInterceptor(String name, final Executor executor, final int initNumMessages,
+                                           final ScheduledExecutor scheduledExecutor, RejectedExecutionListenerFactory listenerFactory, final long throttledLoggerRatio) {
         this.name = Objects.requireNonNull(name, "name");
 
         Objects.requireNonNull(executor, "executor");
@@ -55,6 +57,7 @@ public class StreamExecutorServerInterceptor implements ServerInterceptor {
         Objects.requireNonNull(listenerFactory, "listenerFactory");
 
         this.scheduler = new StreamExecutorRejectedExecutionRequestScheduler(scheduledExecutor, listenerFactory);
+        throttledLogger = ThrottledLogger.getLogger(logger, throttledLoggerRatio);
     }
 
     @Override
@@ -86,7 +89,7 @@ public class StreamExecutorServerInterceptor implements ServerInterceptor {
                 } catch (RejectedExecutionException ree) {
                     // Defense code, need log ?
                     scheduleListener.onRejectedExecution();
-                    logger.warn("Failed to request. Rejected execution, count={}", scheduleListener.getRejectedExecutionCount());
+                    throttledLogger.info("Failed to request. Rejected execution, count={}", scheduleListener.getRejectedExecutionCount());
                 }
             }
 

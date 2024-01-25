@@ -17,6 +17,10 @@
 package com.navercorp.pinpoint.common.server.bo.event;
 
 import com.navercorp.pinpoint.common.server.util.AgentEventType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+
+import java.util.Arrays;
 
 /**
  * @author HyunGil Jeong
@@ -27,9 +31,9 @@ public class AgentEventBo {
     public static final int CURRENT_VERSION = 1;
 
     private final byte version;
-    private final String agentId;
-    private final long startTimestamp;
-    private final long eventTimestamp;
+    @NotBlank private final String agentId;
+    @PositiveOrZero private final long startTimestamp;
+    @PositiveOrZero private final long eventTimestamp;
     private final AgentEventType eventType;
     private byte[] eventBody;
 
@@ -93,13 +97,13 @@ public class AgentEventBo {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("AgentEventBo{");
-        sb.append("version=").append(this.version);
-        sb.append(", agentId='").append(this.agentId).append('\'');
-        sb.append(", startTimestamp=").append(this.startTimestamp);
-        sb.append(", eventTimestamp=").append(this.eventTimestamp);
-        sb.append(", eventType='").append(this.getEventType().getDesc()).append('\'');
-        return sb.toString();
+        return "AgentEventBo{" +
+                "version=" + version +
+                ", agentId='" + agentId + '\'' +
+                ", startTimestamp=" + startTimestamp +
+                ", eventTimestamp=" + eventTimestamp +
+                ", eventType=" + eventType +
+                ", eventBody=" + Arrays.toString(eventBody) +
+                '}';
     }
-
 }

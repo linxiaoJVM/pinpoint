@@ -16,9 +16,9 @@
 
 package com.navercorp.pinpoint.bootstrap.config;
 
-import com.navercorp.pinpoint.bootstrap.config.util.ValueResolver;
 import com.navercorp.pinpoint.common.annotations.InterfaceAudience;
 import com.navercorp.pinpoint.common.annotations.VisibleForTesting;
+import com.navercorp.pinpoint.common.config.util.ValueResolver;
 
 import java.util.List;
 import java.util.Map;
@@ -45,6 +45,8 @@ public interface ProfilerConfig {
 
     int getMaxSqlBindValueSize();
 
+    String getGrpcStatLoggingPeriod();
+
     @InterfaceAudience.Private
     @VisibleForTesting
     boolean getStaticResourceCleanup();
@@ -54,6 +56,8 @@ public interface ProfilerConfig {
     String getInjectionModuleFactoryClazzName();
 
     String getApplicationNamespace();
+
+    List<String> getAgentClassloaderAdditionalLibs();
 
     String readString(String propertyName, String defaultValue);
 

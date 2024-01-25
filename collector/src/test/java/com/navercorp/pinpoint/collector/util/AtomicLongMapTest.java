@@ -18,10 +18,10 @@ package com.navercorp.pinpoint.collector.util;
 
 import com.google.common.util.concurrent.AtomicLongMap;
 import com.google.common.util.concurrent.Uninterruptibles;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -36,10 +36,10 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class AtomicLongMapTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
-    public void testIncrement() throws Exception {
+    public void testIncrement() {
         AtomicLongMap<String> cache = AtomicLongMap.create();
         cache.addAndGet("a", 1L);
         cache.addAndGet("a", 2L);
@@ -47,16 +47,16 @@ public class AtomicLongMapTest {
 
 
         Map<String, Long> remove = AtomicLongMapUtils.remove(cache);
-        Assert.assertEquals((long) remove.get("a"), 3L);
-        Assert.assertEquals((long) remove.get("b"), 5L);
+        Assertions.assertEquals((long) remove.get("a"), 3L);
+        Assertions.assertEquals((long) remove.get("b"), 5L);
 
         cache.addAndGet("a", 1L);
         Map<String, Long> remove2 = AtomicLongMapUtils.remove(cache);
-        Assert.assertEquals((long) remove2.get("a"), 1L);
+        Assertions.assertEquals((long) remove2.get("a"), 1L);
     }
 
     @Test
-    public void updateMax_update() throws Exception {
+    public void updateMax_update() {
         AtomicLongMap<String> cache = AtomicLongMap.create();
 
         final String key = "a";
@@ -64,11 +64,11 @@ public class AtomicLongMapTest {
         cache.put(key, 10);
         long updated = cache.accumulateAndGet(key, 12, Long::max);
 
-        Assert.assertEquals(12, updated);
+        Assertions.assertEquals(12, updated);
     }
 
     @Test
-    public void updateMax_fail() throws Exception {
+    public void updateMax_fail() {
         AtomicLongMap<String> cache = AtomicLongMap.create();
 
         final String key = "a";
@@ -76,7 +76,7 @@ public class AtomicLongMapTest {
         cache.put(key, 10);
         long updated = cache.accumulateAndGet(key, 9, Long::max);
 
-        Assert.assertEquals(10, updated);
+        Assertions.assertEquals(10, updated);
     }
 
     //    @Test
@@ -140,7 +140,7 @@ public class AtomicLongMapTest {
 
         executorService.shutdown();
         logger.debug("total={} sum:{}", totalCounter.get(), sumCounter.get());
-        Assert.assertEquals("concurrent remove and increment", totalCounter.get(), sumCounter.get());
+        Assertions.assertEquals(totalCounter.get(), sumCounter.get(), "concurrent remove and increment");
 
 
     }

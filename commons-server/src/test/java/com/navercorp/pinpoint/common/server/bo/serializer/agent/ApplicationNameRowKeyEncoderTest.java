@@ -3,20 +3,13 @@ package com.navercorp.pinpoint.common.server.bo.serializer.agent;
 import com.navercorp.pinpoint.common.PinpointConstants;
 import com.navercorp.pinpoint.common.util.BytesUtils;
 import com.navercorp.pinpoint.common.util.TimeUtils;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-
 public class ApplicationNameRowKeyEncoderTest {
-
-    @Test
-    public void app() {
-
-    }
-
 
     @Test
     public void testGetTraceIndexRowKeyWhiteSpace() {
@@ -34,10 +27,7 @@ public class ApplicationNameRowKeyEncoderTest {
 
     @Test
     public void testGetTraceIndexRowKey2() {
-        String applicationName = "";
-        for (int i = 0; i < PinpointConstants.APPLICATION_NAME_MAX_LEN; i++) {
-            applicationName += "1";
-        }
+        final String applicationName = "1".repeat(PinpointConstants.APPLICATION_NAME_MAX_LEN);
 
         long time = System.currentTimeMillis();
         check(applicationName, time);
@@ -45,17 +35,12 @@ public class ApplicationNameRowKeyEncoderTest {
 
     @Test
     public void testGetTraceIndexRowKey3() {
-        String applicationName = "";
-        for (int i = 0; i < PinpointConstants.APPLICATION_NAME_MAX_LEN + 1; i++) {
-            applicationName += "1";
-        }
+        final String applicationName = "1".repeat(PinpointConstants.APPLICATION_NAME_MAX_LEN + 1);
 
-        long time = System.currentTimeMillis();
-        try {
+        Assertions.assertThrowsExactly(IndexOutOfBoundsException.class, () -> {
+            long time = System.currentTimeMillis();
             check(applicationName, time);
-            Assert.fail("error");
-        } catch (IndexOutOfBoundsException ignore) {
-        }
+        });
     }
 
     private void check(String applicationName, long l1) {
@@ -63,11 +48,11 @@ public class ApplicationNameRowKeyEncoderTest {
         byte[] traceIndexRowKey = encoder.encodeRowKey(applicationName, l1);
 
         String agentId = BytesUtils.toString(traceIndexRowKey, 0, PinpointConstants.APPLICATION_NAME_MAX_LEN).trim();
-        Assert.assertEquals(applicationName, agentId);
+        Assertions.assertEquals(applicationName, agentId);
 
         long time = toByteArray(Arrays.copyOfRange(traceIndexRowKey, PinpointConstants.APPLICATION_NAME_MAX_LEN, PinpointConstants.APPLICATION_NAME_MAX_LEN + 8));
         time = TimeUtils.recoveryTimeMillis(time);
-        Assert.assertEquals(time, l1);
+        Assertions.assertEquals(time, l1);
     }
 
     private long toByteArray(byte[] bytes) {

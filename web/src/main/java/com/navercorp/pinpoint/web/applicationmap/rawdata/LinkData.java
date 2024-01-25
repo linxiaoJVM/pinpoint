@@ -21,19 +21,15 @@ import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Application;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Objects;
 
 /**
- * application caller/callee relationship stored in DB
+ * application Out/In relationship stored in DB
  *
  * @author netspider
  * @author emeroad
  */
 public class LinkData {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final Application fromApplication;
     private final Application toApplication;
@@ -87,11 +83,11 @@ public class LinkData {
     }
 
     public AgentHistogramList getTargetList() {
-        return linkCallDataMap.getTargetList();
+        return linkCallDataMap.getOutLinkList();
     }
 
     public AgentHistogramList getSourceList() {
-        return linkCallDataMap.getSourceList();
+        return linkCallDataMap.getInLinkList();
     }
 
     public void add(final LinkData linkData) {

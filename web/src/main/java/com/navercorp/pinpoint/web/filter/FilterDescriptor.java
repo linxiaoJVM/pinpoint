@@ -21,16 +21,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.navercorp.pinpoint.common.util.StringUtils;
-import org.apache.commons.codec.binary.Base64;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Objects;
 
 /**
@@ -50,7 +49,7 @@ public class FilterDescriptor {
 
     public static class FilterDescriptorDeserializer extends JsonDeserializer<FilterDescriptor> {
         @Override
-        public FilterDescriptor deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+        public FilterDescriptor deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
             JsonNode jsonNode = p.readValueAsTree();
 
             FromNode fromNode = readValueAs(FromNode.class, jsonNode, p);
@@ -260,7 +259,9 @@ public class FilterDescriptor {
         if (urlPattern == null) {
             return null;
         }
-        return new String(Base64.decodeBase64(urlPattern), StandardCharsets.UTF_8);
+        Base64.Decoder urlDecoder = Base64.getUrlDecoder();
+        byte[] decode = urlDecoder.decode(urlPattern);
+        return new String(decode, StandardCharsets.ISO_8859_1);
     }
 
 

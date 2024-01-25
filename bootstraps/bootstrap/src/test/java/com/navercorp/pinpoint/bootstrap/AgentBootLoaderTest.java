@@ -19,13 +19,12 @@ package com.navercorp.pinpoint.bootstrap;
 
 import com.navercorp.pinpoint.bootstrap.config.DefaultProfilerConfig;
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Test;
 
 import java.lang.instrument.Instrumentation;
 import java.net.URL;
-
 import java.util.Collections;
 
 import static org.mockito.Mockito.mock;
@@ -35,7 +34,7 @@ import static org.mockito.Mockito.mock;
  */
 public class AgentBootLoaderTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
     public void boot() {
@@ -52,7 +51,7 @@ public class AgentBootLoaderTest {
         AgentBootLoader agentBootLoader = new AgentBootLoader("com.navercorp.pinpoint.bootstrap.DummyAgent", classLoader);
         Instrumentation instrumentation = mock(Instrumentation.class);
         AgentOption option = new DefaultAgentOption(instrumentation, "testCaseAgent", agentName, "testCaseAppName", false,
-                new DefaultProfilerConfig(), Collections.<String>emptyList(), Collections.<String>emptyList());
+                new DefaultProfilerConfig(), Collections.emptyList(), Collections.emptyList());
         Agent boot = agentBootLoader.boot(option);
         boot.start();
         boot.stop();

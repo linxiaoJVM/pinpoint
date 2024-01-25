@@ -16,16 +16,13 @@
 
 package com.navercorp.pinpoint.batch.alarm.collector;
 
-import com.navercorp.pinpoint.common.util.CollectionUtils;
-import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
 import com.navercorp.pinpoint.batch.alarm.vo.DataSourceAlarmVO;
 import com.navercorp.pinpoint.common.server.bo.stat.DataSourceBo;
 import com.navercorp.pinpoint.common.server.bo.stat.DataSourceListBo;
-import com.navercorp.pinpoint.web.dao.ApplicationIndexDao;
+import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.common.util.CollectionUtils;
+import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
 import com.navercorp.pinpoint.web.dao.stat.AgentStatDao;
-import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.Range;
-
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -37,12 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Taejin Koo
  */
 public class DataSourceDataCollector extends DataCollector {
-
-    private final Application application;
-
     private final AgentStatDao<DataSourceListBo> dataSourceDao;
-
-    private final ApplicationIndexDao applicationIndexDao;
+    private final List<String> agentIds;
     private final long timeSlotEndTime;
     private final long slotInterval;
 
@@ -50,13 +43,17 @@ public class DataSourceDataCollector extends DataCollector {
 
     private final AtomicBoolean init = new AtomicBoolean(false); // need to consider a race condition when checkers start simultaneously.
 
-    public DataSourceDataCollector(DataCollectorCategory dataCollectorCategory, Application application, AgentStatDao<DataSourceListBo> dataSourceDao, ApplicationIndexDao applicationIndexDao, long timeSlotEndTime, long slotInterval) {
+    public DataSourceDataCollector(
+            DataCollectorCategory dataCollectorCategory,
+            AgentStatDao<DataSourceListBo> dataSourceDao,
+            List<String> agentIds,
+            long timeSlotEndTime,
+            long slotInterval
+    ) {
         super(dataCollectorCategory);
-        this.application = application;
 
         this.dataSourceDao = dataSourceDao;
-
-        this.applicationIndexDao = applicationIndexDao;
+        this.agentIds = agentIds;
         this.timeSlotEndTime = timeSlotEndTime;
         this.slotInterval = slotInterval;
     }
@@ -68,7 +65,7 @@ public class DataSourceDataCollector extends DataCollector {
         }
 
         Range range = Range.newUncheckedRange(timeSlotEndTime - slotInterval, timeSlotEndTime);
-        List<String> agentIds = applicationIndexDao.selectAgentIds(application.getName());
+
         for (String agentId : agentIds) {
             List<DataSourceListBo> dataSourceListBos = dataSourceDao.getAgentStatList(agentId, range);
             MultiValueMap<Integer, DataSourceBo> partitions = partitionDataSourceId(dataSourceListBos);
@@ -86,6 +83,10 @@ public class DataSourceDataCollector extends DataCollector {
                             .average()
                             .orElse(-1);
                     DataSourceBo dataSourceBo = org.springframework.util.CollectionUtils.firstElement(dataSourceBoList);
+                    if (dataSourceBo == null) {
+                        continue;
+                    }
+
                     DataSourceAlarmVO dataSourceAlarmVO = new DataSourceAlarmVO(dataSourceBo.getId(), dataSourceBo.getDatabaseName(),
                             (int) Math.floor(activeConnectionAvg), (int) Math.floor(maxConnectionAvg));
 

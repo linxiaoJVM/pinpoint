@@ -16,34 +16,34 @@
 
 package com.navercorp.pinpoint.bootstrap.interceptor;
 
-import static org.mockito.Mockito.*;
-
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.navercorp.pinpoint.bootstrap.interceptor.registry.InterceptorRegistry;
 import com.navercorp.pinpoint.bootstrap.interceptor.registry.InterceptorRegistryAdaptor;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class InterceptorRegistryTest {
 
     private InterceptorRegistryAdaptor registryAdaptor;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         registryAdaptor = mock(InterceptorRegistryAdaptor.class);
 
         InterceptorRegistry.bind(registryAdaptor, null);
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         InterceptorRegistry.unbind(null);
     }
 
     @Test
-    public void testSimpleInterceptor() throws Exception {
+    public void testSimpleInterceptor() {
 
         AroundInterceptor simpleAroundInterceptor = mock(AroundInterceptor.class);
         when(registryAdaptor.getInterceptor(0)).thenReturn(simpleAroundInterceptor);
@@ -51,19 +51,19 @@ public class InterceptorRegistryTest {
 
         int findId = registryAdaptor.addInterceptor(simpleAroundInterceptor);
         Interceptor find = InterceptorRegistry.getInterceptor(findId);
-        Assert.assertSame(find, simpleAroundInterceptor);
+        Assertions.assertSame(find, simpleAroundInterceptor);
 
     }
 
     @Test
-    public void testStaticInterceptor() throws Exception {
+    public void testStaticInterceptor() {
 
         StaticAroundInterceptor staticAroundInterceptor = mock(StaticAroundInterceptor.class);
         when(registryAdaptor.getInterceptor(0)).thenReturn(staticAroundInterceptor);
 
         int findId = registryAdaptor.addInterceptor(staticAroundInterceptor);
         Interceptor find = InterceptorRegistry.getInterceptor(findId);
-        Assert.assertSame(find, staticAroundInterceptor);
+        Assertions.assertSame(find, staticAroundInterceptor);
 
     }
 }

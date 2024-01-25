@@ -21,15 +21,16 @@ import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
-import com.navercorp.pinpoint.bootstrap.context.scope.TraceScope;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
+import com.navercorp.pinpoint.bootstrap.util.ScopeUtils;
 
 import java.util.Objects;
 
 public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements AroundInterceptor {
     protected final PLogger logger = PLoggerFactory.getLogger(getClass());
     protected final boolean isDebug = logger.isDebugEnabled();
+    protected final boolean isTrace = logger.isTraceEnabled();
     protected static final String ASYNC_TRACE_SCOPE = AsyncContext.ASYNC_TRACE_SCOPE;
 
     protected final MethodDescriptor methodDescriptor;
@@ -47,7 +48,9 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
 
         final AsyncContext asyncContext = getAsyncContext(target, args);
         if (asyncContext == null) {
-            logger.debug("AsyncContext not found");
+            if (isTrace) {
+                logger.trace("AsyncContext not found");
+            }
             return;
         }
 
@@ -57,17 +60,21 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
         }
 
         // entry scope.
-        entryAsyncTraceScope(trace);
+        ScopeUtils.entryAsyncTraceScope(trace);
 
         try {
             // trace event for default & async.
             final SpanEventRecorder recorder = trace.traceBlockBegin();
+            beforeTrace(asyncContext, trace, recorder, target, args);
             doInBeforeTrace(recorder, asyncContext, target, args);
         } catch (Throwable th) {
             if (logger.isWarnEnabled()) {
                 logger.warn("BEFORE. Caused:{}", th.getMessage(), th);
             }
         }
+    }
+
+    protected void beforeTrace(final AsyncContext asyncContext, final Trace trace, final SpanEventRecorder recorder, final Object target, final Object[] args) {
     }
 
     protected abstract void doInBeforeTrace(SpanEventRecorder recorder, AsyncContext asyncContext, Object target, Object[] args);
@@ -80,7 +87,9 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
 
         final AsyncContext asyncContext = getAsyncContext(target, args, result, throwable);
         if (asyncContext == null) {
-            logger.debug("AsyncContext not found");
+            if (isTrace) {
+                logger.trace("AsyncContext not found");
+            }
             return;
         }
 
@@ -90,7 +99,7 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
         }
 
         // leave scope.
-        if (!leaveAsyncTraceScope(trace)) {
+        if (!ScopeUtils.leaveAsyncTraceScope(trace)) {
             if (logger.isWarnEnabled()) {
                 logger.warn("Failed to leave scope of async trace {}.", trace);
             }
@@ -101,6 +110,7 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
 
         try {
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
+            afterTrace(asyncContext, trace, recorder, target, args, result, throwable);
             doInAfterTrace(recorder, target, args, result, throwable);
         } catch (Throwable th) {
             if (logger.isWarnEnabled()) {
@@ -108,10 +118,13 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
             }
         } finally {
             trace.traceBlockEnd();
-            if (isAsyncTraceDestination(trace)) {
+            if (ScopeUtils.isAsyncTraceEndScope(trace)) {
                 deleteAsyncContext(trace, asyncContext);
             }
         }
+    }
+
+    protected void afterTrace(final AsyncContext asyncContext, final Trace trace, final SpanEventRecorder recorder, final Object target, final Object[] args, final Object result, final Throwable throwable) {
     }
 
     protected abstract void doInAfterTrace(SpanEventRecorder recorder, Object target, Object[] args, Object result, Throwable throwable);
@@ -127,8 +140,8 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
     private Trace getAsyncTrace(AsyncContext asyncContext) {
         final Trace trace = asyncContext.continueAsyncTraceObject();
         if (trace == null) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("Failed to continue async trace. 'result is null'");
+            if (isDebug) {
+                logger.debug("Failed to continue async trace. 'result is null'");
             }
             return null;
         }
@@ -146,34 +159,6 @@ public abstract class AsyncContextSpanEventSimpleAroundInterceptor implements Ar
 
         trace.close();
         asyncContext.close();
-    }
-
-    private void entryAsyncTraceScope(final Trace trace) {
-        final TraceScope scope = trace.getScope(ASYNC_TRACE_SCOPE);
-        if (scope != null) {
-            scope.tryEnter();
-        }
-    }
-
-    private boolean leaveAsyncTraceScope(final Trace trace) {
-        final TraceScope scope = trace.getScope(ASYNC_TRACE_SCOPE);
-        if (scope != null) {
-            if (scope.canLeave()) {
-                scope.leave();
-            } else {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean isAsyncTraceDestination(final Trace trace) {
-        if (!trace.isAsync()) {
-            return false;
-        }
-
-        final TraceScope scope = trace.getScope(ASYNC_TRACE_SCOPE);
-        return scope != null && !scope.isActive();
     }
 
 }

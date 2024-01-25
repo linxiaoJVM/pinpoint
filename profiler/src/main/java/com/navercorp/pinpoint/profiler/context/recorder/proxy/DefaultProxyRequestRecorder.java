@@ -19,21 +19,18 @@ package com.navercorp.pinpoint.profiler.context.recorder.proxy;
 import com.navercorp.pinpoint.bootstrap.context.SpanRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.proxy.ProxyRequestRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.RequestAdaptor;
-
-import java.util.Objects;
-
 import com.navercorp.pinpoint.common.util.StringUtils;
-import com.navercorp.pinpoint.profiler.context.DefaultTrace;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author jaehong.kim
  */
 public class DefaultProxyRequestRecorder<T> implements ProxyRequestRecorder<T> {
-    private static final Logger logger = LoggerFactory.getLogger(DefaultTrace.class.getName());
+    private static final Logger logger = LogManager.getLogger(DefaultProxyRequestRecorder.class);
     private final boolean isDebug = logger.isDebugEnabled();
 
     private final ProxyRequestParser[] proxyRequestParsers;

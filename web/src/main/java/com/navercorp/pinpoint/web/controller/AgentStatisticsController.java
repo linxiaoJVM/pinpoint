@@ -16,25 +16,30 @@
 
 package com.navercorp.pinpoint.web.controller;
 
+import com.navercorp.pinpoint.common.server.response.Response;
+import com.navercorp.pinpoint.common.server.response.SuccessResponse;
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.web.service.AgentStatisticsService;
 import com.navercorp.pinpoint.web.util.DateTimeUtils;
 import com.navercorp.pinpoint.web.vo.AgentCountStatistics;
-import com.navercorp.pinpoint.web.vo.Range;
+import jakarta.validation.constraints.PositiveOrZero;
+import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Comparator;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
  * @author Taejin Koo
  */
 @RestController
+@Validated
 public class AgentStatisticsController {
 
     private final AgentStatisticsService agentStatisticsService;
@@ -44,31 +49,23 @@ public class AgentStatisticsController {
     }
 
     @GetMapping(value = "/insertAgentCount", params = {"agentCount"})
-    public Map<String, String> insertAgentCount(@RequestParam("agentCount") int agentCount) {
+    public Response insertAgentCount(@RequestParam("agentCount") @PositiveOrZero int agentCount) {
         return insertAgentCount(agentCount, new Date().getTime());
     }
 
     @GetMapping(value = "/insertAgentCount", params = {"agentCount", "timestamp"})
-    public Map<String, String> insertAgentCount(@RequestParam("agentCount") int agentCount, @RequestParam("timestamp") long timestamp) {
-        if (timestamp < 0) {
-            Map<String, String> result = new HashMap<>();
-            result.put("result", "FAIL");
-            result.put("message", "negative timestamp.");
-            return result;
-        }
-
-        AgentCountStatistics agentCountStatistics = new AgentCountStatistics(agentCount, DateTimeUtils.timestampToStartOfDay(timestamp));
+    public Response insertAgentCount(
+            @RequestParam("agentCount") @PositiveOrZero int agentCount,
+            @RequestParam("timestamp") @PositiveOrZero long timestamp
+    ) {
+        AgentCountStatistics agentCountStatistics =
+                new AgentCountStatistics(agentCount, DateTimeUtils.timestampToStartOfDay(timestamp));
         boolean success = agentStatisticsService.insertAgentCount(agentCountStatistics);
 
         if (success) {
-            Map<String, String> result = new HashMap<>();
-            result.put("result", "SUCCESS");
-            return result;
+            return SuccessResponse.ok();
         } else {
-            Map<String, String> result = new HashMap<>();
-            result.put("result", "FAIL");
-            result.put("message", "insert DAO error.");
-            return result;
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "insert DAO error.");
         }
     }
 
@@ -78,13 +75,16 @@ public class AgentStatisticsController {
     }
 
     @GetMapping(value = "/selectAgentCount", params = {"to"})
-    public List<AgentCountStatistics> selectAgentCount(@RequestParam("to") long to) {
+    public List<AgentCountStatistics> selectAgentCount(@RequestParam("to") @PositiveOrZero long to) {
         return selectAgentCount(0L, to);
     }
 
     @GetMapping(value = "/selectAgentCount", params = {"from", "to"})
-    public List<AgentCountStatistics> selectAgentCount(@RequestParam("from") long from, @RequestParam("to") long to) {
-        Range range = Range.newRange(DateTimeUtils.timestampToStartOfDay(from), DateTimeUtils.timestampToStartOfDay(to));
+    public List<AgentCountStatistics> selectAgentCount(
+            @RequestParam("from") @PositiveOrZero long from,
+            @RequestParam("to")  @PositiveOrZero long to
+    ) {
+        Range range = Range.between(DateTimeUtils.timestampToStartOfDay(from), DateTimeUtils.timestampToStartOfDay(to));
         List<AgentCountStatistics> agentCountStatisticsList = agentStatisticsService.selectAgentCount(range);
 
         agentCountStatisticsList.sort(Comparator.comparingLong(AgentCountStatistics::getTimestamp).reversed());
@@ -92,5 +92,11 @@ public class AgentStatisticsController {
         return agentCountStatisticsList;
     }
 
+    @GetMapping(value = "/selectLatestAgentCount")
+    public List<AgentCountStatistics> selectLatestAgentCount(
+            @RequestParam(value = "size", defaultValue = "1") @PositiveOrZero int size
+    ) {
+        return agentStatisticsService.selectLatestAgentCount(size);
+    }
 
 }

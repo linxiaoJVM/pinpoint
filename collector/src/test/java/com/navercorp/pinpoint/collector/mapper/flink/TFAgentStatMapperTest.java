@@ -34,12 +34,13 @@ import com.navercorp.pinpoint.thrift.dto.flink.TFAgentStat;
 import com.navercorp.pinpoint.thrift.dto.flink.TFDataSource;
 import com.navercorp.pinpoint.thrift.dto.flink.TFJvmGc;
 import com.navercorp.pinpoint.thrift.dto.flink.TFResponseTime;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author minwoo.jung
@@ -74,30 +75,25 @@ public class TFAgentStatMapperTest {
         AgentStatBo agentStatBo = createCpuLoadBoList();
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(3, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(3);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
-        assertEquals(TEST_AGENT, tFAgentStat1.getAgentId());
-        assertEquals(startTimestamp, tFAgentStat1.getStartTimestamp());
-        assertEquals(collectTime1st, tFAgentStat1.getTimestamp());
-        assertEquals(4, tFAgentStat1.getCpuLoad().getJvmCpuLoad(), 0);
-        assertEquals(3, tFAgentStat1.getCpuLoad().getSystemCpuLoad(), 0);
+        assertCpu(tFAgentStat1, collectTime1st, 4, 3);
 
         TFAgentStat tFAgentStat2 = tFAgentStatList.get(1);
-        assertEquals(TEST_AGENT, tFAgentStat2.getAgentId());
-        assertEquals(startTimestamp, tFAgentStat2.getStartTimestamp());
-        assertEquals(collectTime2nd, tFAgentStat2.getTimestamp());
-        assertEquals(5, tFAgentStat2.getCpuLoad().getJvmCpuLoad(), 0);
-        assertEquals(6, tFAgentStat2.getCpuLoad().getSystemCpuLoad(), 0);
+        assertCpu(tFAgentStat2, collectTime2nd, 5, 6);
 
         TFAgentStat tFAgentStat3 = tFAgentStatList.get(2);
-        assertEquals(TEST_AGENT, tFAgentStat3.getAgentId());
-        assertEquals(startTimestamp, tFAgentStat3.getStartTimestamp());
-        assertEquals(collectTime3rd, tFAgentStat3.getTimestamp());
-        assertEquals(8, tFAgentStat3.getCpuLoad().getJvmCpuLoad(), 0);
-        assertEquals(9, tFAgentStat3.getCpuLoad().getSystemCpuLoad(), 0);
+        assertCpu(tFAgentStat3, collectTime3rd, 8, 9);
     }
 
+    private void assertCpu(TFAgentStat agentStat, long collectTime1st, int jvmCpu, int systemCpu) {
+        assertEquals(TEST_AGENT, agentStat.getAgentId());
+        assertEquals(startTimestamp, agentStat.getStartTimestamp());
+        assertEquals(collectTime1st, agentStat.getTimestamp());
+        assertEquals(jvmCpu, agentStat.getCpuLoad().getJvmCpuLoad(), 0);
+        assertEquals(systemCpu, agentStat.getCpuLoad().getSystemCpuLoad(), 0);
+    }
 
 
     private AgentStatBo createCpuLoadBoList() {
@@ -130,58 +126,50 @@ public class TFAgentStatMapperTest {
         AgentStatBo agentStatBo = createDataSourceListBoList();
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(2, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(2);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
         assertEquals(tFAgentStat1.getAgentId(), TEST_AGENT);
         assertEquals(tFAgentStat1.getStartTimestamp(), startTimestamp);
         assertEquals(tFAgentStat1.getTimestamp(), collectTime1st);
         assertTrue(tFAgentStat1.isSetDataSourceList());
+
         List<TFDataSource> dataSourceList1 = tFAgentStat1.getDataSourceList().getDataSourceList();
-        assertEquals(dataSourceList1.size(), 2);
+        assertThat(dataSourceList1).hasSize(2);
         TFDataSource tfDataSource1_1 = dataSourceList1.get(0);
         TFDataSource tfDataSource1_2 = dataSourceList1.get(1);
-        assertEquals(tfDataSource1_1.getId(), 1);
-        assertEquals(tfDataSource1_1.getUrl(), "jdbc:mysql");
-        assertEquals(tfDataSource1_1.getServiceTypeCode(), 1000);
-        assertEquals(tfDataSource1_1.getActiveConnectionSize(), 15);
-        assertEquals(tfDataSource1_1.getMaxConnectionSize(), 30);
-        assertEquals(tfDataSource1_1.getDatabaseName(), "pinpoint1");
-        assertEquals(tfDataSource1_2.getId(), 2);
-        assertEquals(tfDataSource1_2.getUrl(), "jdbc:mssql");
-        assertEquals(tfDataSource1_2.getServiceTypeCode(), 2000);
-        assertEquals(tfDataSource1_2.getActiveConnectionSize(), 25);
-        assertEquals(tfDataSource1_2.getMaxConnectionSize(), 40);
-        assertEquals(tfDataSource1_2.getDatabaseName(), "pinpoint2");
 
+        assertDataSource(tfDataSource1_1, 1, "jdbc:mysql", 1000, 15, 30, "pinpoint1");
+        assertDataSource(tfDataSource1_2, 2, "jdbc:mssql", 2000, 25, 40, "pinpoint2");
 
         TFAgentStat tFAgentStat2 = tFAgentStatList.get(1);
         assertEquals(tFAgentStat2.getAgentId(), TEST_AGENT);
         assertEquals(tFAgentStat2.getStartTimestamp(), startTimestamp);
         assertEquals(tFAgentStat2.getTimestamp(), collectTime2nd);
         assertTrue(tFAgentStat2.isSetDataSourceList());
+
         List<TFDataSource> dataSourceList2 = tFAgentStat2.getDataSourceList().getDataSourceList();
-        assertEquals(dataSourceList2.size(), 2);
+        assertThat(dataSourceList2).hasSize(2);
         TFDataSource tfDataSource2_1 = dataSourceList2.get(0);
         TFDataSource tfDataSource2_2 = dataSourceList2.get(1);
-        assertEquals(tfDataSource2_1.getId(), 1);
-        assertEquals(tfDataSource2_1.getUrl(), "jdbc:mysql");
-        assertEquals(tfDataSource2_1.getServiceTypeCode(), 1000);
-        assertEquals(tfDataSource2_1.getActiveConnectionSize(), 16);
-        assertEquals(tfDataSource2_1.getMaxConnectionSize(), 31);
-        assertEquals(tfDataSource2_1.getDatabaseName(), "pinpoint1");
-        assertEquals(tfDataSource2_2.getId(), 2);
-        assertEquals(tfDataSource2_2.getUrl(), "jdbc:mssql");
-        assertEquals(tfDataSource2_2.getServiceTypeCode(), 2000);
-        assertEquals(tfDataSource2_2.getActiveConnectionSize(), 26);
-        assertEquals(tfDataSource2_2.getMaxConnectionSize(), 41);
-        assertEquals(tfDataSource2_2.getDatabaseName(), "pinpoint2");
+
+        assertDataSource(tfDataSource2_1, 1, "jdbc:mysql", 1000, 16, 31, "pinpoint1");
+        assertDataSource(tfDataSource2_2, 2, "jdbc:mssql", 2000, 26, 41, "pinpoint2");
+    }
+
+    private void assertDataSource(TFDataSource dataSource, int id, String url, int serviceTypeCode, int activeConnectionSize, int maxConnectionSize, String databaseName) {
+        assertEquals(dataSource.getId(), id);
+        assertEquals(dataSource.getUrl(), url);
+        assertEquals(dataSource.getServiceTypeCode(), serviceTypeCode);
+        assertEquals(dataSource.getActiveConnectionSize(), activeConnectionSize);
+        assertEquals(dataSource.getMaxConnectionSize(), maxConnectionSize);
+        assertEquals(dataSource.getDatabaseName(), databaseName);
     }
 
     private AgentStatBo createDataSourceListBoList() {
         AgentStatBo.Builder builder = AgentStatBo.newBuilder(TEST_AGENT, startTimestamp);
 
-        DataSourceListBo dataSourceListBo1 = new DataSourceListBo();
+
         DataSourceBo dataSourceBo1_1 = new DataSourceBo();
         dataSourceBo1_1.setServiceTypeCode((short) 1000);
         dataSourceBo1_1.setJdbcUrl("jdbc:mysql");
@@ -197,10 +185,11 @@ public class TFAgentStatMapperTest {
         dataSourceBo1_2.setMaxConnectionSize(40);
         dataSourceBo1_2.setId(2);
         dataSourceBo1_2.setDatabaseName("pinpoint2");
+
+        DataSourceListBo dataSourceListBo1 = new DataSourceListBo();
         dataSourceListBo1.add(dataSourceBo1_1);
         dataSourceListBo1.add(dataSourceBo1_2);
 
-        DataSourceListBo dataSourceListBo2 = new DataSourceListBo();
         DataSourceBo dataSourceBo2_1 = new DataSourceBo();
         dataSourceBo2_1.setServiceTypeCode((short) 1000);
         dataSourceBo2_1.setJdbcUrl("jdbc:mysql");
@@ -208,6 +197,7 @@ public class TFAgentStatMapperTest {
         dataSourceBo2_1.setMaxConnectionSize(31);
         dataSourceBo2_1.setId(1);
         dataSourceBo2_1.setDatabaseName("pinpoint1");
+
         DataSourceBo dataSourceBo2_2 = new DataSourceBo();
         dataSourceBo2_2.setServiceTypeCode((short) 2000);
         dataSourceBo2_2.setJdbcUrl("jdbc:mssql");
@@ -215,6 +205,8 @@ public class TFAgentStatMapperTest {
         dataSourceBo2_2.setMaxConnectionSize(41);
         dataSourceBo2_2.setId(2);
         dataSourceBo2_2.setDatabaseName("pinpoint2");
+
+        DataSourceListBo dataSourceListBo2 = new DataSourceListBo();
         dataSourceListBo2.add(dataSourceBo2_1);
         dataSourceListBo2.add(dataSourceBo2_2);
 
@@ -227,11 +219,11 @@ public class TFAgentStatMapperTest {
     }
 
     @Test
-    public void map3Test() throws Exception {
+    public void map3Test() {
         AgentStatBo agentStatBo = createJvmGcBoList();
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(2, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(2);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
         assertEquals(tFAgentStat1.getAgentId(), TEST_AGENT);
@@ -284,7 +276,7 @@ public class TFAgentStatMapperTest {
 
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(2, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(2);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
         assertEquals(tFAgentStat1.getAgentId(), TEST_AGENT);
@@ -293,10 +285,8 @@ public class TFAgentStatMapperTest {
         TFActiveTrace activeTrace1 = tFAgentStat1.getActiveTrace();
         TFActiveTraceHistogram histogram1 = activeTrace1.getHistogram();
         List<Integer> activeTraceCount1 = histogram1.getActiveTraceCount();
-        assertEquals((int) activeTraceCount1.get(0), 30);
-        assertEquals((int) activeTraceCount1.get(1), 40);
-        assertEquals((int) activeTraceCount1.get(2), 10);
-        assertEquals((int) activeTraceCount1.get(3), 50);
+
+        assertThat(activeTraceCount1).containsExactly(30, 40, 10, 50);
 
         TFAgentStat tFAgentStat2 = tFAgentStatList.get(1);
         assertEquals(tFAgentStat2.getAgentId(), TEST_AGENT);
@@ -305,10 +295,9 @@ public class TFAgentStatMapperTest {
         TFActiveTrace activeTrace2 = tFAgentStat2.getActiveTrace();
         TFActiveTraceHistogram histogram2 = activeTrace2.getHistogram();
         List<Integer> activeTraceCount2 = histogram2.getActiveTraceCount();
-        assertEquals((int) activeTraceCount2.get(0), 31);
-        assertEquals((int) activeTraceCount2.get(1), 41);
-        assertEquals((int) activeTraceCount2.get(2), 11);
-        assertEquals((int) activeTraceCount2.get(3), 51);
+
+        assertThat(activeTraceCount2).containsExactly(31, 41, 11, 51);
+
     }
 
     private AgentStatBo createActiveTraceBoList() {
@@ -343,7 +332,7 @@ public class TFAgentStatMapperTest {
         AgentStatBo agentStatBo = createResponseTimeBoList();
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(2, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(2);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
         assertEquals(tFAgentStat1.getAgentId(), TEST_AGENT);
@@ -377,12 +366,12 @@ public class TFAgentStatMapperTest {
     }
 
     @Test
-    public void map6Test() throws Exception {
+    public void map6Test() {
 
         AgentStatBo agentStatBo = createFileDescriptorBoList();
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(3, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(3);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
         assertEquals(TEST_AGENT, tFAgentStat1.getAgentId());
@@ -434,7 +423,7 @@ public class TFAgentStatMapperTest {
         AgentStatBo agentStatBo = createTotalThreadCountBoList();
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(3, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(3);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
         assertEquals(TEST_AGENT, tFAgentStat1.getAgentId());
@@ -483,7 +472,7 @@ public class TFAgentStatMapperTest {
         AgentStatBo agentStatBo = createLoadedClassCountBoList();
 
         List<TFAgentStat> tFAgentStatList = newAgentStatMapper().map(agentStatBo);
-        assertEquals(3, tFAgentStatList.size());
+        assertThat(tFAgentStatList).hasSize(3);
 
         TFAgentStat tFAgentStat1 = tFAgentStatList.get(0);
         assertEquals(TEST_AGENT, tFAgentStat1.getAgentId());

@@ -16,12 +16,10 @@
 package com.navercorp.pinpoint.collector.mapper.flink;
 
 import com.navercorp.pinpoint.common.server.bo.stat.AgentStatBo;
-import com.navercorp.pinpoint.common.server.bo.stat.CpuLoadBo;
-import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.thrift.dto.flink.TFAgentStat;
 import com.navercorp.pinpoint.thrift.dto.flink.TFAgentStatBatch;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -32,7 +30,7 @@ import java.util.Objects;
  */
 @Component
 public class TFAgentStatBatchMapper {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
     public final TFAgentStatMapper tFAgentStatMapper;
 
     public TFAgentStatBatchMapper(TFAgentStatMapper tFAgentStatMapper) {
@@ -41,28 +39,13 @@ public class TFAgentStatBatchMapper {
 
     public TFAgentStatBatch map(AgentStatBo agentStatBo) {
         try {
-            List<TFAgentStat> tFAgentstatList = tFAgentStatMapper.map(agentStatBo);
-            long startTimestamp = getStartTimestamp(agentStatBo);
-            TFAgentStatBatch tFAgentStatBatch = new TFAgentStatBatch(agentStatBo.getAgentId(), startTimestamp, tFAgentstatList);
-            return tFAgentStatBatch;
+            List<TFAgentStat> tFAgentStatList = tFAgentStatMapper.map(agentStatBo);
+            long startTimestamp = agentStatBo.getStartTimestamp();
+            return new TFAgentStatBatch(agentStatBo.getAgentId(), startTimestamp, tFAgentStatList);
         } catch (Exception e) {
             logger.error("not create thrift object to send flink server. : " + agentStatBo, e);
         }
 
         return null;
-    }
-
-    private long getStartTimestamp(AgentStatBo agentStatBo) {
-        List<CpuLoadBo> cpuLoadBos = agentStatBo.getCpuLoadBos();
-
-        if (CollectionUtils.hasLength(cpuLoadBos)) {
-            CpuLoadBo cpuLoadBo = cpuLoadBos.get(0);
-
-            if (cpuLoadBo != null) {
-                return cpuLoadBo.getStartTimestamp();
-            }
-        }
-
-        return Long.MIN_VALUE;
     }
 }

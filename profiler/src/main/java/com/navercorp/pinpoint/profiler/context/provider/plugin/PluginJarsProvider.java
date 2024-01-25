@@ -26,8 +26,8 @@ import com.navercorp.pinpoint.profiler.plugin.filter.DefaultPluginFilterFactory;
 import com.navercorp.pinpoint.profiler.plugin.filter.ImportPluginFilterFactory;
 import com.navercorp.pinpoint.profiler.plugin.filter.PluginFilter;
 import com.navercorp.pinpoint.profiler.plugin.filter.PluginFilterFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,17 +40,17 @@ import java.util.Objects;
  * @author HyunGil Jeong
  */
 public class PluginJarsProvider implements Provider<List<PluginJar>> {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
     private final List<PluginJar> pluginJars;
 
     @Inject
-    public PluginJarsProvider(@PluginJarPaths List<String> pluginJarPaths, PluginLoadingConfig pluginLoadingCOnfig) {
+    public PluginJarsProvider(@PluginJarPaths List<String> pluginJarPaths, PluginLoadingConfig pluginLoadingConfig) {
         Objects.requireNonNull(pluginJarPaths, "pluginJarPaths");
-        Objects.requireNonNull(pluginLoadingCOnfig, "profilerConfig");
+        Objects.requireNonNull(pluginLoadingConfig, "pluginLoadingConfig");
 
-        PluginFilter pluginFilter = createPluginJarFilter(pluginLoadingCOnfig);
+        PluginFilter pluginFilter = createPluginJarFilter(pluginLoadingConfig);
         logger.info("pluginJarFilter:{}", pluginFilter);
-        List<PluginJar> pluginJars = createPluginJars(pluginJarPaths, pluginFilter, pluginLoadingCOnfig.getPluginLoadOrder());
+        List<PluginJar> pluginJars = createPluginJars(pluginJarPaths, pluginFilter, pluginLoadingConfig.getPluginLoadOrder());
         this.pluginJars = Collections.unmodifiableList(pluginJars);
     }
 
@@ -65,19 +65,16 @@ public class PluginJarsProvider implements Provider<List<PluginJar>> {
         if (CollectionUtils.isEmpty(pluginJarPaths)) {
             return Collections.emptyList();
         }
-        Map<String, PluginJar> orderedPlugins = new LinkedHashMap<>();
-        if (CollectionUtils.hasLength(orderedPluginIdList)) {
-            for (String orderedPluginId : orderedPluginIdList) {
-                orderedPlugins.put(orderedPluginId, null);
-            }
-        }
+        List<PluginJar> pluginList = filter(pluginJarPaths, pluginFilter);
 
-        List<PluginJar> unorderedPlugins = new ArrayList<>(pluginJarPaths.size());
-        for (String pluginJarPath : pluginJarPaths) {
-            PluginJar pluginJar = PluginJar.fromFilePath(pluginJarPath);
-            if (!pluginFilter.accept(pluginJar)) {
-                continue;
-            }
+        return sort(pluginList, orderedPluginIdList);
+    }
+
+    private List<PluginJar> sort(List<PluginJar> pluginList, List<String> orderedPluginIdList) {
+        Map<String, PluginJar> orderedPlugins = getOrderedPlugins(orderedPluginIdList);
+
+        List<PluginJar> unorderedPlugins = new ArrayList<>();
+        for (PluginJar pluginJar : pluginList) {
             String pluginId = pluginJar.getPluginId();
             if (orderedPlugins.containsKey(pluginId)) {
                 PluginJar prev = orderedPlugins.put(pluginId, pluginJar);
@@ -98,9 +95,33 @@ public class PluginJarsProvider implements Provider<List<PluginJar>> {
         return pluginJars;
     }
 
+    private List<PluginJar> filter(List<String> pluginJarPaths, PluginFilter pluginFilter) {
+        List<PluginJar> list = new ArrayList<>();
+        for (String pluginJarPath : pluginJarPaths) {
+            PluginJar pluginJar = PluginJar.fromFilePath(pluginJarPath);
+            if (!pluginFilter.accept(pluginJar)) {
+                continue;
+            }
+            list.add(pluginJar);
+        }
+        return list;
+    }
+
+    private Map<String, PluginJar> getOrderedPlugins(List<String> orderedPluginIdList) {
+        if (CollectionUtils.isEmpty(orderedPluginIdList)) {
+            return new LinkedHashMap<>();
+        }
+
+        Map<String, PluginJar> orderedPlugins = new LinkedHashMap<>();
+        for (String orderedPluginId : orderedPluginIdList) {
+            orderedPlugins.put(orderedPluginId, null);
+        }
+        return orderedPlugins;
+    }
+
+
     private PluginFilter createPluginJarFilter(PluginLoadingConfig pluginLoadingConfig) {
         List<String> importPluginIds = pluginLoadingConfig.getImportPluginIds();
-
         if (CollectionUtils.hasLength(importPluginIds)) {
             PluginFilterFactory filterFactory = new ImportPluginFilterFactory(importPluginIds);
             return filterFactory.newPluginFilter();

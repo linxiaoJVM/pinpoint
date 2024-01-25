@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint-plugins</artifactId>
-        <version>2.3.1-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-jsp-plugin</artifactId>
@@ -13,7 +13,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <test.jdk.home>${env.JAVA_7_HOME}</test.jdk.home>
+        <test.jdk.home>${env.JAVA_8_HOME}</test.jdk.home>
     </properties>
 
     <dependencies>
@@ -33,13 +33,6 @@
             <artifactId>pinpoint-profiler-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.navercorp.pinpoint</groupId>
-            <artifactId>pinpoint-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-
         <dependency>
             <groupId>org.apache.tomcat</groupId>
             <artifactId>servlet-api</artifactId>

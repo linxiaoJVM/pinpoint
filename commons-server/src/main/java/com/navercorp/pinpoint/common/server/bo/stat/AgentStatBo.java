@@ -18,6 +18,8 @@ package com.navercorp.pinpoint.common.server.bo.stat;
 
 
 import com.navercorp.pinpoint.common.server.util.FilterUtils;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +30,8 @@ import java.util.Objects;
  */
 public class AgentStatBo {
 
-    private final String agentId;
-    private final long startTimestamp;
+    @NotBlank private final String agentId;
+    @PositiveOrZero private final long startTimestamp;
 
     private final List<JvmGcBo> jvmGcBos;
     private final List<JvmGcDetailedBo> jvmGcDetailedBos;
@@ -245,22 +247,21 @@ public class AgentStatBo {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("AgentStatBo{");
-        sb.append("agentId='").append(agentId).append('\'');
-        sb.append(", jvmGcBos=").append(jvmGcBos);
-        sb.append(", jvmGcDetailedBos=").append(jvmGcDetailedBos);
-        sb.append(", cpuLoadBos=").append(cpuLoadBos);
-        sb.append(", transactionBos=").append(transactionBos);
-        sb.append(", activeTraceBos=").append(activeTraceBos);
-        sb.append(", dataSourceListBos=").append(dataSourceListBos);
-        sb.append(", responseTimeBos=").append(responseTimeBos);
-        sb.append(", deadlockThreadCountBos=").append(deadlockThreadCountBos);
-        sb.append(", fileDescriptorBos=").append(fileDescriptorBos);
-        sb.append(", directBufferBos=").append(directBufferBos);
-        sb.append(", totalThreadCountBos=").append(totalThreadCountBos);
-        sb.append(", loadedClassBos=").append(loadedClassBos);
-        sb.append('}');
-        return sb.toString();
+        return "AgentStatBo{" +
+                "agentId='" + agentId + '\'' +
+                ", startTimestamp=" + startTimestamp +
+                ", jvmGcBos=" + jvmGcBos +
+                ", jvmGcDetailedBos=" + jvmGcDetailedBos +
+                ", cpuLoadBos=" + cpuLoadBos +
+                ", transactionBos=" + transactionBos +
+                ", activeTraceBos=" + activeTraceBos +
+                ", dataSourceListBos=" + dataSourceListBos +
+                ", responseTimeBos=" + responseTimeBos +
+                ", deadlockThreadCountBos=" + deadlockThreadCountBos +
+                ", fileDescriptorBos=" + fileDescriptorBos +
+                ", directBufferBos=" + directBufferBos +
+                ", totalThreadCountBos=" + totalThreadCountBos +
+                ", loadedClassBos=" + loadedClassBos +
+                '}';
     }
-
 }

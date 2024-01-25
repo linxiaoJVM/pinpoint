@@ -1,15 +1,15 @@
 package com.navercorp.pinpoint.common.buffer;
 
 import com.navercorp.pinpoint.common.util.LRUCache;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
 public class StringCacheableBufferTest {
 
     @Test
-    public void stringCache () {
+    public void stringCache() {
 
         Buffer writer = new AutomaticBuffer();
         writer.putPrefixedString("abc");
@@ -24,6 +24,6 @@ public class StringCacheableBufferTest {
         String s2 = buffer.readPrefixedString();
         String s3 = buffer.readPrefixedString();
 
-        Assert.assertSame(s1, s3);
+        Assertions.assertSame(s1, s3);
     }
 }

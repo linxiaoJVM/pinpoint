@@ -37,12 +37,16 @@ public final class StringUtils {
         return str == null ? defaultStr : str;
     }
 
+    public static String defaultIfEmpty(final String str, final String defaultStr) {
+        return isEmpty(str) ? defaultStr : str;
+    }
+
     public static boolean isEmpty(final String string) {
         return string == null || string.isEmpty();
     }
 
     public static boolean hasLength(final String string) {
-        return string != null && string.length() > 0;
+        return string != null && !string.isEmpty();
     }
 
     public static boolean hasText(String string) {
@@ -59,11 +63,11 @@ public final class StringUtils {
         return false;
     }
 
-    public static <T> int getLength(final String string) {
+    public static int getLength(final String string) {
         return getLength(string, 0);
     }
 
-    public static <T> int getLength(final String string, final int nullValue) {
+    public static int getLength(final String string, final int nullValue) {
         if (string == null) {
             return nullValue;
         }
@@ -185,7 +189,7 @@ public final class StringUtils {
             if (trimTokens) {
                 token = token.trim();
             }
-            if (!ignoreEmptyTokens || token.length() > 0) {
+            if (!ignoreEmptyTokens || !token.isEmpty()) {
                 tokens.add(token);
             }
         }
@@ -262,8 +266,8 @@ public final class StringUtils {
         }
         int replLength = searchString.length();
         int increase = replacement.length() - replLength;
-        increase = increase < 0 ? 0 : increase;
-        increase *= max < 0 ? 16 : max > 64 ? 64 : max;
+        increase = Math.max(increase, 0);
+        increase *= max < 0 ? 16 : Math.min(max, 64);
         StringBuilder buf = new StringBuilder(text.length() + increase);
         while (end != INDEX_NOT_FOUND) {
             buf.append(text, start, end).append(replacement);

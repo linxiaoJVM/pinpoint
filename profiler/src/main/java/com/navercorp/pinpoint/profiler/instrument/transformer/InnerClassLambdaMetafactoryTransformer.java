@@ -16,8 +16,8 @@
 
 package com.navercorp.pinpoint.profiler.instrument.transformer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
@@ -30,7 +30,7 @@ import java.security.ProtectionDomain;
  */
 public class InnerClassLambdaMetafactoryTransformer implements ClassFileTransformer {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private static final String InnerClassLambdaMetafactory = "java/lang/invoke/InnerClassLambdaMetafactory";
 
@@ -39,7 +39,7 @@ public class InnerClassLambdaMetafactoryTransformer implements ClassFileTransfor
 
     public InnerClassLambdaMetafactoryTransformer() {
         try {
-            final ClassLoader agentClassLoader = this.getClass().getClassLoader();
+            final ClassLoader agentClassLoader = InnerClassLambdaMetafactoryTransformer.class.getClassLoader();
             final Class<?> lambdaAdaptor = agentClassLoader.loadClass("com.navercorp.pinpoint.profiler.instrument.lambda.LambdaFactoryClassAdaptor");
             final Constructor<?> constructor = lambdaAdaptor.getConstructor();
             this.lambdaFactoryClassAdaptor = constructor.newInstance();

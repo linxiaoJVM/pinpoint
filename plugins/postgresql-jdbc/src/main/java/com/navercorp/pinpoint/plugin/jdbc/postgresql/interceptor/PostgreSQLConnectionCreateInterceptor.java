@@ -26,6 +26,7 @@ import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.jdbc.DatabaseInfoAccessor;
 import com.navercorp.pinpoint.bootstrap.plugin.jdbc.JdbcContext;
 import com.navercorp.pinpoint.bootstrap.util.InterceptorUtils;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.common.util.ArrayUtils;
 import com.navercorp.pinpoint.plugin.jdbc.postgresql.PostgreSqlConstants;
 
@@ -52,11 +53,7 @@ public class PostgreSQLConnectionCreateInterceptor implements AroundInterceptor 
         if (isDebug) {
             logger.afterInterceptor(target, args, result, throwable);
         }
-        if (ArrayUtils.getLength(args) != 5) {
-            return;
-        }
-
-        final String url = (String) args[4];
+        final String url = toUrl(args);
 
         final JdbcContext jdbcContext = traceContext.getJdbcContext();
         jdbcContext.parseJdbcUrl(PostgreSqlConstants.POSTGRESQL, url);
@@ -81,7 +78,13 @@ public class PostgreSQLConnectionCreateInterceptor implements AroundInterceptor 
             recorder.recordEndPoint(databaseInfo.getMultipleHost());
             recorder.recordDestinationId(databaseInfo.getDatabaseId());
         }
+    }
 
+    private String toUrl(final Object[] args) {
+        if (ArrayUtils.getLength(args) == 5) {
+            return ArrayArgumentUtils.getArgument(args, 4, String.class);
+        }
+        return ArrayArgumentUtils.getArgument(args, 2, String.class);
     }
 
     @Override

@@ -46,4 +46,16 @@ public interface Shared {
     void setStatusCode(int statusCode);
 
     int getStatusCode();
+
+    boolean setUriTemplate(String uriTemplate);
+
+    boolean setUriTemplate(String uriTemplate, boolean force);
+
+    String getUriTemplate();
+
+    boolean setHttpMethods(String httpMethod);
+
+    String getHttpMethod();
+
+    int incrementAndGetSqlCount();
 }

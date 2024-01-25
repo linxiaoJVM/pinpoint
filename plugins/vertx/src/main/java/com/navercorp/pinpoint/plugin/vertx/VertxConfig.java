@@ -30,6 +30,9 @@ public class VertxConfig {
     private final boolean enableHttpClient;
     private final List<String> bootstrapMains;
     private final List<String> handlerBasePackageNames;
+    private final boolean uriStatEnable;
+    private final boolean uriStatUseUserInput;
+    private final boolean uriStatCollectMethod;
 
     public VertxConfig(ProfilerConfig config) {
         Objects.requireNonNull(config, "config");
@@ -40,6 +43,9 @@ public class VertxConfig {
         this.enableHttpClient = config.readBoolean("profiler.vertx.http.client.enable", true);
         this.bootstrapMains = config.readList("profiler.vertx.bootstrap.main");
         this.handlerBasePackageNames = config.readList("profiler.vertx.handler.base-packages");
+        this.uriStatEnable = config.readBoolean("profiler.uri.stat.vertx.enable", false);
+        this.uriStatUseUserInput = config.readBoolean("profiler.uri.stat.vertx.useuserinput", false);
+        this.uriStatCollectMethod = config.readBoolean("profiler.uri.stat.collect.http.method", false);
     }
 
     public boolean isEnable() {
@@ -62,6 +68,18 @@ public class VertxConfig {
         return handlerBasePackageNames;
     }
 
+    public boolean isUriStatEnable() {
+        return uriStatEnable;
+    }
+
+    public boolean isUriStatUseUserInput() {
+        return uriStatUseUserInput;
+    }
+
+    public boolean isUriStatCollectMethod() {
+        return uriStatCollectMethod;
+    }
+
     @Override
     public String toString() {
         return "VertxConfig{" +
@@ -70,6 +88,8 @@ public class VertxConfig {
                 ", enableHttpClient=" + enableHttpClient +
                 ", bootstrapMains=" + bootstrapMains +
                 ", handlerBasePackageNames=" + handlerBasePackageNames +
+                ", uriStatEnable=" + uriStatEnable +
+                ", uriStatUseUserInput=" + uriStatUseUserInput +
                 '}';
     }
 }

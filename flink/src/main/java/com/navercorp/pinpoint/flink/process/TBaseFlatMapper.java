@@ -15,7 +15,9 @@
  */
 package com.navercorp.pinpoint.flink.process;
 
-import com.navercorp.pinpoint.common.server.bo.stat.join.*;
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinAgentStatBo;
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinApplicationStatBo;
+import com.navercorp.pinpoint.common.server.bo.stat.join.JoinStatBo;
 import com.navercorp.pinpoint.flink.Bootstrap;
 import com.navercorp.pinpoint.flink.function.ApplicationStatBoWindow;
 import com.navercorp.pinpoint.flink.mapper.thrift.stat.JoinAgentStatBoMapper;
@@ -24,12 +26,11 @@ import com.navercorp.pinpoint.thrift.dto.flink.TFAgentStatBatch;
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +43,7 @@ import java.util.List;
 public class TBaseFlatMapper extends RichFlatMapFunction<RawData, Tuple3<String, JoinStatBo, Long>> {
     private final static List<Tuple3<String, JoinStatBo, Long>> EMPTY_LIST = Collections.emptyList();
 
-    private final transient Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final static Logger logger = LogManager.getLogger(TBaseFlatMapper.class);
 
     private transient JoinAgentStatBoMapper joinAgentStatBoMapper;
     private transient ApplicationCache applicationCache;
@@ -95,13 +96,12 @@ public class TBaseFlatMapper extends RichFlatMapFunction<RawData, Tuple3<String,
     private List<Tuple3<String, JoinStatBo, Long>> serverRequestFlatMap(TBase<?, ?> tBase) {
         List<Tuple3<String, JoinStatBo, Long>> outData = new ArrayList<>(5);
 
-        if (tBase instanceof TFAgentStatBatch) {
+        if (tBase instanceof TFAgentStatBatch tFAgentStatBatch) {
             if (logger.isDebugEnabled()) {
                 logger.debug("raw data : {}", tBase);
             }
 
             final long time = new Date().getTime() + 3600000;
-            final TFAgentStatBatch tFAgentStatBatch = (TFAgentStatBatch) tBase;
             final JoinAgentStatBo joinAgentStatBo;
             try {
                 joinAgentStatBo = joinAgentStatBoMapper.map(tFAgentStatBatch);
@@ -125,7 +125,7 @@ public class TBaseFlatMapper extends RichFlatMapFunction<RawData, Tuple3<String,
             final String applicationId = applicationCache.findApplicationId(applicationKey);
 
             if (ApplicationCache.NOT_FOUND_APP_ID.equals(applicationId)) {
-                logger.warn("can't found application id. agent id : {}, start time : {}.",joinAgentStatBo.getId(), joinAgentStatBo.getTimestamp());
+                logger.warn("can't found application id. agent id : {}, start time : {}.", joinAgentStatBo.getId(), joinAgentStatBo.getAgentStartTimestamp());
                 return EMPTY_LIST;
             }
 

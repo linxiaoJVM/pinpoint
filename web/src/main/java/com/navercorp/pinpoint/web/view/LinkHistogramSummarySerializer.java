@@ -17,11 +17,11 @@
 package com.navercorp.pinpoint.web.view;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.navercorp.pinpoint.web.applicationmap.histogram.Histogram;
 import com.navercorp.pinpoint.web.applicationmap.link.LinkHistogramSummary;
+import com.navercorp.pinpoint.web.applicationmap.link.LinkName;
 
 import java.io.IOException;
 import java.util.List;
@@ -32,11 +32,11 @@ import java.util.List;
 public class LinkHistogramSummarySerializer extends JsonSerializer<LinkHistogramSummary> {
 
     @Override
-    public void serialize(LinkHistogramSummary summary, JsonGenerator jgen, SerializerProvider serializers) throws IOException, JsonProcessingException {
+    public void serialize(LinkHistogramSummary summary, JsonGenerator jgen, SerializerProvider serializers) throws IOException {
         jgen.writeStartObject();
 
-        String key = summary.getLinkName();
-        jgen.writeStringField("key", key);
+        LinkName key = summary.getLinkName();
+        jgen.writeObjectField("key", key);
 
         Histogram histogram = summary.getHistogram();
         jgen.writeObjectField("histogram", histogram);

@@ -17,22 +17,22 @@
 package com.navercorp.pinpoint.profiler.instrument.classloading;
 
 import com.navercorp.pinpoint.bootstrap.classloader.PinpointClassLoaderFactory;
-import com.navercorp.pinpoint.profiler.plugin.JarPlugin;
-import com.navercorp.pinpoint.profiler.plugin.Plugin;
-import com.navercorp.pinpoint.profiler.plugin.PluginJar;
 import com.navercorp.pinpoint.common.util.ClassLoaderUtils;
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
+import com.navercorp.pinpoint.profiler.plugin.JarPlugin;
+import com.navercorp.pinpoint.profiler.plugin.Plugin;
 import com.navercorp.pinpoint.profiler.plugin.PluginConfig;
+import com.navercorp.pinpoint.profiler.plugin.PluginJar;
+import com.navercorp.pinpoint.profiler.plugin.PluginPackageClassRequirementFilter;
 import com.navercorp.pinpoint.profiler.plugin.PluginPackageFilter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.lang3.CharUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,53 +43,57 @@ public class JarProfilerPluginClassInjectorTest {
 
     public static final String CONTEXT_TYPE_MATCH_CLASS_LOADER = "org.springframework.context.support.ContextTypeMatchClassLoader";
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private static final List<String> LOG4_IMPL = Arrays.asList("org.apache.logging.slf4j", "org.slf4j.impl");
+    private static final List<String> LOG4_IMPL = Collections.singletonList(CharUtils.class.getPackage().getName());
 
     @Test
     public void testInjectClass() throws Exception {
-//        String className = "org.slf4j.impl.Log4jLoggerAdapter";
-        String className = "org.apache.logging.slf4j.Log4jLogger";
+        String className = CharUtils.class.getName();
         final Plugin<?> plugin = getMockPlugin(className);
 
         final ClassLoader contextTypeMatchClassLoader = createContextTypeMatchClassLoader(new URL[]{plugin.getURL()});
 
         final PluginPackageFilter pluginPackageFilter = new PluginPackageFilter(LOG4_IMPL);
-        PluginConfig pluginConfig = new PluginConfig(plugin, pluginPackageFilter);
+        final PluginPackageClassRequirementFilter pluginPackageRequirementFilter = new PluginPackageClassRequirementFilter(Collections.emptyList());
+        PluginConfig pluginConfig = new PluginConfig(plugin, pluginPackageFilter, pluginPackageRequirementFilter);
         logger.debug("pluginConfig:{}", pluginConfig);
 
         ClassInjector injector = new PlainClassLoaderHandler(pluginConfig);
-        final Class<?> loggerClass = injector.injectClass(contextTypeMatchClassLoader, logger.getClass().getName());
+        final Class<?> commonsLangClass = injector.injectClass(contextTypeMatchClassLoader, className);
 
-        logger.debug("ClassLoader{}", loggerClass.getClassLoader());
-        Assert.assertEquals("check className", loggerClass.getName(), className);
-        Assert.assertEquals("check ClassLoader", loggerClass.getClassLoader().getClass().getName(), CONTEXT_TYPE_MATCH_CLASS_LOADER);
+        logger.debug("ClassLoader{}", commonsLangClass.getClassLoader());
+        Assertions.assertEquals(commonsLangClass.getName(), className, "check className");
+        Assertions.assertEquals(commonsLangClass.getClassLoader().getClass().getName(), CONTEXT_TYPE_MATCH_CLASS_LOADER, "check ClassLoader");
 
     }
 
-    private ClassLoader createContextTypeMatchClassLoader(URL[] urlArray) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, java.lang.reflect.InvocationTargetException {
-        final ClassLoader classLoader = this.getClass().getClassLoader();
-        final Class<ClassLoader> aClass = (Class<ClassLoader>) classLoader.loadClass(CONTEXT_TYPE_MATCH_CLASS_LOADER);
-        final Constructor<ClassLoader> constructor = aClass.getConstructor(ClassLoader.class);
-        constructor.setAccessible(true);
+    private ClassLoader createContextTypeMatchClassLoader(URL[] urlArray) {
+        try {
+            final ClassLoader classLoader = this.getClass().getClassLoader();
+            final Class<ClassLoader> aClass = (Class<ClassLoader>) classLoader.loadClass(CONTEXT_TYPE_MATCH_CLASS_LOADER);
+            final Constructor<ClassLoader> constructor = aClass.getConstructor(ClassLoader.class);
+            constructor.setAccessible(true);
 
-        List<String> lib = LOG4_IMPL;
+            List<String> lib = LOG4_IMPL;
 
-        ClassLoader testClassLoader = PinpointClassLoaderFactory.createClassLoader(this.getClass().getName(), urlArray, ClassLoader.getSystemClassLoader(), lib);
-        final ClassLoader contextTypeMatchClassLoader = constructor.newInstance(testClassLoader);
+            ClassLoader testClassLoader = PinpointClassLoaderFactory.createClassLoader(this.getClass().getName(), urlArray, ClassLoader.getSystemClassLoader(), lib);
+            final ClassLoader contextTypeMatchClassLoader = constructor.newInstance(testClassLoader);
 
-        logger.debug("cl:{}", contextTypeMatchClassLoader);
+            logger.debug("cl:{}", contextTypeMatchClassLoader);
 
 //        final Method excludePackage = aClass.getMethod("excludePackage", String.class);
 //        ReflectionUtils.invokeMethod(excludePackage, contextTypeMatchClassLoader, "org.slf4j");
 
 
-        return contextTypeMatchClassLoader;
+            return contextTypeMatchClassLoader;
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
-    private Plugin<?> getMockPlugin(String className) throws IOException {
+    private Plugin<?> getMockPlugin(String className) throws Exception {
         ClassLoader cl = ClassLoaderUtils.getDefaultClassLoader();
         Class<?> clazz = null;
         try {
@@ -100,13 +104,13 @@ public class JarProfilerPluginClassInjectorTest {
         return getMockPlugin(clazz);
     }
 
-    private Plugin<?> getMockPlugin(Class<?> clazz) throws IOException {
+    private Plugin<?> getMockPlugin(Class<?> clazz) throws Exception {
 
         final URL location = CodeSourceUtils.getCodeLocation(clazz);
 
         logger.debug("url:{}", location);
-        PluginJar pluginJar = PluginJar.fromFilePath(location.getPath());
-        return new JarPlugin<Object>(pluginJar, Collections.emptyList(), Collections.<String>emptyList());
+        PluginJar pluginJar = PluginJar.fromFilePath(location.getFile());
+        return new JarPlugin<>(pluginJar, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
     }
 
 }

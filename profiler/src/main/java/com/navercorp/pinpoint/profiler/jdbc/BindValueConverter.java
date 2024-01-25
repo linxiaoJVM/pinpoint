@@ -18,6 +18,16 @@ package com.navercorp.pinpoint.profiler.jdbc;
 
 import com.navercorp.pinpoint.common.util.Assert;
 
+import java.io.InputStream;
+import java.io.Reader;
+import java.math.BigDecimal;
+import java.net.URL;
+import java.sql.Array;
+import java.sql.Date;
+import java.sql.Ref;
+import java.sql.SQLXML;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,6 +37,13 @@ public class BindValueConverter {
 
     private final int maxWidth;
     private final Map<String, Converter> converterMap = new HashMap<>();
+
+    private final ClassNameConverter classNameConverter;
+    private final BytesConverter bytesConverter;
+    private final HexBytesConverter hexBytesConverter;
+    private final ObjectConverter objectConverter;
+    private final NullTypeConverter nullTypeConverter;
+    private final SimpleTypeConverter simpleTypeConverter;
 
     public static BindValueConverter defaultBindValueConverter() {
         return defaultBindValueConverter(DEFAULT_ABBREVIATE_MAX_WIDTH);
@@ -53,6 +70,13 @@ public class BindValueConverter {
     public BindValueConverter(int maxWidth) {
         this.maxWidth = maxWidth;
         Assert.isTrue(maxWidth > 0, "negative abbreviateMaxWidth");
+
+        classNameConverter = new ClassNameConverter();
+        bytesConverter = new BytesConverter(this.maxWidth);
+        hexBytesConverter = new HexBytesConverter(this.maxWidth);
+        objectConverter = new ObjectConverter(this.maxWidth);
+        nullTypeConverter = new NullTypeConverter();
+        simpleTypeConverter = new SimpleTypeConverter(this.maxWidth);
     }
 
     private void register(String methodName, Converter converter) {
@@ -61,8 +85,6 @@ public class BindValueConverter {
 
     private void classNameType() {
         // replace with class name if we don't want to (or can't) read the value
-        ClassNameConverter classNameConverter = new ClassNameConverter();
-
         // There also is method with 3 parameters.
         this.register("setAsciiStream", classNameConverter);
         this.register("setUnicodeStream", classNameConverter);
@@ -83,15 +105,15 @@ public class BindValueConverter {
     }
 
     public void setRawBytesConverter() {
-        this.register("setBytes", new BytesConverter(this.maxWidth));
+        this.register("setBytes", bytesConverter);
     }
 
     public void setHexBytesConverter() {
-        this.register("setBytes", new HexBytesConverter(this.maxWidth));
+        this.register("setBytes", hexBytesConverter);
     }
 
     private void setObjectConverter() {
-        this.register("setObject", new ObjectConverter(maxWidth));
+        this.register("setObject", objectConverter);
     }
 
     private void setNullConverter() {
@@ -137,6 +159,54 @@ public class BindValueConverter {
             return "";
         }
         return converter.convert(args);
+    }
+
+    public String convert(Object value) {
+        if (value == null) {
+            return "null";
+        }
+
+        if (value instanceof Byte) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Boolean) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Short) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Integer) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Long) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Float) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Double) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof BigDecimal) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof String) {
+            // String/NString
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Date) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Time) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Timestamp) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof URL) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof Ref) {
+            return simpleTypeConverter.convert(value);
+        } else if (value instanceof InputStream) {
+            return classNameConverter.convert(value);
+        } else if (value instanceof Reader) {
+            return classNameConverter.convert(value);
+        } else if (value instanceof Array) {
+            return classNameConverter.convert(value);
+        } else if (value instanceof SQLXML) {
+            return classNameConverter.convert(value);
+        } else if (value instanceof byte[]) {
+            return hexBytesConverter.convert(value);
+        }
+        return objectConverter.convert(value);
     }
 
 }

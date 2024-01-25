@@ -19,13 +19,12 @@ package com.navercorp.pinpoint.profiler.instrument.classloading;
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
 import com.navercorp.pinpoint.common.util.JvmUtils;
 import com.navercorp.pinpoint.common.util.JvmVersion;
-import com.navercorp.pinpoint.common.util.OsUtils;
 import com.navercorp.pinpoint.profiler.util.JavaAssistUtils;
 import org.apache.commons.io.IOUtils;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,7 +36,7 @@ import java.net.URLClassLoader;
  */
 public class Java9DefineClassTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
     public void defineClass() throws ClassNotFoundException, IOException {
@@ -46,15 +45,13 @@ public class Java9DefineClassTest {
 
         URL[] empty = {};
         URLClassLoader classLoader = new URLClassLoader(empty, null);
-        try {
+        Assertions.assertThrowsExactly(ClassNotFoundException.class, () -> {
             classLoader.loadClass(Logger.class.getName());
-            Assert.fail();
-        } catch (ClassNotFoundException ignore) {
-        }
+        });
 
         String className = JavaAssistUtils.javaClassNameToJvmResourceName(Logger.class.getName());
         InputStream classStream = Logger.class.getClassLoader().getResourceAsStream(className);
-        Assert.assertNotNull("className not found", className);
+        Assertions.assertNotNull("className not found", className);
 
         byte[] bytes = IOUtils.toByteArray(classStream);
 
@@ -62,10 +59,10 @@ public class Java9DefineClassTest {
         Class<?> defineClassSlf4jLogger = defineClass.defineClass(classLoader, Logger.class.getName(), bytes);
         Class<?> slf4jLogger = classLoader.loadClass(Logger.class.getName());
 
-        Assert.assertSame(defineClassSlf4jLogger, slf4jLogger);
-        Assert.assertSame(slf4jLogger.getClassLoader(), classLoader);
+        Assertions.assertSame(defineClassSlf4jLogger, slf4jLogger);
+        Assertions.assertSame(slf4jLogger.getClassLoader(), classLoader);
 
-        Assert.assertNotSame(slf4jLogger.getClassLoader(), Logger.class.getClassLoader());
+        Assertions.assertNotSame(slf4jLogger.getClassLoader(), Logger.class.getClassLoader());
 
     }
 

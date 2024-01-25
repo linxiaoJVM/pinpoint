@@ -17,8 +17,8 @@
 package com.navercorp.pinpoint.common.server.bo.codec.stat.header;
 
 import org.apache.commons.lang3.RandomUtils;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ public class BitCountingHeaderEncoderTest {
     public void test_with_random_codes() {
         // Given
         final int numCodes = RandomUtils.nextInt(1, MAX_NUM_TEST_VALUES);
-        final List<Integer> givenCodes = new ArrayList<Integer>(numCodes);
+        final List<Integer> givenCodes = new ArrayList<>(numCodes);
         for (int i = 0; i < numCodes; i++) {
             givenCodes.add(RANDOM.nextInt(5));
         }
@@ -48,13 +48,13 @@ public class BitCountingHeaderEncoderTest {
         }
         final byte[] header = encoder.getHeader();
         // Then
-        List<Integer> decodedCodes = new ArrayList<Integer>(numCodes);
+        List<Integer> decodedCodes = new ArrayList<>(numCodes);
         AgentStatHeaderDecoder decoder = new BitCountingHeaderDecoder(header);
         for (int i = 0; i < numCodes; i++) {
             int code = decoder.getCode();
             decodedCodes.add(code);
         }
-        Assert.assertEquals(givenCodes, decodedCodes);
+        Assertions.assertEquals(givenCodes, decodedCodes);
     }
 
     @Test
@@ -70,7 +70,7 @@ public class BitCountingHeaderEncoderTest {
         // Then
         AgentStatHeaderDecoder decoder = new BitCountingHeaderDecoder(header);
         for (int i = 0; i < numCodes; i++) {
-            Assert.assertEquals(0, decoder.getCode());
+            Assertions.assertEquals(0, decoder.getCode());
         }
     }
 
@@ -80,7 +80,7 @@ public class BitCountingHeaderEncoderTest {
         final int numZeroes = RandomUtils.nextInt(1, MAX_NUM_TEST_VALUES);
         final int numRandomCodes = RandomUtils.nextInt(1, MAX_NUM_TEST_VALUES);
         final int numTotalCodes = numZeroes + numRandomCodes;
-        List<Integer> givenCodes = new ArrayList<Integer>(numTotalCodes);
+        List<Integer> givenCodes = new ArrayList<>(numTotalCodes);
         for (int i = 0; i < numZeroes; i++) {
             givenCodes.add(0);
         }
@@ -95,11 +95,11 @@ public class BitCountingHeaderEncoderTest {
         final byte[] header = encoder.getHeader();
         // Then
         AgentStatHeaderDecoder decoder = new BitCountingHeaderDecoder(header);
-        List<Integer> decodedCodes = new ArrayList<Integer>(numTotalCodes);
+        List<Integer> decodedCodes = new ArrayList<>(numTotalCodes);
         for (int i = 0; i < numTotalCodes; i++) {
             decodedCodes.add(decoder.getCode());
         }
-        Assert.assertEquals(givenCodes, decodedCodes);
+        Assertions.assertEquals(givenCodes, decodedCodes);
     }
 
     @Test
@@ -107,6 +107,6 @@ public class BitCountingHeaderEncoderTest {
         AgentStatHeaderEncoder encoder = new BitCountingHeaderEncoder();
         final byte[] header = encoder.getHeader();
         AgentStatHeaderDecoder decoder = new BitCountingHeaderDecoder(header);
-        Assert.assertEquals(0, decoder.getCode());
+        Assertions.assertEquals(0, decoder.getCode());
     }
 }

@@ -16,10 +16,10 @@
 
 package com.navercorp.pinpoint.bootstrap.classloader;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URL;
@@ -28,12 +28,14 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class BootLoaderTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
     public void testFindResource() {
@@ -41,7 +43,7 @@ public class BootLoaderTest {
         String stringResource = getInternalName(String.class);
 
         URL url = bootLoader.findResource(stringResource);
-        Assert.assertNotNull(url);
+        Assertions.assertNotNull(url);
     }
 
     private BootLoader newBootLoader() {
@@ -60,8 +62,7 @@ public class BootLoaderTest {
 
         Enumeration<URL> bootstrapResources = bootLoader.findResources(stringResource);
         List<URL> list = Collections.list(bootstrapResources);
-        Assert.assertEquals(1, list.size());
-        logger.debug("list:{}", list);
+        assertThat(list).hasSize(1);
     }
 
     @Test
@@ -73,10 +74,10 @@ public class BootLoaderTest {
         Class<?> string1 = bootLoader.findBootstrapClassOrNull(classLoader, "java.lang.String");
         Class<?> string2 = Class.forName("java.lang.String", false, parent);
 
-        Assert.assertNotNull(string1);
-        Assert.assertNotNull(string2);
-        Assert.assertSame(string1, string2);
-        Assert.assertSame(string1.getClassLoader(), string2.getClassLoader());
+        Assertions.assertNotNull(string1);
+        Assertions.assertNotNull(string2);
+        Assertions.assertSame(string1, string2);
+        Assertions.assertSame(string1.getClassLoader(), string2.getClassLoader());
         this.getClass().getClassLoader();
 
         ClassLoaderUtils.close(classLoader);

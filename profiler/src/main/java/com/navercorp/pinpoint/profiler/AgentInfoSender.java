@@ -16,22 +16,23 @@
 
 package com.navercorp.pinpoint.profiler;
 
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import java.util.Objects;
-import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
+import com.navercorp.pinpoint.common.profiler.message.EnhancedDataSender;
+import com.navercorp.pinpoint.common.profiler.message.MessageConverter;
+import com.navercorp.pinpoint.common.profiler.message.ResultResponse;
+import com.navercorp.pinpoint.io.ResponseMessage;
 import com.navercorp.pinpoint.profiler.metadata.AgentInfo;
 import com.navercorp.pinpoint.profiler.metadata.MetaDataType;
-import com.navercorp.pinpoint.profiler.sender.ResultResponse;
 import com.navercorp.pinpoint.profiler.util.AgentInfoFactory;
-import com.navercorp.pinpoint.rpc.DefaultFuture;
-import com.navercorp.pinpoint.rpc.ResponseMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import com.navercorp.pinpoint.profiler.sender.EnhancedDataSender;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author emeroad
@@ -46,9 +47,9 @@ public class AgentInfoSender {
     // retry 3 times per attempt
     private static final int DEFAULT_MAX_TRY_COUNT_PER_ATTEMPT = 3;
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final EnhancedDataSender<MetaDataType> dataSender;
+    private final EnhancedDataSender<MetaDataType, ResponseMessage> dataSender;
     private final AgentInfoFactory agentInfoFactory;
     private final long refreshIntervalMs;
     private final long sendIntervalMs;
@@ -173,47 +174,60 @@ public class AgentInfoSender {
         }
 
         private boolean sendAgentInfo() {
+            AgentInfo agentInfo = null;
             try {
-                AgentInfo agentInfo = agentInfoFactory.createAgentInfo();
-                final DefaultFuture<ResponseMessage> future = new DefaultFuture<>();
+                agentInfo = agentInfoFactory.createAgentInfo();
 
-                logger.info("Sending AgentInfo {}", agentInfo);
-                dataSender.request(agentInfo, new ResponseMessageFutureListener(future));
-                if (!future.await()) {
-                    logger.warn("request timed out while waiting for response.");
-                    return false;
-                }
-                if (!future.isSuccess()) {
-                    Throwable t = future.getCause();
-                    logger.warn("request failed.", t);
-                    return false;
-                }
-                ResponseMessage responseMessage = future.getResult();
+                logger.info("Sending AgentInfo={}", agentInfo);
+                ResponseFutureListener<ResponseMessage, Throwable> listener = new ResponseFutureListener<>();
+                dataSender.request(agentInfo, listener);
+                ResponseMessage responseMessage = listener.getResponseFuture().get(3000, TimeUnit.MILLISECONDS);
                 if (responseMessage == null) {
-                    logger.warn("result not set.");
+                    if (agentInfo != null && agentInfo.getAgentInformation() != null) {
+                        logger.warn("Failed to send agentInfo={}. result not set", agentInfo.getAgentInformation());
+                    } else {
+                        logger.warn("Failed to send agentInfo. result not set");
+                    }
                     return false;
                 }
                 final ResultResponse result = messageConverter.toMessage(responseMessage);
                 if (!result.isSuccess()) {
-                    logger.warn("request unsuccessful. Cause : {}", result.getMessage());
+                    if (agentInfo != null && agentInfo.getAgentInformation() != null) {
+                        logger.warn("Failed to send agentInfo={}. request unsuccessful, response={}", agentInfo.getAgentInformation(), result.getMessage());
+                    } else {
+                        logger.warn("Failed to send agentInfo. request unsuccessful, response={}", result.getMessage());
+                    }
                 }
                 return result.isSuccess();
-            } catch (Exception e) {
-                logger.warn("failed to send agent info.", e);
+            } catch (ExecutionException ex) {
+                logError(agentInfo, ex.getCause());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                logError(agentInfo, ex);
+            } catch (TimeoutException ex) {
+                logError(agentInfo, ex);
             }
             return false;
+        }
+
+        private void logError(AgentInfo agentInfo, Throwable cause) {
+            if (agentInfo != null && agentInfo.getAgentInformation() != null) {
+                logger.warn("Failed to send agentInfo={}", agentInfo.getAgentInformation(), cause);
+            } else {
+                logger.warn("Failed to send agentInfo", cause);
+            }
         }
     }
 
     public static class Builder {
-        private final EnhancedDataSender<MetaDataType> dataSender;
+        private final EnhancedDataSender<MetaDataType, ResponseMessage> dataSender;
         private final AgentInfoFactory agentInfoFactory;
         private long refreshIntervalMs = DEFAULT_AGENT_INFO_REFRESH_INTERVAL_MS;
         private long sendIntervalMs = DEFAULT_AGENT_INFO_SEND_INTERVAL_MS;
         private int maxTryPerAttempt = DEFAULT_MAX_TRY_COUNT_PER_ATTEMPT;
         private MessageConverter<Object, ResultResponse> messageConverter;
 
-        public Builder(EnhancedDataSender<MetaDataType> dataSender, AgentInfoFactory agentInfoFactory) {
+        public Builder(EnhancedDataSender<MetaDataType, ResponseMessage> dataSender, AgentInfoFactory agentInfoFactory) {
             this.dataSender = Objects.requireNonNull(dataSender, "dataSender");
             this.agentInfoFactory = Objects.requireNonNull(agentInfoFactory, "agentInfoFactory");
         }

@@ -18,9 +18,9 @@ package com.navercorp.pinpoint.collector.mapper.flink;
 
 import com.navercorp.pinpoint.common.server.bo.stat.TransactionBo;
 import com.navercorp.pinpoint.thrift.dto.flink.TFTransaction;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author minwoo.jung
@@ -28,7 +28,7 @@ import static org.junit.Assert.assertEquals;
 public class TFTransactionMapperTest {
 
     @Test
-    public void mapTest() throws Exception {
+    public void mapTest() {
         TFTransactionMapper tFTransactionMapper = new TFTransactionMapper();
         TransactionBo transactionBo = new TransactionBo();
         transactionBo.setSampledContinuationCount(5);
@@ -39,11 +39,11 @@ public class TFTransactionMapperTest {
         transactionBo.setSkippedContinuationCount(5);
         TFTransaction tFtransaction = tFTransactionMapper.map(transactionBo);
 
-        assertEquals(tFtransaction.getSampledContinuationCount(), 5);
-        assertEquals(tFtransaction.getUnsampledContinuationCount(), 6);
-        assertEquals(tFtransaction.getSampledNewCount(), 11);
-        assertEquals(tFtransaction.getUnsampledNewCount(), 10);
-        assertEquals(tFtransaction.getSkippedNewCount(), 11);
-        assertEquals(tFtransaction.getSkippedContinuationCount(), 5);
+        assertEquals(5, tFtransaction.getSampledContinuationCount());
+        assertEquals(6, tFtransaction.getUnsampledContinuationCount());
+        assertEquals(11, tFtransaction.getSampledNewCount());
+        assertEquals(10, tFtransaction.getUnsampledNewCount());
+        assertEquals(11, tFtransaction.getSkippedNewCount());
+        assertEquals(5, tFtransaction.getSkippedContinuationCount());
     }
 }

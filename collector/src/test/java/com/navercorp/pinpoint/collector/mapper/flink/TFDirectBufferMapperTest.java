@@ -18,16 +18,16 @@ package com.navercorp.pinpoint.collector.mapper.flink;
 
 import com.navercorp.pinpoint.common.server.bo.stat.DirectBufferBo;
 import com.navercorp.pinpoint.thrift.dto.flink.TFDirectBuffer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author Roy Kim
  */
 public class TFDirectBufferMapperTest {
     @Test
-    public void mapTest() throws Exception {
+    public void mapTest() {
         TFDirectBufferMapper tFDirectBufferMapper = new TFDirectBufferMapper();
         DirectBufferBo directBufferBo = new DirectBufferBo();
         directBufferBo.setDirectCount(30);

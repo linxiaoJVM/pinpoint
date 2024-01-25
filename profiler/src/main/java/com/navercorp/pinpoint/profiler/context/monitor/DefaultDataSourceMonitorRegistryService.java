@@ -17,8 +17,9 @@
 package com.navercorp.pinpoint.profiler.context.monitor;
 
 import com.navercorp.pinpoint.bootstrap.plugin.monitor.DataSourceMonitor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.common.util.CollectionUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class DefaultDataSourceMonitorRegistryService implements DataSourceMonitorRegistryService {
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger = LogManager.getLogger(getClass());
 
     private final int limitIdNumber;
 
@@ -45,7 +46,7 @@ public class DefaultDataSourceMonitorRegistryService implements DataSourceMonito
     public boolean register(DataSourceMonitor dataSourceMonitor) {
         if (wrapperFactory.latestIssuedId() >= limitIdNumber) {
             if (logger.isInfoEnabled()) {
-                logger.info("can't register {}. The maximum value of id number has been exceeded.");
+                logger.info("can't register. The maximum value of id number has been exceeded.");
             }
             return false;
         }
@@ -78,7 +79,7 @@ public class DefaultDataSourceMonitorRegistryService implements DataSourceMonito
         }
 
         // bulk delete for reduce copy
-        if (disabledPluginMonitorList.size() > 0) {
+        if (CollectionUtils.hasLength(disabledPluginMonitorList)) {
             logger.info("PluginMonitorWrapper was disabled(list:{})", disabledPluginMonitorList);
             repository.removeAll(disabledPluginMonitorList);
         }

@@ -75,6 +75,12 @@ public class ASMNestedClass implements InstrumentClass {
     }
 
     @Override
+    @Deprecated
+    public InstrumentMethod getLambdaMethod(String... parameterTypes) {
+        return null;
+    }
+
+    @Override
     public List<InstrumentMethod> getDeclaredMethods() {
         return Collections.emptyList();
     }

@@ -12,14 +12,14 @@ import java.util.Objects;
 import java.util.function.Predicate;
 
 public class SpanFilters {
-    private static long DEFAULT_FOCUS_TIMESTAMP = Long.parseLong(BusinessTransactionController.DEFAULT_FOCUS_TIMESTAMP);
-    private static long DEFAULT_SPANID = Long.parseLong(BusinessTransactionController.DEFAULT_SPANID);
+    private static final long DEFAULT_FOCUS_TIMESTAMP = Long.parseLong(BusinessTransactionController.DEFAULT_FOCUS_TIMESTAMP);
+    private static final long DEFAULT_SPAN_ID = Long.parseLong(BusinessTransactionController.DEFAULT_SPAN_ID);
 
 
     public static Predicate<SpanBo> spanFilter(long spanId, String agentId, long focusTimestamp) {
         FilterBuilder builder = newBuilder();
 
-        if (spanId != DEFAULT_SPANID) {
+        if (spanId != DEFAULT_SPAN_ID) {
             Predicate<SpanBo> filter = SpanFilters.spanIdFilter(spanId);
             builder.addFilter(filter);
         }
@@ -58,6 +58,7 @@ public class SpanFilters {
     public static class PredicateChain implements Predicate<SpanBo> {
         private final Predicate<SpanBo>[] predicates;
 
+        @SuppressWarnings("unchecked")
         public PredicateChain(List<Predicate<SpanBo>> predicates) {
             Objects.requireNonNull(predicates, "predicates");
             this.predicates = predicates.toArray(new Predicate[0]);
@@ -131,6 +132,7 @@ public class SpanFilters {
         return new SpanAgentIdPredicate(agentId);
     }
 
+    // Also used in SpanQueryBuilder
     private static class SpanAgentIdPredicate implements Predicate<SpanBo> {
         private final String agentId;
 
@@ -153,7 +155,7 @@ public class SpanFilters {
     // SpanQueryBuilder
     public static Predicate<SpanBo> transactionIdFilter(TransactionId transactionId) {
         Objects.requireNonNull(transactionId, "transactionId");
-        return new Predicate<SpanBo>() {
+        return new Predicate<>() {
             @Override
             public boolean test(SpanBo spanBo) {
                 return transactionId.equals(spanBo.getTransactionId());
@@ -168,7 +170,7 @@ public class SpanFilters {
 
     public static Predicate<SpanBo> applicationIdFilter(String applicationId) {
         Objects.requireNonNull(applicationId, "applicationId");
-        return new Predicate<SpanBo>() {
+        return new Predicate<>() {
             @Override
             public boolean test(SpanBo spanBo) {
                 return applicationId.equals(spanBo.getApplicationId());
@@ -183,7 +185,7 @@ public class SpanFilters {
 
 
     public static Predicate<SpanBo> responseTimeFilter(int responseTime) {
-        return new Predicate<SpanBo>() {
+        return new Predicate<>() {
             @Override
             public boolean test(SpanBo spanBo) {
                 return responseTime == spanBo.getElapsed();

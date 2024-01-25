@@ -16,31 +16,31 @@
 
 package com.navercorp.pinpoint.web.applicationmap.link;
 
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.web.applicationmap.nodes.Node;
 import com.navercorp.pinpoint.web.applicationmap.nodes.NodeList;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkData;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataDuplexMap;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMap;
 import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.LinkKey;
-import com.navercorp.pinpoint.web.vo.Range;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * @author HyunGil Jeong
  */
 public class LinkListFactory {
 
-    private static final Logger logger = LoggerFactory.getLogger(LinkListFactory.class);
+    private static final Logger logger = LogManager.getLogger(LinkListFactory.class);
 
-    public static LinkList createLinkList(LinkType linkType, NodeList nodeList, LinkDataDuplexMap linkDataDuplexMap, Range range) {
+    public static LinkList createLinkList(NodeList nodeList, LinkDataDuplexMap linkDataDuplexMap, Range range) {
         // don't change
         LinkList linkList = new LinkList();
-        createSourceLink(linkType, nodeList, linkList, linkDataDuplexMap.getSourceLinkDataMap(), range);
-        logger.debug("link size:{}", linkList.size());
-        createTargetLink(linkType, nodeList, linkList, linkDataDuplexMap.getTargetLinkDataMap(), range);
-        logger.debug("link size:{}", linkList.size());
+        createSourceLink(nodeList, linkList, linkDataDuplexMap.getSourceLinkDataMap(), range);
+        int before = linkList.size();
+        logger.debug("total link (in search) size:{}", before);
+        createTargetLink(nodeList, linkList, linkDataDuplexMap.getTargetLinkDataMap(), range);
+        logger.debug("total link (out search) size:{}->{}", before, linkList.size());
 
         for (Link link : linkList.getLinkList()) {
             appendLinkHistogram(link, linkDataDuplexMap);
@@ -48,7 +48,7 @@ public class LinkListFactory {
         return linkList;
     }
 
-    private static void createSourceLink(LinkType linkType, NodeList nodeList, LinkList linkList, LinkDataMap linkDataMap, Range range) {
+    private static void createSourceLink(NodeList nodeList, LinkList linkList, LinkDataMap linkDataMap, Range range) {
         for (LinkData linkData : linkDataMap.getLinkDataList()) {
             final Application fromApplicationId = linkData.getFromApplication();
             Node fromNode = nodeList.findNode(fromApplicationId);
@@ -66,13 +66,13 @@ public class LinkListFactory {
             // shouldn't really be necessary as rpc client toNodes are converted to unknown nodes beforehand.
             if (toNode.getServiceType().isRpcClient()) {
                 if (!nodeList.containsNode(toNode.getApplication()) || toNode.getServiceType().isAlias()) {
-                    final Link link = addLink(linkType, linkList, fromNode, toNode, CreateType.Source, range);
+                    final Link link = addLink(linkList, fromNode, toNode, LinkDirection.IN_LINK, range);
                     if (link != null) {
                         logger.debug("createRpcSourceLink:{}", link);
                     }
                 }
             } else {
-                final Link link = addLink(linkType, linkList, fromNode, toNode, CreateType.Source, range);
+                final Link link = addLink(linkList, fromNode, toNode, LinkDirection.IN_LINK, range);
                 if (link != null) {
                     logger.debug("createSourceLink:{}", link);
                 }
@@ -80,7 +80,7 @@ public class LinkListFactory {
         }
     }
 
-    private static void createTargetLink(LinkType linkType, NodeList nodeList, LinkList linkList, LinkDataMap linkDataMap, Range range) {
+    private static void createTargetLink(NodeList nodeList, LinkList linkList, LinkDataMap linkDataMap, Range range) {
         for (LinkData linkData : linkDataMap.getLinkDataList()) {
             final Application fromApplicationId = linkData.getFromApplication();
             Node fromNode = nodeList.findNode(fromApplicationId);
@@ -98,13 +98,13 @@ public class LinkListFactory {
             if (toNode.getServiceType().isRpcClient()) {
                 // check if "to" node exists
                 if (!nodeList.containsNode(toNode.getApplication())) {
-                    final Link link = addLink(linkType, linkList, fromNode, toNode, CreateType.Target, range);
+                    final Link link = addLink(linkList, fromNode, toNode, LinkDirection.OUT_LINK, range);
                     if (link != null) {
                         logger.debug("createRpcTargetLink:{}", link);
                     }
                 }
             } else {
-                final Link link = addLink(linkType, linkList, fromNode, toNode, CreateType.Target, range);
+                final Link link = addLink(linkList, fromNode, toNode, LinkDirection.OUT_LINK, range);
                 if (link != null) {
                     logger.debug("createTargetLink:{}", link);
                 }
@@ -112,8 +112,8 @@ public class LinkListFactory {
         }
     }
 
-    private static Link addLink(LinkType linkType, LinkList linkList, Node fromNode, Node toNode, CreateType createType, Range range) {
-        final Link link = new Link(linkType, createType, fromNode, toNode, range);
+    private static Link addLink(LinkList linkList, Node fromNode, Node toNode, LinkDirection direction, Range range) {
+        final Link link = new Link(direction, fromNode, toNode, range);
         if (linkList.addLink(link)) {
             return link;
         } else {
@@ -127,11 +127,11 @@ public class LinkListFactory {
         LinkKey key = link.getLinkKey();
         LinkData sourceLinkData = linkDataDuplexMap.getSourceLinkData(key);
         if (sourceLinkData != null) {
-            link.addSource(sourceLinkData.getLinkCallDataMap());
+            link.addInLink(sourceLinkData.getLinkCallDataMap());
         }
         LinkData targetLinkData = linkDataDuplexMap.getTargetLinkData(key);
         if (targetLinkData != null) {
-            link.addTarget(targetLinkData.getLinkCallDataMap());
+            link.addOutLink(targetLinkData.getLinkCallDataMap());
         }
     }
 }

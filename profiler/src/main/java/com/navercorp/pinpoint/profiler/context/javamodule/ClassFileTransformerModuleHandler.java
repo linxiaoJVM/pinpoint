@@ -20,8 +20,10 @@ import com.navercorp.pinpoint.bootstrap.module.ClassFileTransformModuleAdaptor;
 import com.navercorp.pinpoint.bootstrap.module.JavaModule;
 import com.navercorp.pinpoint.bootstrap.module.JavaModuleFactory;
 import com.navercorp.pinpoint.common.util.ClassUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.profiler.instrument.classreading.ClassReaderWrapper;
+import com.navercorp.pinpoint.profiler.util.JavaAssistUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
@@ -37,7 +39,7 @@ public class ClassFileTransformerModuleHandler implements ClassFileTransformModu
     private final ClassFileTransformer delegate;
     private final JavaModuleFactory javaModuleFactory;
     private final JavaModule bootstrapModule;
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
 
     public ClassFileTransformerModuleHandler(Instrumentation instrumentation, ClassFileTransformer delegate, JavaModuleFactory javaModuleFactory) {
@@ -59,9 +61,12 @@ public class ClassFileTransformerModuleHandler implements ClassFileTransformModu
             if (!javaModuleFactory.isNamedModule(transformedModuleObject)) {
                 return transform;
             }
+
+            final String className0 = ensureClassName(className, classfileBuffer);
+
             // bootstrap-core permission
             final JavaModule transformedModule = javaModuleFactory.wrapFromModule(transformedModuleObject);
-            addModulePermission(transformedModule, className, bootstrapModule);
+            addModulePermission(transformedModule, className0, bootstrapModule);
 
 
             if (loader != Object.class.getClassLoader()) {
@@ -69,10 +74,22 @@ public class ClassFileTransformerModuleHandler implements ClassFileTransformModu
                 final Object pluginModuleObject = getPluginModule(loader);
                 final JavaModule pluginModule = javaModuleFactory.wrapFromModule(pluginModuleObject);
 
-                addModulePermission(transformedModule, className, pluginModule);
+                addModulePermission(transformedModule, className0, pluginModule);
             }
         }
         return transform;
+    }
+
+    private static String ensureClassName(String className, byte[] classfileBuffer) {
+        if (className != null) {
+            return className;
+        }
+        return readClassName(classfileBuffer);
+    }
+
+    private static String readClassName(byte[] classfileBuffer) {
+        String className = new ClassReaderWrapper(classfileBuffer).getClassInternalName();
+        return JavaAssistUtils.jvmNameToJavaName(className);
     }
 
     private Object getPluginModule(ClassLoader loader) {

@@ -19,17 +19,16 @@ import com.navercorp.pinpoint.common.server.bo.stat.join.JoinCpuLoadBo;
 import com.navercorp.pinpoint.common.server.bo.stat.join.JoinDoubleFieldBo;
 import com.navercorp.pinpoint.web.vo.stat.AggreJoinCpuLoadBo;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.math3.util.Precision;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 /**
  * @author minwoo.jung
  */
 @Component
-public class JoinCpuLoadSampler implements ApplicationStatSampler<JoinCpuLoadBo> {
+public class JoinCpuLoadSampler implements ApplicationStatSampler<JoinCpuLoadBo, AggreJoinCpuLoadBo> {
 
     @Override
     public AggreJoinCpuLoadBo sampleDataPoints(int timeWindowIndex, long timestamp, List<JoinCpuLoadBo> joinCpuLoadBoList, JoinCpuLoadBo previousDataPoint) {
@@ -55,12 +54,11 @@ public class JoinCpuLoadSampler implements ApplicationStatSampler<JoinCpuLoadBo>
         double maxSysCpuLoad = roundToScale(systemCpuLoadJoinValue.getMax() * 100);
         String maxSysCpuAgentId = systemCpuLoadJoinValue.getMaxAgentId();
 
-        AggreJoinCpuLoadBo aggreJoinCpuLoadBo = new AggreJoinCpuLoadBo(id, jvmCpuLoad, maxJvmCpuLoad, maxJvmCpuAgentId, minJvmCpuLoad, minJvmCpuAgentId, sysCpuLoad, maxSysCpuLoad, maxSysCpuAgentId, minSysCpuLoad, minSysCpuAgentId, timestamp);
-        return aggreJoinCpuLoadBo;
+        return new AggreJoinCpuLoadBo(id, jvmCpuLoad, maxJvmCpuLoad, maxJvmCpuAgentId, minJvmCpuLoad, minJvmCpuAgentId, sysCpuLoad, maxSysCpuLoad, maxSysCpuAgentId, minSysCpuLoad, minSysCpuAgentId, timestamp);
     }
 
     private double roundToScale(double value) {
-        return BigDecimal.valueOf(value).setScale(1, RoundingMode.HALF_UP).doubleValue();
+        return Precision.round(value, 1);
     }
 
 }

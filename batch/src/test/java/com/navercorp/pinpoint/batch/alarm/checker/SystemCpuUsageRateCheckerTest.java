@@ -16,16 +16,14 @@
 
 package com.navercorp.pinpoint.batch.alarm.checker;
 
-import com.navercorp.pinpoint.batch.alarm.checker.SystemCpuUsageRateChecker;
 import com.navercorp.pinpoint.batch.alarm.collector.AgentStatDataCollector;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -40,9 +38,11 @@ public class SystemCpuUsageRateCheckerTest {
         Rule rule = new Rule();
         rule.setThreshold(10);
         AgentStatDataCollector agentStatDataCollector = mock(AgentStatDataCollector.class);
-        Map<String, Long> result = new HashMap<>();
-        result.put("testAgent1", 30L);
-        result.put("testAgent2", 50L);
+
+        Map<String, Long> result = Map.ofEntries(
+                Map.entry("testAgent1", 30L),
+                Map.entry("testAgent2", 50L));
+
         when(agentStatDataCollector.getSystemCpuUsageRate()).thenReturn(result);
         SystemCpuUsageRateChecker systemCpuUsageRateChecker = new SystemCpuUsageRateChecker(agentStatDataCollector, rule);
         systemCpuUsageRateChecker.check();
@@ -54,9 +54,11 @@ public class SystemCpuUsageRateCheckerTest {
         Rule rule = new Rule();
         rule.setThreshold(70);
         AgentStatDataCollector agentStatDataCollector = mock(AgentStatDataCollector.class);
-        Map<String, Long> result = new HashMap<>();
-        result.put("testAgent1", 30L);
-        result.put("testAgent2", 50L);
+
+        Map<String, Long> result = Map.ofEntries(
+                Map.entry("testAgent1", 30L),
+                Map.entry("testAgent2", 50L));
+
         when(agentStatDataCollector.getSystemCpuUsageRate()).thenReturn(result);
         SystemCpuUsageRateChecker systemCpuUsageRateChecker = new SystemCpuUsageRateChecker(agentStatDataCollector, rule);
         systemCpuUsageRateChecker.check();

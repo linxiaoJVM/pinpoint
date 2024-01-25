@@ -19,7 +19,7 @@ package com.navercorp.pinpoint.profiler.sender.grpc;
 
 import com.google.protobuf.Empty;
 import com.google.protobuf.GeneratedMessageV3;
-import java.util.Objects;
+import com.navercorp.pinpoint.common.profiler.message.MessageConverter;
 import com.navercorp.pinpoint.grpc.client.ChannelFactory;
 import com.navercorp.pinpoint.grpc.trace.PAgentStat;
 import com.navercorp.pinpoint.grpc.trace.PAgentStatBatch;
@@ -27,7 +27,6 @@ import com.navercorp.pinpoint.grpc.trace.PAgentUriStat;
 import com.navercorp.pinpoint.grpc.trace.PCustomMetricMessage;
 import com.navercorp.pinpoint.grpc.trace.PStatMessage;
 import com.navercorp.pinpoint.grpc.trace.StatGrpc;
-import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
 import com.navercorp.pinpoint.profiler.monitor.metric.MetricType;
 import com.navercorp.pinpoint.profiler.sender.grpc.stream.ClientStreamingProvider;
 import com.navercorp.pinpoint.profiler.sender.grpc.stream.DefaultStreamTask;
@@ -35,19 +34,23 @@ import com.navercorp.pinpoint.profiler.sender.grpc.stream.StreamExecutorFactory;
 import com.navercorp.pinpoint.profiler.util.NamedRunnable;
 import io.grpc.stub.ClientCallStreamObserver;
 
+import java.util.Objects;
+
 import static com.navercorp.pinpoint.grpc.MessageFormatUtils.debugLog;
 
 /**
  * @author jaehong.kim
  */
 public class StatGrpcDataSender extends GrpcDataSender<MetricType> {
+    private static final String ID = "StatStream";
 
     private final ReconnectExecutor reconnectExecutor;
 
     private final Reconnector reconnector;
     private final StreamState failState;
+    private final StreamState taskFailState;
     private final StreamExecutorFactory<PStatMessage> streamExecutorFactory;
-    private final String id = "StatStream";
+
 
     private volatile StreamTask<MetricType, PStatMessage> currentStreamTask;
 
@@ -100,7 +103,7 @@ public class StatGrpcDataSender extends GrpcDataSender<MetricType> {
         super(host, port, executorQueueSize, messageConverter, channelFactory);
 
         this.reconnectExecutor = Objects.requireNonNull(reconnectExecutor, "reconnectExecutor");
-        final Runnable reconnectJob = new NamedRunnable(this.id) {
+        final Runnable reconnectJob = new NamedRunnable(ID) {
             @Override
             public void run() {
                 startStream();
@@ -108,12 +111,13 @@ public class StatGrpcDataSender extends GrpcDataSender<MetricType> {
         };
         this.reconnector = reconnectExecutor.newReconnector(reconnectJob);
         this.failState = new SimpleStreamState(100, 5000);
+        this.taskFailState = new SimpleStreamState(10, 150000);
         this.streamExecutorFactory = new StreamExecutorFactory<>(executor);
 
         ClientStreamingProvider<PStatMessage, Empty> clientStreamProvider = new ClientStreamingProvider<PStatMessage, Empty>() {
             @Override
             public ClientCallStreamObserver<PStatMessage> newStream(ResponseStreamObserver<PStatMessage, Empty> response) {
-                logger.info("newStream {}", id);
+                logger.info("newStream {}", ID);
                 StatGrpc.StatStub statStub = StatGrpc.newStub(managedChannel);
                 return (ClientCallStreamObserver<PStatMessage>) statStub.sendAgentStat(response);
             }
@@ -127,12 +131,35 @@ public class StatGrpcDataSender extends GrpcDataSender<MetricType> {
     private void startStream() {
 //        streamTaskManager.closeAllStream();
         try {
-            StreamTask<MetricType, PStatMessage> streamTask =  new DefaultStreamTask<>(id, clientStreamService,
+            StreamTask<MetricType, PStatMessage> streamTask = new DefaultStreamTask<>(ID, clientStreamService,
                     this.streamExecutorFactory, this.queue, this.dispatcher, failState);
             streamTask.start();
-            this.currentStreamTask = streamTask;
+            currentStreamTask = streamTask;
         } catch (Throwable th) {
             logger.error("Unexpected error", th);
+        }
+    }
+
+    @Override
+    public boolean send(MetricType data) {
+        streamTaskCheck();
+        return super.send(data);
+    }
+
+    private void streamTaskCheck() {
+        if (currentStreamTask != null && currentStreamTask.isJobStarted()) {
+            taskFailState.success();
+            return;
+        }
+        taskFailState.fail();
+
+        if (taskFailState.isFailure()) {
+            logger.warn("stat task fail state, scheduling reconnection");
+            if (currentStreamTask == null || currentStreamTask.callOnError(new Exception("no stream job started"))) {
+                reconnector.reconnect();
+            }
+            taskFailState.success();
+            logger.info("reconnection scheduled");
         }
     }
 
@@ -153,7 +180,7 @@ public class StatGrpcDataSender extends GrpcDataSender<MetricType> {
         if (currentStreamTask != null) {
             currentStreamTask.stop();
         }
-        logger.info("{} close()", id);
+        logger.info("{} close()", ID);
         release();
     }
 

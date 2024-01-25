@@ -16,16 +16,16 @@
 
 package com.navercorp.pinpoint.hbase.schema.core.command;
 
+import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.hbase.schema.reader.InvalidHbaseSchemaException;
 import com.navercorp.pinpoint.hbase.schema.reader.core.ChangeSet;
 import com.navercorp.pinpoint.hbase.schema.reader.core.ChangeType;
 import com.navercorp.pinpoint.hbase.schema.reader.core.TableChange;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.hadoop.hbase.io.compress.Compression;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,14 +51,10 @@ public class HbaseSchemaCommandManager {
         this(namespace, compression, Collections.emptyList());
     }
 
-    public HbaseSchemaCommandManager(String namespace, String compression, List<HTableDescriptor> currentHtds) {
-        if (StringUtils.isEmpty(namespace)) {
-            this.namespace = NamespaceDescriptor.DEFAULT_NAMESPACE_NAME_STR;
-        } else {
-            this.namespace = namespace;
-        }
+    public HbaseSchemaCommandManager(String namespace, String compression, List<TableDescriptor> currentHtds) {
+        this.namespace = StringUtils.defaultIfEmpty(namespace, NamespaceDescriptor.DEFAULT_NAMESPACE_NAME_STR);
         this.compressionAlgorithm = getCompressionAlgorithm(compression);
-        for (HTableDescriptor htd : filterTablesByNamespace(currentHtds)) {
+        for (TableDescriptor htd : filterTablesByNamespace(currentHtds)) {
             tableCommandMap.put(htd.getTableName(), new ModifyTableCommand(htd, this.compressionAlgorithm));
         }
     }
@@ -75,12 +71,12 @@ public class HbaseSchemaCommandManager {
         throw new IllegalArgumentException("Unknown compression option : " + compression);
     }
 
-    private List<HTableDescriptor> filterTablesByNamespace(List<HTableDescriptor> htds) {
+    private List<TableDescriptor> filterTablesByNamespace(List<TableDescriptor> htds) {
         if (CollectionUtils.isEmpty(htds)) {
             return Collections.emptyList();
         }
-        List<HTableDescriptor> filteredHtds = new ArrayList<>();
-        for (HTableDescriptor htd : htds) {
+        List<TableDescriptor> filteredHtds = new ArrayList<>();
+        for (TableDescriptor htd : htds) {
             TableName tableName = htd.getTableName();
             String namespace = tableName.getNamespaceAsString();
             if (this.namespace.equalsIgnoreCase(namespace)) {
@@ -112,7 +108,7 @@ public class HbaseSchemaCommandManager {
         TableName tableName = TableName.valueOf(namespace, tableChange.getName());
 
         switch (changeType) {
-            case CREATE:
+            case CREATE -> {
                 if (tableCommandMap.containsKey(tableName)) {
                     throw new IllegalArgumentException("Cannot create an existing table : " + tableName);
                 }
@@ -120,16 +116,16 @@ public class HbaseSchemaCommandManager {
                 createTableCommand.applyConfiguration(tableChange.getTableConfiguration());
                 createTableCommand.applyColumnFamilyChanges(tableChange.getColumnFamilyChanges());
                 tableCommandMap.put(tableName, createTableCommand);
-                break;
-            case MODIFY:
+            }
+            case MODIFY -> {
                 TableCommand tableCommand = tableCommandMap.get(tableName);
                 if (tableCommand == null) {
                     throw new IllegalArgumentException("Cannot modify a non-existent table : " + tableName);
                 }
                 tableCommand.applyConfiguration(tableChange.getTableConfiguration());
                 tableCommand.applyColumnFamilyChanges(tableChange.getColumnFamilyChanges());
-                break;
-            default:
+            }
+            default ->
                 throw new UnsupportedOperationException("Invalid change type : " + changeType);
         }
         affectedTables.add(tableName);
@@ -142,12 +138,11 @@ public class HbaseSchemaCommandManager {
                 .collect(Collectors.toList());
     }
 
-    public List<HTableDescriptor> getSchemaSnapshot() {
+    public List<TableDescriptor> getSchemaSnapshot() {
         return tableCommandMap.entrySet().stream()
                 .filter(e -> affectedTables.contains(e.getKey()))
                 .map(Map.Entry::getValue)
-                .map(TableCommand::getHtd)
-                .map(HTableDescriptor::new)
+                .map(TableCommand::buildDescriptor)
                 .collect(Collectors.toList());
     }
 }

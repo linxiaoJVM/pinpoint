@@ -18,12 +18,13 @@ package com.navercorp.pinpoint.agent.plugin.proxy.app;
 
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.util.NumberUtils;
+import com.navercorp.pinpoint.common.util.IdValidateUtils;
 import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.profiler.context.recorder.proxy.ProxyRequestHeader;
 import com.navercorp.pinpoint.profiler.context.recorder.proxy.ProxyRequestHeaderBuilder;
 import com.navercorp.pinpoint.profiler.context.recorder.proxy.ProxyRequestParser;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -32,14 +33,8 @@ import java.util.List;
 public class AppRequestParser implements ProxyRequestParser {
 
     @Override
-    @Deprecated
-    public String getHttpHeaderName() {
-        return AppRequestConstants.APP_REQUEST_TYPE.getHttpHeaderName();
-    }
-
-    @Override
     public List<String> getHttpHeaderNameList() {
-        return Arrays.asList(AppRequestConstants.APP_REQUEST_TYPE.getHttpHeaderName());
+        return Collections.singletonList(AppRequestConstants.APP_REQUEST_TYPE.getHttpHeaderName());
     }
 
     @Override
@@ -51,11 +46,6 @@ public class AppRequestParser implements ProxyRequestParser {
     public void init(ProfilerConfig profilerConfig) {
     }
 
-    @Override
-    @Deprecated
-    public ProxyRequestHeader parse(String value) {
-        return parseHeader("UNKNOWN", value);
-    }
 
     @Override
     public ProxyRequestHeader parseHeader(String name, String value) {
@@ -76,6 +66,17 @@ public class AppRequestParser implements ProxyRequestParser {
             } else if (token.startsWith("app=")) {
                 final String app = token.substring(4).trim();
                 if (!app.isEmpty()) {
+                    try {
+                        if (!IdValidateUtils.validateId(app, 30)) {
+                            header.setValid(false);
+                            header.setCause("app can only contain [a-zA-Z0-9], '.', '-', '_'. maxLength: 30");
+                            return header.build();
+                        }
+                    } catch (Exception ignored) {
+                        header.setValid(false);
+                        header.setCause("invalid app");
+                        return header.build();
+                    }
                     header.setApp(app);
                 }
             }

@@ -30,7 +30,7 @@ import java.util.Objects;
 public final class BootLogger {
 
     private static final String FORMAT = "%tm-%<td %<tT.%<tL %-5s %-35.35s : %s";
-    private static final String LINE_SEPARATOR = System.getProperty("line.separator");
+    private static final String LINE_SEPARATOR = System.lineSeparator();
     
     private static final BootLogLevel LOG_LEVEL = getLogLevel();
     private final String loggerName;
@@ -79,6 +79,17 @@ public final class BootLogger {
             buffer.append(LINE_SEPARATOR);
         }
         return formatter.toString();
+    }
+
+    public boolean isTraceEnabled() {
+        return LOG_LEVEL.logTrace();
+    }
+
+    public void trace(String msg) {
+        if (isTraceEnabled()) {
+            String formatMessage = format("TRACE", msg, null);
+            this.out.print(formatMessage);
+        }
     }
 
     public boolean isDebugEnabled() {

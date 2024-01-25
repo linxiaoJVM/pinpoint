@@ -22,17 +22,17 @@ import com.navercorp.pinpoint.rpc.server.DefaultPinpointServer;
 import com.navercorp.pinpoint.rpc.util.PinpointRPCTestUtils;
 import com.navercorp.pinpoint.test.server.TestPinpointServerAcceptor;
 import com.navercorp.pinpoint.test.server.TestServerMessageListenerFactory;
-import com.navercorp.pinpoint.test.utils.TestAwaitTaskUtils;
-import com.navercorp.pinpoint.test.utils.TestAwaitUtils;
 import com.navercorp.pinpoint.testcase.util.SocketUtils;
+import org.awaitility.Awaitility;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Objects;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Taejin Koo
@@ -40,7 +40,6 @@ import java.util.Objects;
 public class PinpointClientStateTest {
 
     private final TestServerMessageListenerFactory testServerMessageListenerFactory = new TestServerMessageListenerFactory(TestServerMessageListenerFactory.HandshakeType.DUPLEX);
-    private final TestAwaitUtils awaitUtils = new TestAwaitUtils(100, 2000);
 
     @Test
     public void connectFailedStateTest() throws InterruptedException {
@@ -145,14 +144,8 @@ public class PinpointClientStateTest {
     }
 
     private void assertHandlerState(final SocketStateCode stateCode, final DefaultPinpointClientHandler handler) {
-        boolean passed = awaitUtils.await(new TestAwaitTaskUtils() {
-            @Override
-            public boolean checkCompleted() {
-                return handler.getCurrentStateCode() == stateCode;
-            }
-        });
-
-        Assert.assertTrue(passed);
+        Awaitility.await()
+                .untilAsserted(() -> assertThat(handler.getCurrentStateCode()).isEqualTo(stateCode));
     }
 
     private DefaultPinpointClientHandler connect(DefaultPinpointClientFactory factory, int port) {
@@ -165,9 +158,8 @@ public class PinpointClientStateTest {
         Objects.requireNonNull(address, "address");
 
         Channel channel = channelConnectFuture.getChannel();
-        PinpointClientHandler pinpointClientHandler = (PinpointClientHandler) channel.getPipeline().getLast();
 
-        return pinpointClientHandler;
+        return (PinpointClientHandler) channel.getPipeline().getLast();
     }
 
     private void closeHandler(DefaultPinpointClientHandler handler) {

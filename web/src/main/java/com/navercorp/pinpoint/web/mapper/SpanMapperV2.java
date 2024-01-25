@@ -16,6 +16,8 @@
 
 package com.navercorp.pinpoint.web.mapper;
 
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.navercorp.pinpoint.common.buffer.Buffer;
 import com.navercorp.pinpoint.common.buffer.CachedStringAllocator;
 import com.navercorp.pinpoint.common.buffer.FixedBuffer;
@@ -33,19 +35,17 @@ import com.navercorp.pinpoint.common.server.bo.serializer.RowKeyDecoder;
 import com.navercorp.pinpoint.common.server.bo.serializer.trace.v2.SpanDecoder;
 import com.navercorp.pinpoint.common.server.bo.serializer.trace.v2.SpanDecoderV0;
 import com.navercorp.pinpoint.common.server.bo.serializer.trace.v2.SpanDecodingContext;
+import com.navercorp.pinpoint.common.trace.ServiceTypeCategory;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.common.util.LRUCache;
 import com.navercorp.pinpoint.io.SpanVersion;
-
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.ListMultimap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
 /**
  * @author emeroad
  * @author Taejin Koo
@@ -61,7 +62,7 @@ public class SpanMapperV2 implements RowMapper<List<SpanBo>> {
 
     private static final int DISABLED_CACHE = -1;
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final SpanDecoder spanDecoder;
 
@@ -119,15 +120,13 @@ public class SpanMapperV2 implements RowMapper<List<SpanBo>> {
 
                 spanDecoder = resolveDecoder(columnValue);
                 final Object decodeObject = spanDecoder.decode(qualifier, columnValue, decodingContext);
-                if (decodeObject instanceof SpanBo) {
-                    SpanBo spanBo = (SpanBo) decodeObject;
+                if (decodeObject instanceof SpanBo spanBo) {
                     if (logger.isTraceEnabled()) {
                         logger.trace("spanBo:{}", spanBo);
                     }
                     AgentKey agentKey = newAgentKey(spanBo);
                     spanMap.put(agentKey, spanBo);
-                } else if (decodeObject instanceof SpanChunkBo) {
-                    SpanChunkBo spanChunkBo = (SpanChunkBo) decodeObject;
+                } else if (decodeObject instanceof SpanChunkBo spanChunkBo) {
                     if (logger.isTraceEnabled()) {
                         logger.trace("spanChunkBo:{}", spanChunkBo);
                     }
@@ -208,22 +207,24 @@ public class SpanMapperV2 implements RowMapper<List<SpanBo>> {
             AgentKey agentKey = newAgentKey(spanChunkBo);
             List<SpanBo> matchedSpanBoList = spanMap.get(agentKey);
             if (CollectionUtils.hasLength(matchedSpanBoList)) {
-                final int spanIdCollisionSize = matchedSpanBoList.size();
-                if (spanIdCollisionSize > 1) {
-                    // exceptional case dump
-                    logger.warn("spanIdCollision {}", matchedSpanBoList);
-                }
-
                 int agentLevelCollisionCount = 0;
+                final int spanIdCollisionSize = matchedSpanBoList.size();
+                boolean ignoreCollision = false;
                 for (SpanBo spanBo : matchedSpanBoList) {
+                    if (ServiceTypeCategory.MESSAGE_BROKER.contains(spanBo.getServiceType())) {
+                        ignoreCollision = true;
+                    }
                     if (isChildSpanChunk(spanBo, spanChunkBo)) {
                         spanBo.addSpanChunkBo(spanChunkBo);
                         agentLevelCollisionCount++;
                     }
                 }
-                if (agentLevelCollisionCount > 1) {
-                    // exceptional case dump
-                    logger.warn("agentLevelCollision {}", matchedSpanBoList);
+
+                if (Boolean.FALSE == ignoreCollision) {
+                    if (agentLevelCollisionCount > 1 || spanIdCollisionSize > 1) {
+                        // exceptional case dump
+                        logger.warn("Collision agentLevel={}, spanId={}, matchedSpanBoList={}", agentLevelCollisionCount, spanIdCollisionSize, matchedSpanBoList);
+                    }
                 }
             } else {
                 if (logger.isInfoEnabled()) {

@@ -16,8 +16,8 @@
 
 package com.navercorp.pinpoint.bootstrap.config;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Woonduk Kang(emeroad)
@@ -26,14 +26,13 @@ public class TransportModuleTest {
 
     @Test
     public void parse() {
-        Assert.assertEquals(TransportModule.parse("GRPC"), TransportModule.GRPC);
-        Assert.assertEquals(TransportModule.parse("THRIFT"), TransportModule.THRIFT);
+        Assertions.assertEquals(TransportModule.parse("GRPC"), TransportModule.GRPC);
 
-        Assert.assertNull(TransportModule.parse("ERROR"));
+        Assertions.assertEquals(TransportModule.parse("ERROR"), TransportModule.GRPC);
     }
 
     @Test
     public void parse1() {
-        Assert.assertEquals(TransportModule.parse("ERROR", TransportModule.GRPC), TransportModule.GRPC);
+        Assertions.assertEquals(TransportModule.parse("ERROR", TransportModule.GRPC), TransportModule.GRPC);
     }
 }

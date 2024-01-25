@@ -34,7 +34,7 @@ public class AnnotationFactory<T> {
         int annotationkey = typeHandler.getKey(annotation);
         Object annotationValue = typeHandler.getValue(annotation);
         Object commonType = buildAnnotationValue(annotationValue);
-        return new AnnotationBo(annotationkey, commonType);
+        return AnnotationBo.of(annotationkey, commonType);
     }
 
     public Object buildAnnotationValue(Object value) {
@@ -59,6 +59,7 @@ public class AnnotationFactory<T> {
         } else if (value instanceof Double) {
             return value;
         } else if (value instanceof byte[]) {
+            // not supported by protobuf
             return value;
         }
 

@@ -46,6 +46,9 @@ public interface InstrumentClass {
 
     InstrumentMethod getDeclaredMethod(String name, String... parameterTypes);
 
+    @Deprecated
+    InstrumentMethod getLambdaMethod(String... parameterTypes);
+
     List<InstrumentClass> getNestedClasses(ClassFilter filter);    
     
     ClassLoader getClassLoader();

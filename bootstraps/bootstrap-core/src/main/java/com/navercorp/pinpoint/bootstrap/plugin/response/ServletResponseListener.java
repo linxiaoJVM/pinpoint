@@ -22,7 +22,6 @@ import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
-import com.navercorp.pinpoint.bootstrap.plugin.http.HttpStatusCodeRecorder;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 
 import java.util.Objects;
@@ -37,14 +36,11 @@ public class ServletResponseListener<RESP> {
 
     private final TraceContext traceContext;
     private final ServerResponseHeaderRecorder<RESP> serverResponseHeaderRecorder;
-    private final HttpStatusCodeRecorder httpStatusCodeRecorder;
 
     public ServletResponseListener(final TraceContext traceContext,
-                                   final ServerResponseHeaderRecorder<RESP> serverResponseHeaderRecorder,
-                                  final HttpStatusCodeRecorder httpStatusCodeRecorder) {
+                                   final ServerResponseHeaderRecorder<RESP> serverResponseHeaderRecorder) {
         this.traceContext = Objects.requireNonNull(traceContext, "traceContext");
         this.serverResponseHeaderRecorder = Objects.requireNonNull(serverResponseHeaderRecorder, "serverResponseHeaderRecorder");
-        this.httpStatusCodeRecorder = Objects.requireNonNull(httpStatusCodeRecorder, "statusCodeRecorder");
     }
 
 
@@ -54,7 +50,8 @@ public class ServletResponseListener<RESP> {
         Objects.requireNonNull(methodDescriptor, "methodDescriptor");
 
         if (isDebug) {
-            logger.debug("Initialized responseEvent. response={}, serviceType={}, methodDescriptor={}", response, serviceType, methodDescriptor);
+            // An error may occur when the response variable is output to the log.
+            logger.debug("Initialized responseEvent. serviceType={}, methodDescriptor={}", serviceType, methodDescriptor);
         }
     }
 
@@ -62,7 +59,8 @@ public class ServletResponseListener<RESP> {
         Objects.requireNonNull(response, "response");
 
         if (isDebug) {
-            logger.debug("Destroyed responseEvent. response={}, throwable={}, statusCode={}", response, throwable, statusCode);
+            // An error may occur when the response variable is output to the log.
+            logger.debug("Destroyed responseEvent. throwable={}, statusCode={}", throwable, statusCode);
         }
 
         final Trace trace = this.traceContext.currentRawTraceObject();
@@ -72,9 +70,7 @@ public class ServletResponseListener<RESP> {
 
         if (trace.canSampled()) {
             final SpanRecorder spanRecorder = trace.getSpanRecorder();
-            this.httpStatusCodeRecorder.record(spanRecorder, statusCode);
             this.serverResponseHeaderRecorder.recordHeader(spanRecorder, response);
         }
     }
-
 }

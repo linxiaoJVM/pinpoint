@@ -19,14 +19,13 @@ package com.navercorp.pinpoint.profiler.sender.grpc;
 
 import com.google.protobuf.Empty;
 import com.google.protobuf.GeneratedMessageV3;
-import java.util.Objects;
+import com.navercorp.pinpoint.common.profiler.message.MessageConverter;
 import com.navercorp.pinpoint.grpc.client.ChannelFactory;
 import com.navercorp.pinpoint.grpc.trace.PSpan;
 import com.navercorp.pinpoint.grpc.trace.PSpanChunk;
 import com.navercorp.pinpoint.grpc.trace.PSpanMessage;
 import com.navercorp.pinpoint.grpc.trace.SpanGrpc;
 import com.navercorp.pinpoint.profiler.context.SpanType;
-import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
 import com.navercorp.pinpoint.profiler.sender.grpc.stream.ClientStreamingProvider;
 import com.navercorp.pinpoint.profiler.sender.grpc.stream.DefaultStreamTask;
 import com.navercorp.pinpoint.profiler.sender.grpc.stream.StreamExecutorFactory;
@@ -34,6 +33,11 @@ import com.navercorp.pinpoint.profiler.util.NamedRunnable;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.ClientCallStreamObserver;
+
+import java.util.Objects;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.navercorp.pinpoint.grpc.MessageFormatUtils.debugLog;
 
@@ -46,12 +50,17 @@ public class SpanGrpcDataSender extends GrpcDataSender<SpanType> {
 
     private final Reconnector reconnector;
     private final StreamState failState;
+    private final StreamState taskFailState;
     private final StreamExecutorFactory<PSpanMessage> streamExecutorFactory;
     private final String id = "SpanStream";
 
     private volatile StreamTask<SpanType, PSpanMessage> currentStreamTask;
 
     private final ClientStreamingService<PSpanMessage, Empty> clientStreamService;
+
+    private final long maxRpcAgeMillis;
+    private final AtomicLong rpcExpiredAt;
+    private final Random random = new Random();
 
     public final MessageDispatcher<SpanType, PSpanMessage> dispatcher = new MessageDispatcher<SpanType, PSpanMessage>() {
         @Override
@@ -64,12 +73,14 @@ public class SpanGrpcDataSender extends GrpcDataSender<SpanType> {
                 final PSpanChunk spanChunk = (PSpanChunk) message;
                 final PSpanMessage spanMessage = PSpanMessage.newBuilder().setSpanChunk(spanChunk).build();
                 stream.onNext(spanMessage);
+                attemptRenew();
                 return;
             }
             if (message instanceof PSpan) {
                 final PSpan pSpan = (PSpan) message;
                 final PSpanMessage spanMessage = PSpanMessage.newBuilder().setSpan(pSpan).build();
                 stream.onNext(spanMessage);
+                attemptRenew();
                 return;
             }
             throw new IllegalStateException("unsupported message " + data);
@@ -82,8 +93,12 @@ public class SpanGrpcDataSender extends GrpcDataSender<SpanType> {
                               MessageConverter<SpanType, GeneratedMessageV3> messageConverter,
                               ReconnectExecutor reconnectExecutor,
                               ChannelFactory channelFactory,
-                              StreamState failState) {
+                              StreamState failState,
+                              long maxRpcAgeMillis) {
         super(host, port, executorQueueSize, messageConverter, channelFactory);
+
+        this.maxRpcAgeMillis = maxRpcAgeMillis;
+        this.rpcExpiredAt = new AtomicLong(System.currentTimeMillis() + jitter(maxRpcAgeMillis));
 
         this.reconnectExecutor = Objects.requireNonNull(reconnectExecutor, "reconnectExecutor");
         final Runnable reconnectJob = new NamedRunnable(this.id) {
@@ -94,6 +109,7 @@ public class SpanGrpcDataSender extends GrpcDataSender<SpanType> {
         };
         this.reconnector = reconnectExecutor.newReconnector(reconnectJob);
         this.failState = Objects.requireNonNull(failState, "failState");
+        this.taskFailState = new SimpleStreamState(executorQueueSize / 5, 60000);
         this.streamExecutorFactory = new StreamExecutorFactory<>(executor);
 
         ClientStreamingProvider<PSpanMessage, Empty> clientStreamProvider = new ClientStreamingProvider<PSpanMessage, Empty>() {
@@ -113,6 +129,33 @@ public class SpanGrpcDataSender extends GrpcDataSender<SpanType> {
         reconnectJob.run();
     }
 
+    private void attemptRenew() {
+        if (maxRpcAgeMillis >= TimeUnit.DAYS.toMillis(365)) {
+            return;
+        }
+
+        final long rpcExpiredAtValue = rpcExpiredAt.get();
+        final long now = System.currentTimeMillis();
+        if (now > rpcExpiredAtValue) {
+            final long nextRpcExpiredAt = now + jitter(maxRpcAgeMillis);
+            if (rpcExpiredAt.compareAndSet(rpcExpiredAtValue, nextRpcExpiredAt)) {
+                renewStream();
+            }
+        }
+    }
+
+    private long jitter(long x) {
+        final double m = 0.8 + random.nextDouble() * 0.4;
+        return (long) (m * (double) x);
+    }
+
+    private void renewStream() {
+        if (this.currentStreamTask != null) {
+            logger.info("Aborting Span RPC to renew");
+            this.currentStreamTask.stop();
+        }
+    }
+
     private void startStream() {
         try {
             StreamTask<SpanType, PSpanMessage> streamTask = new DefaultStreamTask<>(id, clientStreamService,
@@ -124,6 +167,28 @@ public class SpanGrpcDataSender extends GrpcDataSender<SpanType> {
         }
     }
 
+    @Override
+    public boolean send(SpanType data) {
+        streamTaskCheck();
+        return super.send(data);
+    }
+
+    private void streamTaskCheck() {
+        if (currentStreamTask != null && currentStreamTask.isJobStarted()) {
+            taskFailState.success();
+            return;
+        }
+        taskFailState.fail();
+
+        if (taskFailState.isFailure()) {
+            logger.warn("span task fail state, scheduling reconnection");
+            if (currentStreamTask == null || !currentStreamTask.callOnError(new Exception("no stream job started"))) {
+                reconnector.reconnect();
+            }
+            taskFailState.success();
+            logger.info("reconnection scheduled");
+        }
+    }
 
     @Override
     public void stop() {

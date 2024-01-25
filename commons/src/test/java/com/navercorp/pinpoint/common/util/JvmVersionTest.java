@@ -16,10 +16,12 @@
 
 package com.navercorp.pinpoint.common.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_10;
 import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_11;
+import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_21;
+import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_22;
 import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_5;
 import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_6;
 import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_7;
@@ -27,9 +29,9 @@ import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_8;
 import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_9;
 import static com.navercorp.pinpoint.common.util.JvmVersion.JAVA_RECENT;
 import static com.navercorp.pinpoint.common.util.JvmVersion.UNSUPPORTED;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author hyungil.jeong
@@ -129,8 +131,8 @@ public class JvmVersionTest {
         assertSame(UNSUPPORTED, java_unsupported);
 
         // new version
-        final JvmVersion java20 = JvmVersion.getFromVersion(20.f);
-        assertSame(JAVA_RECENT, java20);
+        final JvmVersion javaRecent = JvmVersion.getFromVersion(33.f);
+        assertSame(JAVA_RECENT, javaRecent);
     }
 
     @Test
@@ -153,6 +155,13 @@ public class JvmVersionTest {
         // JDK 10
         final JvmVersion java_10 = JvmVersion.getFromVersion("10");
         assertSame(JAVA_10, java_10);
+
+        // JDK 21
+        final JvmVersion java_21 = JvmVersion.getFromVersion("21");
+        assertSame(JAVA_21, java_21);
+        // JDK 22
+        final JvmVersion java_22 = JvmVersion.getFromVersion("22");
+        assertSame(JAVA_22, java_22);
         // Unsupported
         final JvmVersion java_unsupported = JvmVersion.getFromVersion("abc");
         assertSame(UNSUPPORTED, java_unsupported);
@@ -178,6 +187,14 @@ public class JvmVersionTest {
         // JDK 10
         final JvmVersion java_10 = JvmVersion.getFromClassVersion(54);
         assertSame(JAVA_10, java_10);
+
+        // JDK 21
+        final JvmVersion java_21 = JvmVersion.getFromClassVersion(65);
+        assertSame(JAVA_21, java_21);
+        // JDK 22
+        final JvmVersion java_22 = JvmVersion.getFromClassVersion(66);
+        assertSame(JAVA_22, java_22);
+
         // Unsupported
         final JvmVersion java_unsupported = JvmVersion.getFromClassVersion(-1);
         assertSame(UNSUPPORTED, java_unsupported);

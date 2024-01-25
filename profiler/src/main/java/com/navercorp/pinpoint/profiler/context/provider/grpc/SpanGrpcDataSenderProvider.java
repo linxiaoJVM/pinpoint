@@ -19,21 +19,20 @@ package com.navercorp.pinpoint.profiler.context.provider.grpc;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.protobuf.GeneratedMessageV3;
+import com.navercorp.pinpoint.common.profiler.message.DataSender;
+import com.navercorp.pinpoint.common.profiler.message.MessageConverter;
 import com.navercorp.pinpoint.grpc.client.ChannelFactory;
 import com.navercorp.pinpoint.grpc.client.ChannelFactoryBuilder;
 import com.navercorp.pinpoint.grpc.client.DefaultChannelFactoryBuilder;
 import com.navercorp.pinpoint.grpc.client.HeaderFactory;
 import com.navercorp.pinpoint.grpc.client.UnaryCallDeadlineInterceptor;
 import com.navercorp.pinpoint.grpc.client.config.ClientOption;
-import com.navercorp.pinpoint.grpc.client.config.SslOption;
 import com.navercorp.pinpoint.grpc.client.interceptor.DiscardClientInterceptor;
 import com.navercorp.pinpoint.grpc.client.interceptor.DiscardEventListener;
 import com.navercorp.pinpoint.grpc.client.interceptor.LoggingDiscardEventListener;
 import com.navercorp.pinpoint.profiler.context.SpanType;
 import com.navercorp.pinpoint.profiler.context.grpc.config.GrpcTransportConfig;
 import com.navercorp.pinpoint.profiler.context.module.SpanDataSender;
-import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
-import com.navercorp.pinpoint.profiler.sender.DataSender;
 import com.navercorp.pinpoint.profiler.sender.grpc.ReconnectExecutor;
 import com.navercorp.pinpoint.profiler.sender.grpc.SimpleStreamState;
 import com.navercorp.pinpoint.profiler.sender.grpc.SpanGrpcDataSender;
@@ -43,8 +42,9 @@ import com.navercorp.pinpoint.profiler.sender.grpc.metric.ChannelzScheduledRepor
 import com.navercorp.pinpoint.profiler.sender.grpc.metric.DefaultChannelzReporter;
 import io.grpc.ClientInterceptor;
 import io.grpc.NameResolverProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.handler.ssl.SslContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Objects;
@@ -54,7 +54,7 @@ import java.util.Objects;
  */
 public class SpanGrpcDataSenderProvider implements Provider<DataSender<SpanType>> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final GrpcTransportConfig grpcTransportConfig;
     private final MessageConverter<SpanType, GeneratedMessageV3> messageConverter;
@@ -64,6 +64,7 @@ public class SpanGrpcDataSenderProvider implements Provider<DataSender<SpanType>
     private final ChannelzScheduledReporter reporter;
 
     private List<ClientInterceptor> clientInterceptorList;
+    private final Provider<SslContext> sslContextProvider;
 
     public static final String SPAN_CHANNELZ = "com.navercorp.pinpoint.metric.SpanChannel";
 
@@ -72,7 +73,9 @@ public class SpanGrpcDataSenderProvider implements Provider<DataSender<SpanType>
                                       @SpanDataSender MessageConverter<SpanType, GeneratedMessageV3> messageConverter,
                                       HeaderFactory headerFactory,
                                       Provider<ReconnectExecutor> reconnectExecutor,
-                                      NameResolverProvider nameResolverProvider, ChannelzScheduledReporter reporter) {
+                                      NameResolverProvider nameResolverProvider,
+                                      ChannelzScheduledReporter reporter,
+                                      Provider<SslContext> sslContextProvider) {
         this.grpcTransportConfig = Objects.requireNonNull(grpcTransportConfig, "grpcTransportConfig");
         this.messageConverter = Objects.requireNonNull(messageConverter, "messageConverter");
         this.headerFactory = Objects.requireNonNull(headerFactory, "headerFactory");
@@ -81,6 +84,7 @@ public class SpanGrpcDataSenderProvider implements Provider<DataSender<SpanType>
 
         this.nameResolverProvider = Objects.requireNonNull(nameResolverProvider, "nameResolverProvider");
         this.reporter = Objects.requireNonNull(reporter, "reporter");
+        this.sslContextProvider = Objects.requireNonNull(sslContextProvider, "sslContextProvider");
     }
 
     @Inject(optional = true)
@@ -106,15 +110,17 @@ public class SpanGrpcDataSenderProvider implements Provider<DataSender<SpanType>
 
         final SpanGrpcDataSender spanGrpcDataSender = new SpanGrpcDataSender(collectorIp, collectorPort,
                 senderExecutorQueueSize, messageConverter,
-                reconnectExecutor, channelFactory, failState);
+                reconnectExecutor, channelFactory, failState, grpcTransportConfig.getSpanRpcMaxAgeMillis());
 
-        registerChannelzReporter(spanGrpcDataSender);
+        if (grpcTransportConfig.isSpanEnableStatLogging()) {
+            registerChannelzReporter(spanGrpcDataSender);
+        }
 
         return spanGrpcDataSender;
     }
 
     private void registerChannelzReporter(SpanGrpcDataSender spanGrpcDataSender) {
-        final Logger statChannelLogger = LoggerFactory.getLogger(SPAN_CHANNELZ);
+        final Logger statChannelLogger = LogManager.getLogger(SPAN_CHANNELZ);
         ChannelzReporter statReporter = new DefaultChannelzReporter(statChannelLogger);
         reporter.registerRootChannel(spanGrpcDataSender.getLogId(), statReporter);
     }
@@ -142,8 +148,8 @@ public class SpanGrpcDataSenderProvider implements Provider<DataSender<SpanType>
         channelFactoryBuilder.setClientOption(clientOption);
 
         if (sslEnable) {
-            SslOption sslOption = grpcTransportConfig.getSslOption();
-            channelFactoryBuilder.setSslOption(sslOption);
+            SslContext sslContext = sslContextProvider.get();
+            channelFactoryBuilder.setSslContext(sslContext);
         }
 
         return channelFactoryBuilder;

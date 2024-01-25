@@ -23,19 +23,24 @@ import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.common.trace.ServiceType;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class AsyncContextSpanEventSimpleAroundInterceptorTest {
 
     @Mock
@@ -54,13 +59,13 @@ public class AsyncContextSpanEventSimpleAroundInterceptorTest {
     @Mock
     private AsyncContext asyncContext;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    public void setUp() {
 
     }
 
     @Test
-    public void propagation_fail() throws Exception {
+    public void propagation_fail() {
 
         AroundInterceptor interceptor = mockSpanAsyncEventSimpleInterceptor(traceContext, methodDescriptor);
         interceptor.before(asyncContextAccessor, null);
@@ -71,7 +76,7 @@ public class AsyncContextSpanEventSimpleAroundInterceptorTest {
     }
 
     @Test
-    public void asyncTraceCreate() throws Exception {
+    public void asyncTraceCreate() {
         when(asyncContextAccessor._$PINPOINT$_getAsyncContext()).thenReturn(asyncContext);
         when(asyncContext.continueAsyncTraceObject()).thenReturn(trace);
 
@@ -83,7 +88,7 @@ public class AsyncContextSpanEventSimpleAroundInterceptorTest {
     }
 
     @Test
-    public void nestedAsyncTraceCreate() throws Exception {
+    public void nestedAsyncTraceCreate() {
         when(asyncContextAccessor._$PINPOINT$_getAsyncContext()).thenReturn(asyncContext);
 //        when(asyncContext.continueAsyncTraceObject()).thenReturn(trace);
 
@@ -95,8 +100,8 @@ public class AsyncContextSpanEventSimpleAroundInterceptorTest {
     }
 
     protected AroundInterceptor mockSpanAsyncEventSimpleInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor) {
-        return Mockito.mock(AsyncContextSpanEventSimpleAroundInterceptor.class,  withSettings()
-                    .useConstructor(traceContext, methodDescriptor).defaultAnswer(CALLS_REAL_METHODS));
+        return Mockito.mock(AsyncContextSpanEventSimpleAroundInterceptor.class, withSettings()
+                .useConstructor(traceContext, methodDescriptor).defaultAnswer(CALLS_REAL_METHODS));
     }
 
 

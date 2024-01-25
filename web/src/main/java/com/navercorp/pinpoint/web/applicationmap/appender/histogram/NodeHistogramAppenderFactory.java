@@ -16,21 +16,17 @@
 
 package com.navercorp.pinpoint.web.applicationmap.appender.histogram;
 
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
-
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
  * @author HyunGil Jeong
  */
-@Component
 public class NodeHistogramAppenderFactory {
 
     private final Executor executor;
 
-    public NodeHistogramAppenderFactory(@Qualifier("nodeHistogramAppendExecutor") Executor executor) {
+    public NodeHistogramAppenderFactory(Executor executor) {
         this.executor = Objects.requireNonNull(executor, "executor");
     }
 

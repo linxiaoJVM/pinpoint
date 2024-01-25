@@ -16,11 +16,13 @@
 
 package com.navercorp.pinpoint.grpc.client.interceptor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * @author jaehong.kim
@@ -28,7 +30,7 @@ import static org.junit.Assert.*;
 public class DiscardLimiterTest {
 
     @Test
-    public void discardCase1() throws Exception {
+    public void discardCase1() {
         DiscardLimiter discardLimiter = new DiscardLimiter(100, 100);
         discardLimiter.reset();
 
@@ -98,7 +100,7 @@ public class DiscardLimiterTest {
     }
 
     @Test
-    public void checkDiscardCountForReconnect() throws Exception {
+    public void checkDiscardCountForReconnect() {
         DiscardLimiter discardLimiter = new DiscardLimiter(100, 100);
         discardLimiter.reset();
 

@@ -38,7 +38,20 @@ import com.navercorp.pinpoint.plugin.mongo.field.getter.filters.SearchGetter;
 import com.navercorp.pinpoint.plugin.mongo.field.getter.filters.TextSearchOptionsGetter;
 import com.navercorp.pinpoint.plugin.mongo.field.getter.updates.ListValuesGetter;
 import com.navercorp.pinpoint.plugin.mongo.field.getter.updates.PushOptionsGetter;
+import org.bson.BsonBinary;
+import org.bson.BsonBoolean;
+import org.bson.BsonDateTime;
+import org.bson.BsonDbPointer;
 import org.bson.BsonDocument;
+import org.bson.BsonDouble;
+import org.bson.BsonInt32;
+import org.bson.BsonInt64;
+import org.bson.BsonJavaScript;
+import org.bson.BsonJavaScriptWithScope;
+import org.bson.BsonRegularExpression;
+import org.bson.BsonString;
+import org.bson.BsonSymbol;
+import org.bson.BsonTimestamp;
 import org.bson.BsonType;
 import org.bson.BsonValue;
 import org.bson.BsonWriter;
@@ -49,6 +62,9 @@ import org.bson.json.JsonWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Array;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +84,7 @@ class WriteContext {
     private final boolean traceBsonBindValue;
     private final boolean decimal128Enabled;
 
-    private static final int DEFAULT_ABBREVIATE_MAX_WIDTH = 8;
+    static final int DEFAULT_ABBREVIATE_MAX_WIDTH = 8;
     static final String UNTRACED = "Unsupported-trace";
 
     public WriteContext(List<String> jsonParameterAppender, boolean decimal128Enabled, boolean traceBsonBindValue) {
@@ -79,10 +95,11 @@ class WriteContext {
 
     public String parse(Object arg) {
         if (arg instanceof Bson) {
-            writeValue(arg);
+            Bson bson = (Bson) arg;
+            writeBsonObject(bson);
         } else if (arg instanceof List) {
-
-            if (((List) arg).get(0) instanceof Bson) {
+            final List<?> list = (List<?>) arg;
+            if (list.get(0) instanceof Bson) {
                 bsonWriter.writeStartDocument();
                 bsonWriter.writeName("bsons");
                 writeValue(arg);
@@ -103,105 +120,109 @@ class WriteContext {
         String argName = arg.getClass().getName();
 
         //SimpleUpdate
-        if (argName.equals(MongoConstants.MONGO_UPDATES_SIMPLE)) {
-            logger.debug("writing SimpleUpdate");
+        switch (argName) {
+            case MongoConstants.MONGO_UPDATES_SIMPLE:
+                logger.debug("writing SimpleUpdate");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((OperatorGetter) arg)._$PINPOINT$_getOperator());
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((OperatorGetter) arg)._$PINPOINT$_getOperator());
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            writeValue(((ValueGetter) arg)._$PINPOINT$_getValue());
-            bsonWriter.writeEndDocument();
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                writeValue(((ValueGetter) arg)._$PINPOINT$_getValue());
+                bsonWriter.writeEndDocument();
 
-            bsonWriter.writeEndDocument();
-        }
-        //WithEachUpdate
-        if (argName.equals(MongoConstants.MONGO_UPDATES_WITHEACH)) {
-            logger.debug("writing WithEachUpdate");
+                bsonWriter.writeEndDocument();
+                break;
+            //WithEachUpdate
+            case MongoConstants.MONGO_UPDATES_WITHEACH:
+                logger.debug("writing WithEachUpdate");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((OperatorGetter) arg)._$PINPOINT$_getOperator());
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((OperatorGetter) arg)._$PINPOINT$_getOperator());
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            bsonWriter.writeStartDocument();
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                bsonWriter.writeStartDocument();
 
-            bsonWriter.writeStartArray("$each");
-            for (Object value : ((ListValuesGetter) arg)._$PINPOINT$_getValues()) {
-                writeValue(value);
-            }
-            bsonWriter.writeEndArray();
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-        }
-        //PushUpdate
-        if (argName.equals(MongoConstants.MONGO_UPDATES_PUSH)) {
-            logger.debug("writing PushUpdate");
+                bsonWriter.writeStartArray("$each");
+                for (Object value : ((ListValuesGetter) arg)._$PINPOINT$_getValues()) {
+                    writeValue(value);
+                }
+                bsonWriter.writeEndArray();
+                bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
+                break;
+            //PushUpdate
+            case MongoConstants.MONGO_UPDATES_PUSH:
+                logger.debug("writing PushUpdate");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((OperatorGetter) arg)._$PINPOINT$_getOperator());
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((OperatorGetter) arg)._$PINPOINT$_getOperator());
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            bsonWriter.writeStartDocument();
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                bsonWriter.writeStartDocument();
 
-            bsonWriter.writeStartArray("$each");
-            for (Object value : ((ListValuesGetter) arg)._$PINPOINT$_getValues()) {
-                writeValue(value);
-            }
-            bsonWriter.writeEndArray();
+                bsonWriter.writeStartArray("$each");
+                for (Object value : ((ListValuesGetter) arg)._$PINPOINT$_getValues()) {
+                    writeValue(value);
+                }
+                bsonWriter.writeEndArray();
 
-            PushOptions options = ((PushOptionsGetter) arg)._$PINPOINT$_getPushOptions();
-            if (options.getPosition() != null) {
-                bsonWriter.writeInt32("$position", options.getPosition());
-            }
-            if (options.getSlice() != null) {
-                bsonWriter.writeInt32("$slice", options.getSlice());
-            }
-            if (options.getSort() != null) {
-                bsonWriter.writeInt32("$sort", options.getSort());
-            } else if (options.getSortDocument() != null) {
-                bsonWriter.writeName("$sort");
-                writeValue(options.getSortDocument());
-            }
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-        }
-        //PullAllUpdate
-        if (argName.equals(MongoConstants.MONGO_UPDATES_PULLALL)) {
-            logger.debug("writing PullAllUpdate");
+                PushOptions options = ((PushOptionsGetter) arg)._$PINPOINT$_getPushOptions();
+                if (options != null) {
+                    if (options.getPosition() != null) {
+                        bsonWriter.writeInt32("$position", options.getPosition());
+                    }
+                    if (options.getSlice() != null) {
+                        bsonWriter.writeInt32("$slice", options.getSlice());
+                    }
+                    if (options.getSort() != null) {
+                        bsonWriter.writeInt32("$sort", options.getSort());
+                    } else if (options.getSortDocument() != null) {
+                        bsonWriter.writeName("$sort");
+                        writeBsonObject(options.getSortDocument());
+                    }
+                }
+                bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
+                break;
+            //PullAllUpdate
+            case MongoConstants.MONGO_UPDATES_PULLALL:
+                logger.debug("writing PullAllUpdate");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName("$pullAll");
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName("$pullAll");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
 
-            bsonWriter.writeStartArray();
-            for (Object value : ((ListValuesGetter) arg)._$PINPOINT$_getValues()) {
-                writeValue(value);
-            }
-            bsonWriter.writeEndArray();
+                bsonWriter.writeStartArray();
+                for (Object value : ((ListValuesGetter) arg)._$PINPOINT$_getValues()) {
+                    writeValue(value);
+                }
+                bsonWriter.writeEndArray();
 
-            bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
 
-            bsonWriter.writeEndDocument();
-        }
-        //CompositeUpdate
-        if (argName.equals(MongoConstants.MONGO_UPDATES_COMPOSITE)) {
-            logger.debug("writing CompositeUpdate");
+                bsonWriter.writeEndDocument();
+                break;
+            //CompositeUpdate
+            case MongoConstants.MONGO_UPDATES_COMPOSITE:
+                logger.debug("writing CompositeUpdate");
 
-            bsonWriter.writeStartDocument();
+                bsonWriter.writeStartDocument();
 
-            bsonWriter.writeStartArray("$updates");
-            for (Bson value : ((ExtendedBsonListGetter) arg)._$PINPOINT$_getExtendedBsonList()) {
-                writeValue(value);
-            }
-            bsonWriter.writeEndArray();
-            bsonWriter.writeEndDocument();
+                bsonWriter.writeStartArray("$updates");
+                for (Bson value : ((ExtendedBsonListGetter) arg)._$PINPOINT$_getExtendedBsonList()) {
+                    writeBsonObject(value);
+                }
+                bsonWriter.writeEndArray();
+                bsonWriter.writeEndDocument();
+                break;
         }
 
     }
@@ -217,7 +238,7 @@ class WriteContext {
 
             bsonWriter.writeStartArray("$sorts");
             for (Bson value : ((ExtendedBsonListGetter) arg)._$PINPOINT$_getExtendedBsonList()) {
-                writeValue(value);
+                writeBsonObject(value);
             }
             bsonWriter.writeEndArray();
             bsonWriter.writeEndDocument();
@@ -227,156 +248,159 @@ class WriteContext {
     private void parseFilterObject(Object arg) {
 
         String argName = arg.getClass().getName();
-        logger.debug("filter arg : " + arg.getClass().getName());
+        logger.debug("filter arg : {}", argName);
 
         //OperatorFilter
-        if (argName.equals(MongoConstants.MONGO_FILTER_GEOMETRYOPERATOR)) {
-            logger.debug("writing GeometryOperatorFilter");
+        switch (argName) {
+            case MongoConstants.MONGO_FILTER_GEOMETRY_OPERATOR:
+                logger.debug("writing GeometryOperatorFilter");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((OperatorNameGetter) arg)._$PINPOINT$_getOperatorName());
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName("$geometry");
-
-            writeValue(((GeometryGetter) arg)._$PINPOINT$_getGeometry());
-
-            if (((MaxDistanceGetter) arg)._$PINPOINT$_getMaxDistance() != null) {
-                bsonWriter.writeDouble("$maxDistance", ((MaxDistanceGetter) arg)._$PINPOINT$_getMaxDistance());
-            }
-
-            if (((MinDistanceGetter) arg)._$PINPOINT$_getMinDistance() != null) {
-                bsonWriter.writeDouble("$minDistance", ((MinDistanceGetter) arg)._$PINPOINT$_getMinDistance());
-            }
-
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-        }
-        //OperatorFilter
-        if (argName.equals(MongoConstants.MONGO_FILTER_OPERATOR)) {
-            logger.debug("writing OperatorFilter");
-
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((OperatorNameGetter) arg)._$PINPOINT$_getOperatorName());
-            writeValue(((ValueGetter) arg)._$PINPOINT$_getValue());
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-        }
-        //IterableOperatorFilter
-        else if (argName.equals(MongoConstants.MONGO_FILTER_ITERABLEOPERATOR)) {
-            logger.debug("writing IterableOperatorFilter");
-
-            if (arg instanceof FieldNameGetter) {
                 bsonWriter.writeStartDocument();
                 bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            }
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((OperatorNameGetter) arg)._$PINPOINT$_getOperatorName());
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName("$geometry");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((OperatorNameGetter) arg)._$PINPOINT$_getOperatorName());
+                writeValue(((GeometryGetter) arg)._$PINPOINT$_getGeometry());
 
-            writeValue(((IterableValuesGetter) arg)._$PINPOINT$_getValues());
+                if (((MaxDistanceGetter) arg)._$PINPOINT$_getMaxDistance() != null) {
+                    bsonWriter.writeDouble("$maxDistance", ((MaxDistanceGetter) arg)._$PINPOINT$_getMaxDistance());
+                }
 
-            bsonWriter.writeEndDocument();
+                if (((MinDistanceGetter) arg)._$PINPOINT$_getMinDistance() != null) {
+                    bsonWriter.writeDouble("$minDistance", ((MinDistanceGetter) arg)._$PINPOINT$_getMinDistance());
+                }
 
-            if (arg instanceof FieldNameGetter) {
                 bsonWriter.writeEndDocument();
-            }
-        }
-        //SimpleEncodingFilter
-        else if (argName.equals(MongoConstants.MONGO_FILTER_SIMPLEENCODING)) {
-            //else if (arg instanceof FieldNameGetter && arg instanceof ValueGetter) {
+                bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
+                break;
+            //OperatorFilter
+            case MongoConstants.MONGO_FILTER_OPERATOR:
+                logger.debug("writing OperatorFilter");
 
-            logger.debug("writing SimpleEncodingFilter");
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((OperatorNameGetter) arg)._$PINPOINT$_getOperatorName());
+                writeValue(((ValueGetter) arg)._$PINPOINT$_getValue());
+                bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
+                break;
+            //IterableOperatorFilter
+            case MongoConstants.MONGO_FILTER_ITERABLE_OPERATOR:
+                logger.debug("writing IterableOperatorFilter");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            writeValue(((ValueGetter) arg)._$PINPOINT$_getValue());
-            bsonWriter.writeEndDocument();
-        }
+                if (arg instanceof FieldNameGetter) {
+                    bsonWriter.writeStartDocument();
+                    bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                }
 
-        //SimpleFilter
-        else if (argName.equals(MongoConstants.MONGO_FILTER_SIMPLE)) {
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((OperatorNameGetter) arg)._$PINPOINT$_getOperatorName());
 
-            logger.debug("writing SimpleFilter");
+                writeValue(((IterableValuesGetter) arg)._$PINPOINT$_getValues());
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
-            writeValue(((BsonValueGetter) arg)._$PINPOINT$_getValue());
-            bsonWriter.writeEndDocument();
-        }
+                bsonWriter.writeEndDocument();
 
-        //AndFilter
-        else if (argName.equals(MongoConstants.MONGO_FILTER_AND)) {
-            logger.debug("writing AndFilter");
+                if (arg instanceof FieldNameGetter) {
+                    bsonWriter.writeEndDocument();
+                }
+                break;
+            //SimpleEncodingFilter
+            case MongoConstants.MONGO_FILTER_SIMPLE_ENCODING:
+                //else if (arg instanceof FieldNameGetter && arg instanceof ValueGetter) {
 
-            bsonWriter.writeStartDocument();
+                logger.debug("writing SimpleEncodingFilter");
 
-            bsonWriter.writeName("$and");
-            bsonWriter.writeStartArray();
-            for (Bson bsonFilter : ((FiltersGetter) arg)._$PINPOINT$_getFilters()) {
-                logger.debug("writing filters");
-                writeValue(bsonFilter);
-            }
-            bsonWriter.writeEndArray();
-            bsonWriter.writeEndDocument();
-        }
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                writeValue(((ValueGetter) arg)._$PINPOINT$_getValue());
+                bsonWriter.writeEndDocument();
+                break;
 
-        //NotFilter
-        else if (argName.equals(MongoConstants.MONGO_FILTER_NOT)) {
-            logger.debug("writing NotFilter");
+            //SimpleFilter
+            case MongoConstants.MONGO_FILTER_SIMPLE:
 
-            bsonWriter.writeStartDocument();
+                logger.debug("writing SimpleFilter");
 
-            bsonWriter.writeName("$not");
-            writeValue(((FilterGetter) arg)._$PINPOINT$_getFilter());
-            bsonWriter.writeEndDocument();
-        }
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(((FieldNameGetter) arg)._$PINPOINT$_getFieldName());
+                BsonValue bsonValue = ((BsonValueGetter) arg)._$PINPOINT$_getValue();
+                writeBsonValueObject(bsonValue);
+                bsonWriter.writeEndDocument();
+                break;
 
-        //TextFilter
-        else if (argName.equals(MongoConstants.MONGO_FILTER_TEXT)) {
-            logger.debug("writing TextFilter");
+            //AndFilter
+            case MongoConstants.MONGO_FILTER_AND:
+                logger.debug("writing AndFilter");
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName("$text");
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName("$search");
-            writeValue(((SearchGetter) arg)._$PINPOINT$_getSearch());
+                bsonWriter.writeStartDocument();
 
-            TextSearchOptions textSearchOptions = ((TextSearchOptionsGetter) arg)._$PINPOINT$_getTextSearchOptions();
-            if (textSearchOptions.getLanguage() != null) {
-                bsonWriter.writeName("$language");
-                writeValue(textSearchOptions.getLanguage());
-            }
-            if (textSearchOptions.getCaseSensitive() != null) {
-                bsonWriter.writeName("$caseSensitive");
-                writeValue(textSearchOptions.getCaseSensitive());
-            }
-            if (textSearchOptions.getDiacriticSensitive() != null) {
-                bsonWriter.writeName("$diacriticSensitive");
-                writeValue(textSearchOptions.getDiacriticSensitive());
-            }
+                bsonWriter.writeName("$and");
+                bsonWriter.writeStartArray();
+                for (Bson bsonFilter : ((FiltersGetter) arg)._$PINPOINT$_getFilters()) {
+                    logger.debug("writing filters");
+                    writeBsonObject(bsonFilter);
+                }
+                bsonWriter.writeEndArray();
+                bsonWriter.writeEndDocument();
+                break;
 
-            bsonWriter.writeEndDocument();
-            bsonWriter.writeEndDocument();
-        }
+            //NotFilter
+            case MongoConstants.MONGO_FILTER_NOT:
+                logger.debug("writing NotFilter");
 
-        //OrNorFilter
-        else if (argName.equals(MongoConstants.MONGO_FILTER_ORNOR)) {
-            logger.debug("writing OrNorFilter");
-            String input = setInput(arg);
+                bsonWriter.writeStartDocument();
 
-            bsonWriter.writeStartDocument();
-            bsonWriter.writeName(input);
-            bsonWriter.writeStartArray();
-            for (Bson bsonFilter : ((FiltersGetter) arg)._$PINPOINT$_getFilters()) {
-                writeValue(bsonFilter);
-            }
-            bsonWriter.writeEndArray();
-            bsonWriter.writeEndDocument();
+                bsonWriter.writeName("$not");
+                writeBsonObject(((FilterGetter) arg)._$PINPOINT$_getFilter());
+                bsonWriter.writeEndDocument();
+                break;
+
+            //TextFilter
+            case MongoConstants.MONGO_FILTER_TEXT:
+                logger.debug("writing TextFilter");
+
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName("$text");
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName("$search");
+                writeString(((SearchGetter) arg)._$PINPOINT$_getSearch());
+
+                TextSearchOptions textSearchOptions = ((TextSearchOptionsGetter) arg)._$PINPOINT$_getTextSearchOptions();
+                if (textSearchOptions.getLanguage() != null) {
+                    bsonWriter.writeName("$language");
+                    writeString(textSearchOptions.getLanguage());
+                }
+                if (textSearchOptions.getCaseSensitive() != null) {
+                    bsonWriter.writeName("$caseSensitive");
+                    writeBoolean(textSearchOptions.getCaseSensitive());
+                }
+                if (textSearchOptions.getDiacriticSensitive() != null) {
+                    bsonWriter.writeName("$diacriticSensitive");
+                    writeBoolean(textSearchOptions.getDiacriticSensitive());
+                }
+
+                bsonWriter.writeEndDocument();
+                bsonWriter.writeEndDocument();
+                break;
+
+            //OrNorFilter
+            case MongoConstants.MONGO_FILTER_ORNOR:
+                logger.debug("writing OrNorFilter");
+                String input = setInput(arg);
+
+                bsonWriter.writeStartDocument();
+                bsonWriter.writeName(input);
+                bsonWriter.writeStartArray();
+                for (Bson bsonFilter : ((FiltersGetter) arg)._$PINPOINT$_getFilters()) {
+                    writeBsonObject(bsonFilter);
+                }
+                bsonWriter.writeEndArray();
+                bsonWriter.writeEndDocument();
+                break;
         }
     }
 
@@ -393,8 +417,8 @@ class WriteContext {
         return input;
     }
 
-    private void parseBsonObject(Object arg) {
-        final Map<String, ?> map = getBsonKeyValueMap(arg);
+    private void writeBsonObject(Bson bson) {
+        final Map<String, ?> map = getBsonKeyValueMap(bson);
         if (map == null) {
             return;
         }
@@ -413,15 +437,15 @@ class WriteContext {
         bsonWriter.writeEndDocument();
     }
 
-    private void parsePrimitiveArrayObject(Object arg) {
+    private void writePrimitiveArrayObject(Object arrayObject) {
         bsonWriter.writeStartArray();
 
-        arrayAbbreviationForMongo(arg);
+        arrayAbbreviationForMongo(arrayObject);
 
         bsonWriter.writeEndArray();
     }
 
-    private <T> void parseCollection(Collection<T> arg) {
+    private <T> void writeCollection(Collection<T> arg) {
         bsonWriter.writeStartArray();
 
         collectionAbbreviationForMongo(arg);
@@ -429,136 +453,151 @@ class WriteContext {
         bsonWriter.writeEndArray();
     }
 
-    private void parseBsonValueObject(BsonValue arg) {
+    private void writeBsonValueObject(BsonValue arg) {
 
         BsonType bsonType = arg.getBsonType();
 
         //write with same format of JsonWriter(JsonMode.STRICT)
         if (bsonType.equals(BsonType.DOUBLE)) {
 
-            writeValue(arg.asDouble().getValue());
+            BsonDouble bsonDouble = arg.asDouble();
+            writeDouble(bsonDouble.getValue());
 
         } else if (bsonType.equals(BsonType.STRING)) {
 
-            writeValue(arg.asString().getValue());
+            BsonString bsonString = arg.asString();
+            writeString(bsonString.getValue());
 
         } else if (bsonType.equals(BsonType.BINARY)) {
-
-            String abbreviatedBinary = binaryAbbreviationForMongo(arg);
+            BsonBinary bsonBinary = (BsonBinary) arg;
+            String abbreviatedBinary = binaryAbbreviationForMongo(bsonBinary);
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$binary");
-            writeValue(abbreviatedBinary);
+            writeString(abbreviatedBinary);
 
             bsonWriter.writeName("$type");
-            writeValue(String.valueOf(String.format("%02X", arg.asBinary().getType())));
+            writeString(String.valueOf(String.format("%02X", bsonBinary.getType())));
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.OBJECT_ID)) {
 
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$oid");
-            writeValue(String.valueOf(arg.asObjectId().getValue()));
+            writeString(String.valueOf(arg.asObjectId().getValue()));
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.BOOLEAN)) {
 
-            writeValue(arg.asBoolean().getValue());
+            BsonBoolean bsonBoolean = arg.asBoolean();
+            writeBoolean(bsonBoolean.getValue());
 
         } else if (bsonType.equals(BsonType.DATE_TIME)) {
 
+            BsonDateTime bsonDateTime = arg.asDateTime();
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$date");
-            writeValue(arg.asDateTime().getValue());
+            writeInt64(bsonDateTime.getValue());
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.REGULAR_EXPRESSION)) {
 
+            BsonRegularExpression bsonRegularExpression = arg.asRegularExpression();
+
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$regex");
-            writeValue(arg.asRegularExpression().getPattern());
+            writeString(bsonRegularExpression.getPattern());
             bsonWriter.writeName("$options");
-            writeValue(arg.asRegularExpression().getOptions());
+            writeString(bsonRegularExpression.getOptions());
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.DB_POINTER)) {
 
+            BsonDbPointer bsonDbPointer = arg.asDBPointer();
+
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$ref");
-            writeValue(arg.asDBPointer().getNamespace());
+            writeString(bsonDbPointer.getNamespace());
             bsonWriter.writeName("$id");
 
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$oid");
-            writeValue(String.valueOf(arg.asDBPointer().getId()));
+            writeString(String.valueOf(bsonDbPointer.getId()));
             bsonWriter.writeEndDocument();
 
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.JAVASCRIPT)) {
 
+            BsonJavaScript bsonJavaScript = arg.asJavaScript();
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$code");
-            writeValue(arg.asJavaScript().getCode());
+            writeString(bsonJavaScript.getCode());
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.SYMBOL)) {
 
+            final BsonSymbol bsonSymbol = arg.asSymbol();
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$symbol");
-            writeValue(arg.asSymbol().getSymbol());
+            writeString(bsonSymbol.getSymbol());
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.JAVASCRIPT_WITH_SCOPE)) {
 
+            final BsonJavaScriptWithScope bsonJavaScript = arg.asJavaScriptWithScope();
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$code");
-            writeValue(arg.asJavaScriptWithScope().getCode());
+            writeString(bsonJavaScript.getCode());
             bsonWriter.writeName("$scope");
-            writeValue(arg.asJavaScriptWithScope().getScope());
+            writeValue(bsonJavaScript.getScope());
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.INT32)) {
 
-            writeValue(arg.asInt32().getValue());
+            BsonInt32 int32 = arg.asInt32();
+            writeInt32(int32.getValue());
 
         } else if (bsonType.equals(BsonType.TIMESTAMP)) {
+            BsonTimestamp bsonTimestamp = arg.asTimestamp();
 
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$timestamp");
 
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("t");
-            writeValue(arg.asTimestamp().getTime());
+            writeInt32(bsonTimestamp.getTime());
             bsonWriter.writeName("i");
-            writeValue(arg.asTimestamp().getInc());
+            writeInt32(bsonTimestamp.getInc());
             bsonWriter.writeEndDocument();
 
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.INT64)) {
 
+            BsonInt64 bsonInt64 = arg.asInt64();
+
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$numberLong");
-            writeValue(String.valueOf(arg.asInt64().getValue()));
+            writeInt64(bsonInt64.getValue());
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.UNDEFINED)) {
 
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$undefined");
-            writeValue(true);
+            writeBoolean(true);
             bsonWriter.writeEndDocument();
 
         } else if (bsonType.equals(BsonType.NULL)) {
 
-            writeValue(null);
+            writeNull();
 
         } else if (decimal128Enabled && bsonType.equals(BsonType.DECIMAL128)) {
 
             //since Mongo Java Driver 3.4
             bsonWriter.writeStartDocument();
             bsonWriter.writeName("$numberDecimal");
-            writeValue(String.valueOf(arg.asDecimal128().getValue()));
+            writeString(String.valueOf(arg.asDecimal128().getValue()));
             bsonWriter.writeEndDocument();
         }
 //        BsonType.DOCUMENT //taken care of in Bson
@@ -567,7 +606,7 @@ class WriteContext {
 
     }
 
-    private Map<String, ?> getBsonKeyValueMap(Object bson) {
+    private Map<String, ?> getBsonKeyValueMap(Bson bson) {
         if (bson instanceof BasicDBObject) {
             return (BasicDBObject) bson;
         } else if (bson instanceof BsonDocument) {
@@ -590,28 +629,31 @@ class WriteContext {
 //        }
     }
 
-    private String binaryAbbreviationForMongo(BsonValue arg) {
+    private String binaryAbbreviationForMongo(BsonBinary bsonBinary) {
 
-        final byte[] binary = arg.asBinary().getData();
+        final byte[] binary = bsonBinary.getData();
         final int binaryLength = binary.length;
-
+        final Base64.Encoder encoder = Base64.getEncoder().withoutPadding();
         if (binaryLength > DEFAULT_ABBREVIATE_MAX_WIDTH) {
-            return Base64.encode(binary, 0, DEFAULT_ABBREVIATE_MAX_WIDTH) + "...(" + binaryLength + ")";
+            byte[] limitedBytes = Arrays.copyOf(binary, DEFAULT_ABBREVIATE_MAX_WIDTH);
+            StringBuilder buffer = new StringBuilder();
+            buffer.append(new String(encoder.encode(limitedBytes), StandardCharsets.ISO_8859_1));
+            buffer.append("...(");
+            buffer.append(binaryLength);
+            buffer.append(")");
+            return buffer.toString();
         } else {
-            return Base64.encode(binary);
+            return new String(encoder.encode(binary), StandardCharsets.ISO_8859_1);
         }
     }
 
-    private void arrayAbbreviationForMongo(Object arg) {
-        final int length = Array.getLength(arg);
+    private void arrayAbbreviationForMongo(Object arrayObject) {
+        final int length = Array.getLength(arrayObject);
         for (int i = 0; i < length && i < DEFAULT_ABBREVIATE_MAX_WIDTH - 1; i++) {
-            writeValue(Array.get(arg, i));
+            writeValue(Array.get(arrayObject, i));
         }
         if (length > DEFAULT_ABBREVIATE_MAX_WIDTH - 2) {
-            bsonWriter.writeString("?");
-            if (traceBsonBindValue) {
-                jsonParameter.add("...(" + length + ")");
-            }
+            writeLength(length);
         }
     }
 
@@ -626,24 +668,22 @@ class WriteContext {
             }
         }
         if (length > DEFAULT_ABBREVIATE_MAX_WIDTH - 2) {
-            bsonWriter.writeString("?");
-            if (traceBsonBindValue) {
-                jsonParameter.add("...(" + length + ")");
-            }
+            writeLength(length);
+        }
+    }
+
+    private void writeLength(int length) {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add("...(" + length + ")");
         }
     }
 
     private void writeValue(Object arg) {
         if (arg == null) {
-            bsonWriter.writeString("?");
-            if (traceBsonBindValue) {
-                jsonParameter.add(String.valueOf(arg));
-            }
+            writeNull();
         } else if (arg instanceof String) {
-            bsonWriter.writeString("?");
-            if (traceBsonBindValue) {
-                jsonParameter.add("\"" + StringUtils.abbreviate(StringUtils.replace((String) arg, "\"", "\"\"")) + "\"");
-            }
+            writeString((String) arg);
         } else if (isFilter(arg)) {
             parseFilterObject(arg);
         } else if (isUpdates(arg)) {
@@ -651,39 +691,90 @@ class WriteContext {
         } else if (isSort(arg)) {
             parseSortObject(arg);
         } else if (arg.getClass().isArray()) {
-            parsePrimitiveArrayObject(arg);
+            writePrimitiveArrayObject(arg);
         } else if (arg instanceof Collection) {
-            parseCollection((Collection) arg);
+            writeCollection((Collection<?>) arg);
         } else if (arg instanceof Bson) {
-            parseBsonObject(arg);
+            Bson bson = (Bson) arg;
+            writeBsonObject(bson);
         } else if (arg instanceof BsonValue) {
-            parseBsonValueObject((BsonValue) arg);
+            writeBsonValueObject((BsonValue) arg);
         } else {
-            bsonWriter.writeString("?");
-            if (traceBsonBindValue) {
-                jsonParameter.add(StringUtils.abbreviate(String.valueOf(arg)));
-            }
+            writeRaw(arg);
+        }
+    }
+
+    private void writeRaw(Object arg) {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add(StringUtils.abbreviate(String.valueOf(arg)));
+        }
+    }
+
+    private void writeString(String string) {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add("\"" + StringUtils.abbreviate(StringUtils.replace(string, "\"", "\"\"")) + "\"");
+        }
+    }
+
+    private void writeInt32(int int32) {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add(Integer.toString(int32));
+        }
+    }
+
+    private void writeInt64(long int64) {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add(Long.toString(int64));
+        }
+    }
+
+    private void writeDouble(double doubleValue) {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add(Double.toString(doubleValue));
+        }
+    }
+
+    private void writeBoolean(boolean boolValue) {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add(Boolean.toString(boolValue));
+        }
+    }
+
+    private void writeNull() {
+        bsonWriter.writeString("?");
+        if (traceBsonBindValue) {
+            jsonParameter.add("null");
         }
     }
 
     private boolean isSort(Object arg) {
-        if (MongoConstants.MONGO_SORT_COMPOSITE.equals(arg.getClass().getName())) {
-            return true;
-        }
-        return false;
+        return MongoConstants.MONGO_SORT_COMPOSITE.equals(arg.getClass().getName());
     }
 
     private boolean isUpdates(Object arg) {
-        if (MongoConstants.UPDATESLIST.contains(arg.getClass().getName())) {
-            return true;
+        String name = arg.getClass().getName();
+        return contains(MongoConstants.UPDATES_LIST, name);
+    }
+
+    private boolean isFilter(Object arg) {
+        String name = arg.getClass().getName();
+        return contains(MongoConstants.FILTER_LIST, name);
+    }
+
+    private static boolean contains(String[] list, String name) {
+        for (String className : list) {
+            if (className.equals(name)) {
+                return true;
+            }
         }
         return false;
     }
 
-    private boolean isFilter(Object arg) {
-        if (MongoConstants.FILTERLIST.contains(arg.getClass().getName())) {
-            return true;
-        }
-        return false;
-    }
+
 }

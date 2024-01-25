@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 NAVER Corp.
+ * Copyright 2023 NAVER Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,22 +19,24 @@ package com.navercorp.pinpoint.plugin.reactor.netty.interceptor;
 import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessor;
 import com.navercorp.pinpoint.bootstrap.async.AsyncContextAccessorUtils;
 import com.navercorp.pinpoint.bootstrap.context.AsyncContext;
-import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
+import com.navercorp.pinpoint.bootstrap.logging.PLogger;
+import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
+
 import java.util.Objects;
 
 /**
  * @author jaehong.kim
  */
 public class ChannelOperationsChannelMethodInterceptor implements AroundInterceptor {
+    private final PLogger logger = PLoggerFactory.getLogger(this.getClass());
+    private final boolean isDebug = logger.isDebugEnabled();
 
-    private final MethodDescriptor methodDescriptor;
     private final TraceContext traceContext;
 
-    public ChannelOperationsChannelMethodInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor) {
+    public ChannelOperationsChannelMethodInterceptor(TraceContext traceContext) {
         this.traceContext = Objects.requireNonNull(traceContext, "traceContext");
-        this.methodDescriptor = Objects.requireNonNull(methodDescriptor, "methodDescriptor");
     }
 
     @Override
@@ -43,7 +45,7 @@ public class ChannelOperationsChannelMethodInterceptor implements AroundIntercep
 
     @Override
     public void after(Object target, Object[] args, Object result, Throwable throwable) {
-        if (traceContext.currentTraceObject() == null) {
+        if (traceContext.currentRawTraceObject() == null) {
             return;
         }
 
@@ -51,6 +53,9 @@ public class ChannelOperationsChannelMethodInterceptor implements AroundIntercep
             final AsyncContext asyncContext = AsyncContextAccessorUtils.getAsyncContext(target);
             if (asyncContext != null) {
                 ((AsyncContextAccessor) result)._$PINPOINT$_setAsyncContext(asyncContext);
+                if (isDebug) {
+                    logger.debug("Set asyncContext to result. asyncContext={}", asyncContext);
+                }
             }
         }
     }

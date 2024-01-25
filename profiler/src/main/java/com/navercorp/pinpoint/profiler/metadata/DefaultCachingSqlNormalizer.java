@@ -16,80 +16,57 @@
 
 package com.navercorp.pinpoint.profiler.metadata;
 
-import com.navercorp.pinpoint.bootstrap.context.ParsingResult;
-import java.util.Objects;
-import com.navercorp.pinpoint.common.profiler.sql.DefaultSqlParser;
+import com.navercorp.pinpoint.common.profiler.sql.DefaultSqlNormalizer;
 import com.navercorp.pinpoint.common.profiler.sql.NormalizedSql;
-import com.navercorp.pinpoint.common.profiler.sql.SqlParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.common.profiler.sql.SqlNormalizer;
+import com.navercorp.pinpoint.profiler.cache.Cache;
+import com.navercorp.pinpoint.profiler.cache.Result;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.Objects;
 
 /**
  * @author emeroad
  */
-public class DefaultCachingSqlNormalizer implements CachingSqlNormalizer {
+public class DefaultCachingSqlNormalizer<ID> implements CachingSqlNormalizer<ParsingResultInternal<ID>> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    protected final Logger logger = LogManager.getLogger(this.getClass());
 
-    private static final DefaultParsingResult EMPTY_OBJECT = new DefaultParsingResult("");
+    private final Cache<String, Result<ID>> sqlCache;
+    private final SqlNormalizer sqlNormalizer;
 
-    private final SimpleCache<String> sqlCache;
-    private final SqlParser sqlParser;
-
-    public DefaultCachingSqlNormalizer(SimpleCache<String> sqlCache) {
+    public DefaultCachingSqlNormalizer(Cache<String, Result<ID>> sqlCache) {
         this.sqlCache = Objects.requireNonNull(sqlCache, "sqlCache");
-        this.sqlParser = new DefaultSqlParser();
+        this.sqlNormalizer = new DefaultSqlNormalizer();
     }
 
-    @Override
-    public ParsingResult wrapSql(String sql) {
-        if (sql == null) {
-            return EMPTY_OBJECT;
-        }
-        return new DefaultParsingResult(sql);
-    }
 
     @Override
-    public boolean normalizedSql(ParsingResult parsingResult) {
+    public boolean normalizedSql(ParsingResultInternal<ID> parsingResult) {
         if (parsingResult == null) {
             return false;
         }
-        if (parsingResult == EMPTY_OBJECT) {
-            return false;
-        }
-        if (parsingResult.getId() != ParsingResult.ID_NOT_EXIST) {
+        if (parsingResult.getId() != null) {
             // already cached
             return false;
         }
 
-        if (!(parsingResult instanceof ParsingResultInternal)) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("unsupported ParsingResult Type type {}", parsingResult);
-            }
-            throw new IllegalArgumentException("unsupported ParsingResult Type");
-        }
+        final String originalSql = parsingResult.getOriginalSql();
+        final NormalizedSql normalizedSql = this.sqlNormalizer.normalizeSql(originalSql);
 
-        final ParsingResultInternal parsingResultInternal = (ParsingResultInternal) parsingResult;
+        final Result<ID> cachingResult = this.sqlCache.put(normalizedSql.getNormalizedSql());
 
-        final String originalSql = parsingResultInternal.getOriginalSql();
-        final NormalizedSql normalizedSql = this.sqlParser.normalizedSql(originalSql);
-
-        final Result cachingResult = this.sqlCache.put(normalizedSql.getNormalizedSql());
-
-        // set normalizedSql
-        // set sqlId
-        final boolean success = parsingResultInternal.setId(cachingResult.getId());
+        boolean success = parsingResult.setId(cachingResult.getId());
         if (!success) {
             if (logger.isWarnEnabled()) {
-                logger.warn("invalid state. setSqlId fail setId:{}, ParsingResultInternal:{}", cachingResult.getId(), parsingResultInternal);
+                logger.warn("invalid state. setSqlId fail setId:{}, ParsingResultInternal:{}", cachingResult.getId(), parsingResult);
             }
         }
-
-        parsingResultInternal.setSql(normalizedSql.getNormalizedSql());
-        parsingResultInternal.setOutput(normalizedSql.getParseParameter());
+        parsingResult.setSql(normalizedSql.getNormalizedSql());
+        parsingResult.setOutput(normalizedSql.getParseParameter());
 
         return cachingResult.isNewValue();
     }
-
 
 }

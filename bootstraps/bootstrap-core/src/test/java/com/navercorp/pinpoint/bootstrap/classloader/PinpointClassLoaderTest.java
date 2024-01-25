@@ -17,22 +17,21 @@
 package com.navercorp.pinpoint.bootstrap.classloader;
 
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
-
 
 /**
  * @author emeroad
  */
 public class PinpointClassLoaderTest {
 
-    private final Class slf4jClass = org.slf4j.LoggerFactory.class;
+    private final Class<?> clazz = org.apache.logging.log4j.LogManager.class;
 
     @Test
     public void testOnLoadClass() throws Exception {
-        ClassLoader classLoader = onLoadTest(ParallelClassLoader.class, slf4jClass);
+        ClassLoader classLoader = onLoadTest(ParallelClassLoader.class, clazz);
 
         ClassLoaderUtils.close(classLoader);
     }
@@ -40,22 +39,20 @@ public class PinpointClassLoaderTest {
     /**
      * TODO duplicate code
      */
-    private ClassLoader onLoadTest(Class classLoaderType, Class testClass) throws ClassNotFoundException {
+    private ClassLoader onLoadTest(Class<?> classLoaderType, Class<?> testClass) throws ClassNotFoundException {
         URL testClassJar = CodeSourceUtils.getCodeLocation(testClass);
         URL[] urls = {testClassJar};
         ClassLoader cl = PinpointClassLoaderFactory.createClassLoader(this.getClass().getName(), urls, null, ProfilerLibs.PINPOINT_PROFILER_CLASS);
-        Assert.assertSame(cl.getClass(), classLoaderType);
+        Assertions.assertSame(cl.getClass(), classLoaderType);
 
-        try {
+        Assertions.assertThrowsExactly(ClassNotFoundException.class, () -> {
             cl.loadClass("test");
-            Assert.fail();
-        } catch (ClassNotFoundException ignored) {
-        }
+        });
 
-        Class selfLoadClass = cl.loadClass(testClass.getName());
-        Assert.assertNotSame(testClass, selfLoadClass);
-        Assert.assertSame(cl, selfLoadClass.getClassLoader());
-        Assert.assertSame(testClass.getClassLoader(), this.getClass().getClassLoader());
+        Class<?> selfLoadClass = cl.loadClass(testClass.getName());
+        Assertions.assertNotSame(testClass, selfLoadClass);
+        Assertions.assertSame(cl, selfLoadClass.getClassLoader());
+        Assertions.assertSame(testClass.getClassLoader(), this.getClass().getClassLoader());
         return cl;
     }
 

@@ -22,7 +22,6 @@ import com.google.inject.TypeLiteral;
 import com.navercorp.pinpoint.bootstrap.AgentOption;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.config.TransportModule;
-import com.navercorp.pinpoint.bootstrap.config.util.ValueAnnotationProcessor;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.profiler.context.TraceDataFormatVersion;
 import com.navercorp.pinpoint.profiler.context.config.ContextConfig;
@@ -53,8 +52,8 @@ import com.navercorp.pinpoint.profiler.interceptor.registry.InterceptorRegistryB
 import com.navercorp.pinpoint.profiler.plugin.PluginJar;
 import com.navercorp.pinpoint.profiler.plugin.config.DefaultPluginLoadingConfig;
 import com.navercorp.pinpoint.profiler.plugin.config.PluginLoadingConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.instrument.Instrumentation;
 import java.util.List;
@@ -66,7 +65,7 @@ import java.util.Properties;
  */
 public class ConfigModule extends AbstractModule {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
     private final AgentOption agentOption;
 
     public ConfigModule(AgentOption agentOption) {
@@ -163,19 +162,6 @@ public class ConfigModule extends AbstractModule {
         bind(Boolean.class).annotatedWith(Container.class).toInstance(isContainer);
         bind(Long.class).annotatedWith(AgentStartTime.class).toProvider(AgentStartTimeProvider.class).in(Scopes.SINGLETON);
         bind(ServiceType.class).annotatedWith(ConfiguredApplicationType.class).toProvider(ConfiguredApplicationTypeProvider.class).in(Scopes.SINGLETON);
-    }
-
-    private static class ConfigurationLoader {
-        private final ValueAnnotationProcessor process = new ValueAnnotationProcessor();
-        private final Properties properties;
-
-        public ConfigurationLoader(Properties properties) {
-            this.properties = Objects.requireNonNull(properties, "properties");
-        }
-
-        public <T> void load(T config) {
-            process.process(config, properties);
-        }
     }
 
 

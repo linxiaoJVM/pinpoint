@@ -19,21 +19,22 @@ package com.navercorp.pinpoint.web.mapper;
 import com.navercorp.pinpoint.common.buffer.Buffer;
 import com.navercorp.pinpoint.common.buffer.FixedBuffer;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
-import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
-import com.navercorp.pinpoint.common.trace.ServiceType;
+import com.navercorp.pinpoint.common.hbase.util.CellUtils;
 import com.navercorp.pinpoint.common.server.util.ApplicationMapStatisticsUtils;
+import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.common.util.TimeUtils;
+import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
+import com.navercorp.pinpoint.web.applicationmap.link.LinkDirection;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMap;
-import com.navercorp.pinpoint.web.service.ApplicationFactory;
+import com.navercorp.pinpoint.web.component.ApplicationFactory;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -48,7 +49,7 @@ import java.util.Objects;
 @Component
 public class MapStatisticsCalleeMapper implements RowMapper<LinkDataMap> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final LinkFilter filter;
 
@@ -87,12 +88,12 @@ public class MapStatisticsCalleeMapper implements RowMapper<LinkDataMap> {
         for (Cell cell : result.rawCells()) {
 
             final byte[] qualifier = CellUtil.cloneQualifier(cell);
-            final Application callerApplication = readCallerApplication(qualifier, calleeApplication.getServiceType());
-            if (filter.filter(callerApplication)) {
+            final Application in = readInApplication(qualifier, calleeApplication.getServiceType());
+            if (filter.filter(in)) {
                 continue;
             }
 
-            long requestCount = Bytes.toLong(cell.getValueArray(), cell.getValueOffset());
+            long requestCount = CellUtils.valueToLong(cell);
             short histogramSlot = ApplicationMapStatisticsUtils.getHistogramSlotFromColumnName(qualifier);
 
             String callerHost = ApplicationMapStatisticsUtils.getHost(qualifier);
@@ -105,21 +106,21 @@ public class MapStatisticsCalleeMapper implements RowMapper<LinkDataMap> {
             boolean isError = histogramSlot == (short) -1;
 
             if (logger.isDebugEnabled()) {
-                logger.debug("    Fetched Callee. {} callerHost:{} -> {} (slot:{}/{}),  ", callerApplication, callerHost, calleeApplication, histogramSlot, requestCount);
+                logger.debug("    Fetched {}. {} callerHost:{} -> {} (slot:{}/{}),  ", LinkDirection.IN_LINK, in, callerHost, calleeApplication, histogramSlot, requestCount);
             }
 
             final short slotTime = (isError) ? (short) -1 : histogramSlot;
-            linkDataMap.addLinkData(callerApplication, callerApplication.getName(), calleeApplication, callerHost, timestamp, slotTime, requestCount);
+            linkDataMap.addLinkData(in, in.getName(), calleeApplication, callerHost, timestamp, slotTime, requestCount);
 
             if (logger.isDebugEnabled()) {
-                logger.debug("    Fetched Callee. statistics:{}", linkDataMap);
+                logger.debug("    Fetched {}. statistics:{}", LinkDirection.IN_LINK, linkDataMap);
             }
         }
 
         return linkDataMap;
     }
 
-    private Application readCallerApplication(byte[] qualifier, ServiceType calleeServiceType) {
+    private Application readInApplication(byte[] qualifier, ServiceType calleeServiceType) {
         short callerServiceType = ApplicationMapStatisticsUtils.getDestServiceTypeFromColumnName(qualifier);
         // Caller may be a user node, and user nodes may call nodes with the same application name but different service type.
         // To distinguish between these user nodes, append callee's service type to the application name.

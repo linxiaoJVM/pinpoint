@@ -22,26 +22,24 @@ import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.plugin.jdbc.DatabaseInfoAccessor;
 import com.navercorp.pinpoint.bootstrap.plugin.jdbc.JdbcUrlParser;
 import com.navercorp.pinpoint.bootstrap.plugin.jdbc.UnKnownDatabaseInfo;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Driver;
-import java.sql.SQLException;
 
 import static com.navercorp.pinpoint.common.util.VarArgs.va;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
-@SuppressWarnings("deprecation")
 public class DriverConnectInterceptorTest {
 
     @Test
-    public void driverConnect() throws SQLException {
+    @SuppressWarnings("deprecation")
+    public void driverConnect() {
         TraceContext traceContext = mock(TraceContext.class);
         MethodDescriptor methodDescriptor = mock(MethodDescriptor.class);
         JdbcUrlParser parser = mock(JdbcUrlParser.class);
@@ -59,12 +57,13 @@ public class DriverConnectInterceptorTest {
         driverConnectInterceptor.prepareAfterTrace(driver, va(invalidJdbcUrl), setAccessor, null);
         driverConnectInterceptor.doInAfterTrace(spanEventRecorder, driver, va(invalidJdbcUrl), getAccessor, null);
 
-        verify(setAccessor, times(1))._$PINPOINT$_setDatabaseInfo(UnKnownDatabaseInfo.INSTANCE);
-        verify(getAccessor, times(1))._$PINPOINT$_getDatabaseInfo();
+        verify(setAccessor)._$PINPOINT$_setDatabaseInfo(UnKnownDatabaseInfo.INSTANCE);
+        verify(getAccessor)._$PINPOINT$_getDatabaseInfo();
     }
 
     @Test
-    public void driverConnect_return_Null_NPEtest() throws SQLException {
+    @SuppressWarnings("deprecation")
+    public void driverConnect_return_Null_NPEtest() {
         TraceContext traceContext = mock(TraceContext.class);
         MethodDescriptor methodDescriptor = mock(MethodDescriptor.class);
         JdbcUrlParser parser = mock(JdbcUrlParser.class);

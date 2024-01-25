@@ -19,9 +19,11 @@ import com.navercorp.pinpoint.bootstrap.instrument.matcher.operand.ClassInternal
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.operand.InterfaceInternalNameMatcherOperand;
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.operand.MatcherOperand;
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.operator.AndMatcherOperator;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author jaehong.kim
@@ -29,34 +31,36 @@ import static org.junit.Assert.*;
 public class DefaultClassBasedMatcherTest {
 
     @Test
-    public void getMatcherOperandWithClassName() throws Exception {
+    public void getMatcherOperandWithClassName() {
         DefaultClassBasedMatcher matcher = new DefaultClassBasedMatcher("java.lang.String");
         assertEquals("java.lang.String", matcher.getBaseClassName());
 
         MatcherOperand operand = matcher.getMatcherOperand();
-        assertTrue(operand instanceof ClassInternalNameMatcherOperand);
+        assertThat(operand).isInstanceOf(ClassInternalNameMatcherOperand.class);
         ClassInternalNameMatcherOperand classInternalNameMatcherOperand = (ClassInternalNameMatcherOperand) operand;
-        assertTrue(classInternalNameMatcherOperand.getClassInternalName().equals("java/lang/String"));
+        assertEquals("java/lang/String", classInternalNameMatcherOperand.getClassInternalName());
     }
 
     @Test
-    public void getMatcherOperandWithClassNameAndAdditional() throws Exception {
+    public void getMatcherOperandWithClassNameAndAdditional() {
         InterfaceInternalNameMatcherOperand additional = new InterfaceInternalNameMatcherOperand("java/lang/Runnable", false);
         DefaultClassBasedMatcher matcher = new DefaultClassBasedMatcher("java.lang.String", additional);
         assertEquals("java.lang.String", matcher.getBaseClassName());
 
         MatcherOperand operand = matcher.getMatcherOperand();
-        assertTrue(operand instanceof AndMatcherOperator);
+        assertThat(operand).isInstanceOf(AndMatcherOperator.class);
 
         AndMatcherOperator operator = (AndMatcherOperator) operand;
-        assertTrue(operator.getLeftOperand() instanceof ClassInternalNameMatcherOperand);
-        assertTrue(operator.getRightOperand() instanceof InterfaceInternalNameMatcherOperand);
+        assertThat(operator.getLeftOperand()).isInstanceOf(ClassInternalNameMatcherOperand.class);
+        assertThat(operator.getRightOperand()).isInstanceOf(InterfaceInternalNameMatcherOperand.class);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void getMatcherOperandWithClassNameIsNull() throws Exception {
-        final String className = null;
-        DefaultClassBasedMatcher matcher = new DefaultClassBasedMatcher(null);
+    @Test
+    public void getMatcherOperandWithClassNameIsNull() {
+        Assertions.assertThrows(NullPointerException.class, () -> {
+            final String className = null;
+            DefaultClassBasedMatcher matcher = new DefaultClassBasedMatcher(null);
+        });
     }
 
 }

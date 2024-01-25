@@ -20,11 +20,10 @@ import com.navercorp.pinpoint.common.server.bo.stat.join.JoinLongFieldBo;
 import com.navercorp.pinpoint.common.server.bo.stat.join.JoinTransactionBo;
 import com.navercorp.pinpoint.thrift.dto.flink.TFAgentStat;
 import com.navercorp.pinpoint.thrift.dto.flink.TFTransaction;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * @author minwoo.jung
@@ -55,7 +54,7 @@ public class JoinTransactionBoMapperTest {
         assertEquals(joinTransactionBo.getId(), id);
         assertEquals(joinTransactionBo.getTimestamp(), 1491274138454L);
         assertEquals(joinTransactionBo.getCollectInterval(), 5000);
-        assertEquals(joinTransactionBo.getTotalCountJoinValue(), new JoinLongFieldBo(250L, 250L, id, 250L, id));
+        assertEquals(joinTransactionBo.getTotalCountJoinValue(), new JoinLongFieldBo(50L, 50L, id, 50L, id));
     }
 
     @Test

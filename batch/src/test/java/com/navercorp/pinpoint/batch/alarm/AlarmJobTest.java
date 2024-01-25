@@ -24,28 +24,26 @@ import org.springframework.batch.test.JobLauncherTestUtils;
 import org.springframework.context.support.GenericXmlApplicationContext;
 
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 public class AlarmJobTest {
-     
-     public static void main(String[] args) throws Exception{
-          GenericXmlApplicationContext applicationContext = new GenericXmlApplicationContext("/applicationContext-test.xml");
-          JobLauncherTestUtils testLauncher = applicationContext.getBean(JobLauncherTestUtils.class);
-          
-          JobExecution jobExecution = testLauncher.launchJob(getParameters());
-          BatchStatus status = jobExecution.getStatus();
-          assertEquals(BatchStatus.COMPLETED, status);
-          
-          applicationContext.close();
-     }
 
-     private static JobParameters getParameters() {
-          Map<String, JobParameter> parameters = new HashMap<>();
-          parameters.put("schedule.scheduledFireTime", new JobParameter(new Date()));
-          return new JobParameters(parameters);
-     }
+    public static void main(String[] args) throws Exception {
+        GenericXmlApplicationContext applicationContext = new GenericXmlApplicationContext("/applicationContext-test.xml");
+        JobLauncherTestUtils testLauncher = applicationContext.getBean(JobLauncherTestUtils.class);
+
+        JobExecution jobExecution = testLauncher.launchJob(getParameters());
+        BatchStatus status = jobExecution.getStatus();
+        assertEquals(BatchStatus.COMPLETED, status);
+
+        applicationContext.close();
+    }
+
+    private static JobParameters getParameters() {
+        Map<String, JobParameter> parameters = Map.of("schedule.scheduledFireTime", new JobParameter(new Date()));
+        return new JobParameters(parameters);
+    }
 }

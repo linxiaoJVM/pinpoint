@@ -15,6 +15,8 @@
  */
 package com.navercorp.pinpoint.profiler.instrument;
 
+import com.google.inject.Provider;
+import com.google.inject.util.Providers;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.instrument.ClassFilters;
@@ -22,7 +24,6 @@ import com.navercorp.pinpoint.bootstrap.instrument.InstrumentContext;
 import com.navercorp.pinpoint.bootstrap.instrument.InstrumentMethod;
 import com.navercorp.pinpoint.bootstrap.instrument.MethodFilters;
 import com.navercorp.pinpoint.bootstrap.plugin.RequestRecorderFactory;
-import com.navercorp.pinpoint.bootstrap.plugin.uri.UriStatRecorderFactory;
 import com.navercorp.pinpoint.profiler.context.monitor.DataSourceMonitorRegistryService;
 import com.navercorp.pinpoint.profiler.context.monitor.metric.CustomMetricRegistryService;
 import com.navercorp.pinpoint.profiler.instrument.interceptor.InterceptorDefinitionFactory;
@@ -85,11 +86,8 @@ import com.navercorp.pinpoint.profiler.interceptor.registry.DefaultInterceptorRe
 import com.navercorp.pinpoint.profiler.interceptor.registry.InterceptorRegistryBinder;
 import com.navercorp.pinpoint.profiler.metadata.ApiMetaDataService;
 import com.navercorp.pinpoint.profiler.objectfactory.ObjectBinderFactory;
-
-import com.google.inject.Provider;
-import com.google.inject.util.Providers;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.objectweb.asm.tree.ClassNode;
@@ -97,13 +95,14 @@ import org.objectweb.asm.tree.ClassNode;
 import java.io.InputStream;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -124,18 +123,17 @@ public class ASMClassTest {
 
     private final ExceptionHandlerFactory exceptionHandlerFactory = new ExceptionHandlerFactory(false);
     private final RequestRecorderFactory requestRecorderFactory = mock(RequestRecorderFactory.class);
-    private final Provider<UriStatRecorderFactory> uriStatRecorderFactoryProvider = Providers.of(mock(UriStatRecorderFactory.class));
 
     private final ObjectBinderFactory objectBinderFactory = new ObjectBinderFactory(profilerConfig, traceContextProvider, dataSourceMonitorRegistryService,
-            customMetricRegistryService, apiMetaDataService, exceptionHandlerFactory,
-            requestRecorderFactory, uriStatRecorderFactoryProvider);
+            customMetricRegistryService, apiMetaDataService, exceptionHandlerFactory, requestRecorderFactory);
     private final ScopeFactory scopeFactory = new ScopeFactory();
     private final InterceptorDefinitionFactory interceptorDefinitionFactory = new InterceptorDefinitionFactory();
 
     private final EngineComponent engineComponent = new DefaultEngineComponent(objectBinderFactory, interceptorRegistryBinder, interceptorDefinitionFactory, apiMetaDataService, scopeFactory);
 
+    private final ASMClassNodeLoader loader = new ASMClassNodeLoader();
 
-    @Before
+    @BeforeEach
     public void setUp() {
 
         when(pluginContext.injectClass(any(ClassLoader.class), any(String.class))).thenAnswer(new Answer<Class<?>>() {
@@ -155,7 +153,7 @@ public class ASMClassTest {
             public InputStream answer(InvocationOnMock invocation) throws Throwable {
                 ClassLoader loader = (ClassLoader) invocation.getArguments()[0];
                 String name = (String) invocation.getArguments()[1];
-                if(loader == null) {
+                if (loader == null) {
                     loader = ClassLoader.getSystemClassLoader();
                 }
 
@@ -173,16 +171,16 @@ public class ASMClassTest {
         assertEquals("com.navercorp.pinpoint.profiler.instrument.mock.BaseClass", clazz.getSuperClass());
 
         clazz = getClass("java.lang.Object");
-        assertEquals(null, clazz.getSuperClass());
+        assertNull(clazz.getSuperClass());
     }
 
     @Test
     public void isInterface() throws Exception {
         ASMClass clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.BaseClass");
-        assertEquals(false, clazz.isInterface());
+        assertFalse(clazz.isInterface());
 
         clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.BaseInterface");
-        assertEquals(true, clazz.isInterface());
+        assertTrue(clazz.isInterface());
     }
 
     @Test
@@ -194,13 +192,13 @@ public class ASMClassTest {
     @Test
     public void getInterfaces() throws Exception {
         ASMClass clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.BaseClass");
-        assertEquals(0, clazz.getInterfaces().length);
+        assertThat(clazz.getInterfaces()).hasSize(0);
 
         clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.BaseInterface");
-        assertEquals(0, clazz.getInterfaces().length);
+        assertThat(clazz.getInterfaces()).hasSize(0);
 
         clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.BaseImplementClass");
-        assertEquals(1, clazz.getInterfaces().length);
+        assertThat(clazz.getInterfaces()).hasSize(1);
         assertEquals("com.navercorp.pinpoint.profiler.instrument.mock.BaseInterface", clazz.getInterfaces()[0]);
     }
 
@@ -254,7 +252,7 @@ public class ASMClassTest {
         assertNotNull(methods);
 
         methods = clazz.getDeclaredMethods(MethodFilters.name("arg"));
-        assertEquals(1, methods.size());
+        assertThat(methods).hasSize(1);
         assertEquals("arg", methods.get(0).getName());
     }
 
@@ -263,11 +261,11 @@ public class ASMClassTest {
         ASMClass clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.ArgsClass");
         List<InstrumentMethod> constructors = clazz.getDeclaredConstructors();
         assertNotNull(constructors);
-        assertEquals(2, constructors.size());
+        assertThat(constructors).hasSize(2);
         assertEquals("ArgsClass", constructors.get(0).getName());
 
         assertEquals("ArgsClass", constructors.get(1).getName());
-        assertArrayEquals(new String[] {"int"}, constructors.get(1).getParameterTypes());
+        assertArrayEquals(new String[]{"int"}, constructors.get(1).getParameterTypes());
     }
 
     @Test
@@ -377,14 +375,14 @@ public class ASMClassTest {
         try {
             clazz.addDelegatorMethod("extended");
             fail("skip throw exception.");
-        } catch(Exception ignored) {
+        } catch (Exception ignored) {
         }
 
         // not exist.
         try {
             clazz.addDelegatorMethod("notExist");
             fail("skip throw exception.");
-        } catch(Exception ignored) {
+        } catch (Exception ignored) {
         }
 
         clazz.addDelegatorMethod("getInstance");
@@ -594,7 +592,7 @@ public class ASMClassTest {
             clazz.addSetter(FieldDefaultStaticStrSetter.class, "defaultStaticStr");
             assertNotNull(clazz.getDeclaredMethod("_$PINPOINT$_setDefaultStaticStr", "java.lang.String"));
             fail("can't throw exception");
-        } catch(Exception ignored) {
+        } catch (Exception ignored) {
         }
 
         try {
@@ -602,7 +600,7 @@ public class ASMClassTest {
             clazz.addSetter(FieldDefaultFinalStrSetter.class, "defaultFinalStr");
             assertNotNull(clazz.getDeclaredMethod("_$PINPOINT$_setDefaultFinalStr", "java.lang.String"));
             fail("can't throw exception");
-        } catch(Exception ignored) {
+        } catch (Exception ignored) {
         }
 
         clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.FieldClass");
@@ -622,7 +620,7 @@ public class ASMClassTest {
             clazz.addSetter(FieldPublicFinalStrSetter.class, "publicFinalStr");
             assertNotNull(clazz.getDeclaredMethod("_$PINPOINT$_setPublicFinalStr", "java.lang.String"));
             fail("can't throw exception");
-        } catch(Exception ignored) {
+        } catch (Exception ignored) {
         }
 
         // removeFinal is true
@@ -666,19 +664,20 @@ public class ASMClassTest {
         assertEquals(targetClassName, clazz.getNestedClasses(ClassFilters.name(targetClassName)).get(0).getName());
 
         // find enclosing method condition.
-        assertEquals(2, clazz.getNestedClasses(ClassFilters.enclosingMethod("annonymousInnerClass")).size());
+        assertThat(clazz.getNestedClasses(ClassFilters.enclosingMethod("annonymousInnerClass"))).hasSize(2);
 
         // find interface condition.
-        assertEquals(2, clazz.getNestedClasses(ClassFilters.interfaze("java.util.concurrent.Callable")).size());
+        assertThat(clazz.getNestedClasses(ClassFilters.interfaze("java.util.concurrent.Callable"))).hasSize(2);
 
         // find enclosing method & interface condition.
-        assertEquals(1, clazz.getNestedClasses(ClassFilters.chain(ClassFilters.enclosingMethod("annonymousInnerClass"), ClassFilters.interfaze("java.util.concurrent.Callable"))).size());
+        assertThat(clazz.getNestedClasses(ClassFilters.chain(ClassFilters.enclosingMethod("annonymousInnerClass"),
+                ClassFilters.interfaze("java.util.concurrent.Callable")))).hasSize(1);
     }
 
     @Test
     public void isInterceptorable() throws Exception {
         ASMClass clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.BaseInterface");
-        assertFalse(clazz.isInterceptable());
+        assertTrue(clazz.isInterceptable());
 
         clazz = getClass("com.navercorp.pinpoint.profiler.instrument.mock.BaseClass");
         assertTrue(clazz.isInterceptable());
@@ -692,8 +691,8 @@ public class ASMClassTest {
 
 
     private ASMClass getClass(final String targetClassName) throws Exception {
-        ClassNode classNode = ASMClassNodeLoader.get(targetClassName);
+        ClassNode classNode = loader.get(targetClassName);
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        return new ASMClass(engineComponent, pluginContext, classLoader, getClass().getProtectionDomain(), classNode);
+        return ASMClass.load(engineComponent, pluginContext, classLoader, getClass().getProtectionDomain(), classNode);
     }
 }

@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.web.dao;
 
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMap;
 import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.Range;
+import com.navercorp.pinpoint.common.server.util.time.Range;
 
 /**
  * 
@@ -26,6 +26,6 @@ import com.navercorp.pinpoint.web.vo.Range;
  * 
  */
 public interface MapStatisticsCallerDao {
-    LinkDataMap selectCaller(Application callerApplication, Range range);
+   LinkDataMap selectCaller(Application callerApplication, Range range, boolean timeAggregated);
 
 }

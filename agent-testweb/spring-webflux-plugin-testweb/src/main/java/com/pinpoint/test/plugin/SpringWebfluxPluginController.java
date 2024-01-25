@@ -16,20 +16,74 @@
 
 package com.pinpoint.test.plugin;
 
+import com.pinpoint.test.common.view.ApiLinkPage;
+import com.pinpoint.test.common.view.HrefTag;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.result.method.RequestMappingInfo;
+import org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.HttpClientRequest;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 public class SpringWebfluxPluginController {
-    @GetMapping("/server/welcome")
-    public Mono<String> welcome() {
+
+    private final RequestMappingHandlerMapping handlerMapping;
+
+    @Autowired
+    public SpringWebfluxPluginController(RequestMappingHandlerMapping handlerMapping) {
+        this.handlerMapping = handlerMapping;
+    }
+
+    @GetMapping("/")
+    String welcome() {
+        Map<RequestMappingInfo, HandlerMethod> handlerMethods = this.handlerMapping.getHandlerMethods();
+        List<HrefTag> list = new ArrayList<>();
+        for (RequestMappingInfo info : handlerMethods.keySet()) {
+            for (String path : info.getDirectPaths()) {
+                list.add(HrefTag.of(path));
+            }
+        }
+        list.sort(Comparator.comparing(HrefTag::getPath));
+        return new ApiLinkPage("spring-webflux-plugin-testweb")
+                .addHrefTag(list)
+                .build();
+    }
+
+    @GetMapping("/server/welcome/**")
+    public Mono<String> serverWelcome(ServerWebExchange exchange) {
+        exchange.getAttributes().put("pinpoint.metric.uri-template", "/test");
+        return Mono.just("Welcome Home");
+    }
+
+    @GetMapping("/server/wait/3s")
+    public Mono<String> wait3(ServerWebExchange exchange) {
+        try {
+            TimeUnit.SECONDS.sleep(3);
+        } catch (InterruptedException e) {
+        }
         return Mono.just("Welcome Home");
     }
 
@@ -48,8 +102,10 @@ public class SpringWebfluxPluginController {
     }
 
     @GetMapping("/client/get")
-    public Mono<String> clientGet() {
-        WebClient client = WebClient.create("http://www.google.com");
+    public Mono<String> clientGet(ServerWebExchange exchange) {
+        exchange.getAttributes().put("pinpoint.metric.uri-template", "/test");
+        WebClient client = WebClient.create("http://naver.com");
+
         WebClient.ResponseSpec response = client.method(HttpMethod.GET)
                 .uri("").retrieve();
         return response.bodyToMono(String.class);
@@ -70,9 +126,132 @@ public class SpringWebfluxPluginController {
                 .baseUrl("http://falfjlajdflajflajlf")
                 .build();
 
-//        WebClient client = WebClient.create("http://falfjlajdflajflajlf");
         WebClient.ResponseSpec response = client.method(HttpMethod.GET)
                 .uri("").retrieve();
         return response.bodyToMono(String.class);
+    }
+
+    @GetMapping("/client/get/param")
+    public Mono<String> clientGetParam(@RequestParam String id, @RequestParam(name = "password") String pwd) {
+        final String param = "id=" + id + "&password=" + pwd;
+        return Mono.just(param);
+    }
+
+    @PostMapping("/client/post/param")
+    public Mono<String> clientPostParam(@RequestParam String id, @RequestParam(name = "password") String pwd) {
+        final String param = "id=" + id + "&password=" + pwd;
+        return Mono.just(param);
+    }
+
+    @PostMapping("/client/post/body")
+    @ResponseBody
+    public String clientPostParam(@RequestBody String body) {
+        return "OK";
+    }
+
+    @GetMapping("/client/error")
+    public Mono<String> clientError(ServerWebExchange exchange) {
+        WebClient client = WebClient.create("http://fjaljglkajg.gjalfjlajfl");
+        WebClient.ResponseSpec response = client.method(HttpMethod.GET)
+                .uri("").retrieve();
+
+        Mono<String> result = response.bodyToMono(String.class).onErrorMap(throwable -> {
+            String message = throwable.getMessage();
+            System.out.println("Error " + message);
+            return new RuntimeException("ERROR");
+        });
+        result.subscribe();
+        return Mono.just("OK");
+    }
+
+    @GetMapping("/client/responseTimeout")
+    public Mono<String> clientResponseTimeout(ServerWebExchange exchange) {
+        HttpClient httpClient = HttpClient.create().responseTimeout(Duration.ofMillis(100));
+        WebClient client = WebClient.builder().baseUrl("http://httpbin.org").clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        WebClient.ResponseSpec response = client.method(HttpMethod.GET)
+                .uri("").retrieve();
+        response.bodyToMono(String.class).onErrorComplete(throwable -> {
+            System.out.println("ERROR=" + throwable.getMessage());
+            return throwable != null;
+        }).subscribe();
+
+        return Mono.just("OK");
+    }
+
+    @GetMapping("/client/connectionTimeout")
+    public Mono<String> clientConnectionTimeout(ServerWebExchange exchange) {
+        HttpClient httpClient = HttpClient.create().option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 100);
+        WebClient client = WebClient.builder().baseUrl("http://httpbin.org").clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        WebClient.ResponseSpec response = client.method(HttpMethod.GET)
+                .uri("").retrieve();
+        response.bodyToMono(String.class).onErrorComplete(throwable -> {
+            System.out.println("ERROR=" + throwable.getMessage());
+            return throwable != null;
+        }).subscribe();
+
+        return Mono.just("OK");
+    }
+
+    @GetMapping("/client/readTimeout")
+    public Mono<String> clientReadTimeout(ServerWebExchange exchange) {
+        HttpClient httpClient = HttpClient.create().doOnConnected(connection -> {
+            connection.addHandlerFirst(new ReadTimeoutHandler(10, TimeUnit.MILLISECONDS));
+        });
+        WebClient client = WebClient.builder().baseUrl("http://httpbin.org").clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        WebClient.ResponseSpec response = client.method(HttpMethod.GET)
+                .uri("").retrieve();
+        response.bodyToMono(String.class).onErrorComplete(throwable -> {
+            System.out.println("ERROR=" + throwable.getMessage());
+            return throwable != null;
+        }).subscribe();
+
+        return Mono.just("OK");
+    }
+
+    @GetMapping("/client/writeTimeout")
+    public Mono<String> clientWriteTimeout(ServerWebExchange exchange) {
+        HttpClient httpClient = HttpClient.create().doOnConnected(connection -> {
+            connection.addHandlerFirst(new WriteTimeoutHandler(1, TimeUnit.MILLISECONDS));
+        });
+        WebClient client = WebClient.builder().baseUrl("http://httpbin.org").clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        WebClient.ResponseSpec response = client.method(HttpMethod.GET)
+                .uri("").retrieve();
+        response.bodyToMono(String.class).onErrorComplete(throwable -> {
+            System.out.println("ERROR=" + throwable.getMessage());
+            return throwable != null;
+        }).subscribe();
+
+        return Mono.just("OK");
+    }
+
+    @GetMapping("/client/nativeResponseTimeout")
+    public Mono<String> clientNativeResponseTimeout(ServerWebExchange exchange) {
+        HttpClient httpClient = HttpClient.create();
+        WebClient client = WebClient.builder().baseUrl("http://httpbin.org").clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        WebClient.ResponseSpec response = client.method(HttpMethod.GET)
+                .uri("").httpRequest(clientHttpRequest -> {
+                    HttpClientRequest reactorRequest = clientHttpRequest.getNativeRequest();
+                    reactorRequest.responseTimeout(Duration.ofMillis(10));
+                }).retrieve();
+        response.bodyToMono(String.class).onErrorComplete(throwable -> {
+            System.out.println("ERROR=" + throwable.getMessage());
+            return throwable != null;
+        }).subscribe();
+
+        return Mono.just("OK");
+    }
+
+    @GetMapping("/client/reactorTimeout")
+    public Mono<String> clientReactorTimeout(ServerWebExchange exchange) {
+        HttpClient httpClient = HttpClient.create();
+        WebClient client = WebClient.builder().baseUrl("http://httpbin.org").clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        WebClient.ResponseSpec response = client.method(HttpMethod.GET)
+                .uri("").retrieve();
+        response.bodyToMono(String.class).timeout(Duration.ofMillis(10)).onErrorComplete(throwable -> {
+            System.out.println("ERROR=" + throwable.getMessage());
+            return throwable != null;
+        }).subscribe();
+
+        return Mono.just("OK");
     }
 }

@@ -16,21 +16,20 @@
 
 package com.navercorp.pinpoint.bootstrap.plugin.jdbc;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
 import java.lang.reflect.Method;
 import java.util.List;
-
-import org.junit.Assert;
-import org.junit.Test;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author emeroad
  */
 public class PreparedStatementUtilsTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Test
     public void testBindSetMethod() {
@@ -41,10 +40,10 @@ public class PreparedStatementUtilsTest {
     }
 
     @Test
-    public void testMatch() throws Exception {
-        Assert.assertTrue(PreparedStatementUtils.isSetter("setNCString"));
-        Assert.assertTrue(PreparedStatementUtils.isSetter("setInt"));
-        Assert.assertTrue(PreparedStatementUtils.isSetter("setTestTeTst"));
+    public void testMatch() {
+        Assertions.assertTrue(PreparedStatementUtils.isSetter("setNCString"));
+        Assertions.assertTrue(PreparedStatementUtils.isSetter("setInt"));
+        Assertions.assertTrue(PreparedStatementUtils.isSetter("setTestTeTst"));
 
     }
 }

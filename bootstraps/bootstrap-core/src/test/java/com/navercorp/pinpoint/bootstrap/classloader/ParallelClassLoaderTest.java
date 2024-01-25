@@ -17,63 +17,52 @@
 package com.navercorp.pinpoint.bootstrap.classloader;
 
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.net.URL;
-
 
 /**
  * @author Taejin Koo
  */
 public class ParallelClassLoaderTest {
 
-    private final Class slf4jClass = org.slf4j.LoggerFactory.class;
+    private final Class<?> clazz = org.apache.logging.log4j.LogManager.class;
 
     @Test
     public void testOnLoadClass() throws Exception {
-        Class classLoaderType = ParallelClassLoader.class;
+        Class<?> classLoaderType = ParallelClassLoader.class;
 
-        ClassLoader cl = onLoadTest(classLoaderType, slf4jClass);
+        ClassLoader cl = onLoadTest(classLoaderType, clazz);
 
-        close(cl);
+        ClassLoaderUtils.close(cl);
     }
 
     /**
      * TODO duplicate code
      */
-    private ClassLoader onLoadTest(Class classLoaderType, Class testClass) throws ClassNotFoundException {
+    private ClassLoader onLoadTest(Class<?> classLoaderType, Class<?> testClass) throws ClassNotFoundException {
         URL testClassJar = CodeSourceUtils.getCodeLocation(testClass);
         URL[] urls = {testClassJar};
         ClassLoader cl = PinpointClassLoaderFactory.createClassLoader(this.getClass().getName(), urls, null, ProfilerLibs.PINPOINT_PROFILER_CLASS);
-        Assert.assertSame(cl.getClass(), classLoaderType);
+        Assertions.assertSame(cl.getClass(), classLoaderType);
 
-        try {
+        Assertions.assertThrowsExactly(ClassNotFoundException.class, () -> {
             cl.loadClass("test");
-            Assert.fail();
-        } catch (ClassNotFoundException ignored) {
-        }
+        });
 
-        Class selfLoadClass = cl.loadClass(testClass.getName());
-        Assert.assertNotSame(testClass, selfLoadClass);
-        Assert.assertSame(cl, selfLoadClass.getClassLoader());
-        Assert.assertSame(testClass.getClassLoader(), this.getClass().getClassLoader());
+        Class<?> selfLoadClass = cl.loadClass(testClass.getName());
+        Assertions.assertNotSame(testClass, selfLoadClass);
+        Assertions.assertSame(cl, selfLoadClass.getClassLoader());
+        Assertions.assertSame(testClass.getClassLoader(), this.getClass().getClassLoader());
         return cl;
     }
 
 
-    private void close(ClassLoader classLoader) throws IOException {
-        if (classLoader instanceof Closeable) {
-            ((Closeable)classLoader).close();
-        }
-    }
-
     @Test
     public void testBootstrapClassLoader() throws Exception {
         ClassLoader classLoader = new ParallelClassLoader(this.getClass().getName(), new URL[0], null, ProfilerLibs.PINPOINT_PROFILER_CLASS);
-        close(classLoader);
+        ClassLoaderUtils.close(classLoader);
     }
 
 }

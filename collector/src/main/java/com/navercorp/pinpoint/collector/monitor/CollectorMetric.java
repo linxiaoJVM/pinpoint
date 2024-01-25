@@ -16,9 +16,6 @@
 
 package com.navercorp.pinpoint.collector.monitor;
 
-import com.navercorp.pinpoint.collector.config.CollectorConfiguration;
-import com.navercorp.pinpoint.collector.util.LoggerUtils;
-
 import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.JvmAttributeGaugeSet;
 import com.codahale.metrics.Metric;
@@ -28,15 +25,19 @@ import com.codahale.metrics.Slf4jReporter;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.collector.config.CollectorProperties;
+import com.navercorp.pinpoint.common.util.IOUtils;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.slf4j.Log4jLoggerFactory;
+import org.apache.logging.slf4j.Log4jMarkerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,9 +53,7 @@ public class CollectorMetric {
 
     public static final String REPORTER_LOGGER_NAME = "com.navercorp.pinpoint.collector.StateReport";
 
-    private final Logger reporterLogger = LoggerFactory.getLogger(REPORTER_LOGGER_NAME);
-
-    private final CollectorConfiguration collectorConfiguration;
+    private final CollectorProperties collectorProperties;
 
     private final MetricRegistry metricRegistry;
 
@@ -65,11 +64,11 @@ public class CollectorMetric {
 
     private final boolean isEnable = isEnable0(REPORTER_LOGGER_NAME);
 
-    public CollectorMetric(CollectorConfiguration collectorConfiguration,
+    public CollectorMetric(CollectorProperties collectorProperties,
                            MetricRegistry metricRegistry,
                            Optional<HBaseAsyncOperationMetrics> hBaseAsyncOperationMetrics,
                            Optional<BulkOperationMetrics> cachedStatisticsDaoMetrics) {
-        this.collectorConfiguration = Objects.requireNonNull(collectorConfiguration, "collectorConfiguration");
+        this.collectorProperties = Objects.requireNonNull(collectorProperties, "collectorProperties");
         this.metricRegistry = Objects.requireNonNull(metricRegistry, "metricRegistry");
         this.hBaseAsyncOperationMetrics = hBaseAsyncOperationMetrics.orElse(null);
         this.bulkOperationMetrics = cachedStatisticsDaoMetrics.orElse(null);
@@ -86,9 +85,9 @@ public class CollectorMetric {
     }
 
     private boolean isEnable0(String loggerName) {
-        final Logger logger = LoggerFactory.getLogger(loggerName);
-        final int loggerLevel = LoggerUtils.getLoggerLevel(logger);
-        if (loggerLevel >= LoggerUtils.WARN_LEVEL) {
+        final Logger logger = LogManager.getLogger(loggerName);
+        final Level level = logger.getLevel();
+        if (level.isLessSpecificThan(Level.WARN)) {
             return false;
         }
         return true;
@@ -122,9 +121,9 @@ public class CollectorMetric {
 
         reporterList.add(slf4jReporter);
 
-        if (collectorConfiguration.isMetricJmxEnable()) {
+        if (collectorProperties.isMetricJmxEnable()) {
 
-            final String metricJmxDomainName = collectorConfiguration.getMetricJmxDomainName();
+            final String metricJmxDomainName = collectorProperties.getMetricJmxDomainName();
             Assert.hasLength(metricJmxDomainName, "metricJmxDomainName must not be empty");
 
             final JmxReporter jmxReporter = createJmxReporter(metricJmxDomainName);
@@ -138,6 +137,10 @@ public class CollectorMetric {
         builder.convertRatesTo(TimeUnit.SECONDS);
         builder.convertDurationsTo(TimeUnit.MILLISECONDS);
 
+        Log4jMarkerFactory log4jMarkerFactory = new Log4jMarkerFactory();
+        Log4jLoggerFactory log4jLoggerFactory = new Log4jLoggerFactory(log4jMarkerFactory);
+
+        final org.slf4j.Logger reporterLogger = log4jLoggerFactory.getLogger(REPORTER_LOGGER_NAME);
         builder.outputTo(reporterLogger);
         return builder.build();
     }
@@ -154,12 +157,8 @@ public class CollectorMetric {
     @PreDestroy
     private void shutdown() {
         for (Reporter reporter : reporterList) {
-            if (reporter instanceof Closeable) {
-                try {
-                    ((Closeable) reporter).close();
-                } catch (IOException e) {
-                    // ignore
-                }
+            if (reporter instanceof Closeable closeable) {
+                IOUtils.closeQuietly(closeable);
             }
         }
         reporterList = null;

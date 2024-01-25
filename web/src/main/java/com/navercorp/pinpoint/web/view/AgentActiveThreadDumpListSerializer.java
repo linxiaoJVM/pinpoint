@@ -17,12 +17,11 @@
 package com.navercorp.pinpoint.web.view;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.navercorp.pinpoint.thrift.dto.command.TThreadState;
-import com.navercorp.pinpoint.web.vo.AgentActiveThreadDump;
-import com.navercorp.pinpoint.web.vo.AgentActiveThreadDumpList;
+import com.navercorp.pinpoint.web.vo.activethread.AgentActiveThreadDump;
+import com.navercorp.pinpoint.web.vo.activethread.AgentActiveThreadDumpList;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,7 +32,7 @@ import java.util.List;
 public class    AgentActiveThreadDumpListSerializer extends JsonSerializer<AgentActiveThreadDumpList> {
 
     @Override
-    public void serialize(AgentActiveThreadDumpList agentActiveThreadDumpList, JsonGenerator jgen, SerializerProvider serializers) throws IOException, JsonProcessingException {
+    public void serialize(AgentActiveThreadDumpList agentActiveThreadDumpList, JsonGenerator jgen, SerializerProvider serializers) throws IOException {
         List<AgentActiveThreadDump> agentActiveThreadDumpRepository = agentActiveThreadDumpList.getSortOldestAgentActiveThreadDumpRepository();
 
         jgen.writeStartArray();

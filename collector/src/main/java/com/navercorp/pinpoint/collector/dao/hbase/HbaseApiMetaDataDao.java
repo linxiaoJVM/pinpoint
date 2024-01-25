@@ -21,18 +21,17 @@ import com.navercorp.pinpoint.collector.util.CollectorUtils;
 import com.navercorp.pinpoint.common.buffer.AutomaticBuffer;
 import com.navercorp.pinpoint.common.buffer.Buffer;
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
-import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
-import com.navercorp.pinpoint.common.hbase.TableDescriptor;
+import com.navercorp.pinpoint.common.hbase.HbaseOperations;
+import com.navercorp.pinpoint.common.hbase.TableNameProvider;
 import com.navercorp.pinpoint.common.server.bo.ApiMetaDataBo;
-
 import com.navercorp.pinpoint.common.server.bo.serializer.RowKeyEncoder;
 import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetaDataRowKey;
 import com.navercorp.pinpoint.common.server.bo.serializer.metadata.MetadataEncoder;
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Put;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
@@ -45,21 +44,23 @@ import java.util.Objects;
 @Repository
 public class HbaseApiMetaDataDao implements ApiMetaDataDao {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final HbaseOperations2 hbaseTemplate;
+    private static final HbaseColumnFamily.ApiMetadata description = HbaseColumnFamily.API_METADATA_API;
 
-    private final TableDescriptor<HbaseColumnFamily.ApiMetadata> description;
+    private final HbaseOperations hbaseTemplate;
+
+    private final TableNameProvider tableNameProvider;
 
     private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
 
     private final RowKeyEncoder<MetaDataRowKey> rowKeyEncoder = new MetadataEncoder();
 
-    public HbaseApiMetaDataDao(HbaseOperations2 hbaseTemplate,
-                               TableDescriptor<HbaseColumnFamily.ApiMetadata> description,
+    public HbaseApiMetaDataDao(HbaseOperations hbaseTemplate,
+                               TableNameProvider tableNameProvider,
                                @Qualifier("metadataRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix) {
         this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
-        this.description = Objects.requireNonNull(description, "description");
+        this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
         this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
     }
 
@@ -80,11 +81,12 @@ public class HbaseApiMetaDataDao implements ApiMetaDataDao {
         buffer.putPrefixedString(api);
         buffer.putInt(apiMetaData.getLineNumber());
         buffer.putInt(apiMetaData.getMethodTypeEnum().getCode());
+        buffer.putPrefixedString(apiMetaData.getLocation());
 
         final byte[] apiMetaDataBytes = buffer.getBuffer();
-        put.addColumn(description.getColumnFamilyName(), description.getColumnFamily().QUALIFIER_SIGNATURE, apiMetaDataBytes);
+        put.addColumn(description.getName(), description.QUALIFIER_SIGNATURE, apiMetaDataBytes);
 
-        final TableName apiMetaDataTableName = description.getTableName();
+        final TableName apiMetaDataTableName = tableNameProvider.getTableName(description.getTable());
         hbaseTemplate.put(apiMetaDataTableName, put);
     }
 

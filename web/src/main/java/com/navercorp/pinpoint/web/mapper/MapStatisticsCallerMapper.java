@@ -20,18 +20,18 @@ import com.navercorp.pinpoint.common.buffer.Buffer;
 import com.navercorp.pinpoint.common.buffer.FixedBuffer;
 import com.navercorp.pinpoint.common.buffer.OffsetFixedBuffer;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
-import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
+import com.navercorp.pinpoint.common.hbase.util.CellUtils;
 import com.navercorp.pinpoint.common.util.TimeUtils;
+import com.navercorp.pinpoint.web.applicationmap.link.LinkDirection;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMap;
-import com.navercorp.pinpoint.web.service.ApplicationFactory;
+import com.navercorp.pinpoint.web.component.ApplicationFactory;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -46,12 +46,9 @@ import java.util.Objects;
 @Component
 public class MapStatisticsCallerMapper implements RowMapper<LinkDataMap> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final LinkFilter filter;
-
-    @Autowired
-    private ServiceTypeRegistryService registry;
 
     @Autowired
     private ApplicationFactory applicationFactory;
@@ -78,14 +75,14 @@ public class MapStatisticsCallerMapper implements RowMapper<LinkDataMap> {
         final byte[] rowKey = getOriginalKey(result.getRow());
 
         final Buffer row = new FixedBuffer(rowKey);
-        final Application caller = readCallerApplication(row);
+        final Application out = readCallerApplication(row);
         final long timestamp = TimeUtils.recoveryTimeMillis(row.readLong());
 
         // key is destApplicationName.
         final LinkDataMap linkDataMap = new LinkDataMap();
         for (Cell cell : result.rawCells()) {
             final Buffer buffer = new OffsetFixedBuffer(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
-            final Application callee = readCalleeApplication(buffer);
+            final Application callee = readOutApplication(buffer);
             if (filter.filter(callee)) {
                 continue;
             }
@@ -97,35 +94,32 @@ public class MapStatisticsCallerMapper implements RowMapper<LinkDataMap> {
 
             String callerAgentId = buffer.readPrefixedString();
 
-            long requestCount = getValueToLong(cell);
+            long requestCount = CellUtils.valueToLong(cell);
             if (logger.isDebugEnabled()) {
-                logger.debug("    Fetched Caller.(New) {} {} -> {} (slot:{}/{}) calleeHost:{}", caller, callerAgentId, callee, histogramSlot, requestCount, calleeHost);
+                logger.debug("    Fetched {}.(New) {} {} -> {} (slot:{}/{}) calleeHost:{}", LinkDirection.OUT_LINK, out, callerAgentId, callee, histogramSlot, requestCount, calleeHost);
             }
 
             final short slotTime = (isError) ? (short) -1 : histogramSlot;
             if (StringUtils.isEmpty(calleeHost)) {
                 calleeHost = callee.getName();
             }
-            linkDataMap.addLinkData(caller, callerAgentId, callee, calleeHost, timestamp, slotTime, requestCount);
+            linkDataMap.addLinkData(out, callerAgentId, callee, calleeHost, timestamp, slotTime, requestCount);
         }
 
         return linkDataMap;
     }
 
-    private long getValueToLong(Cell cell) {
-        return Bytes.toLong(cell.getValueArray(), cell.getValueOffset());
-    }
 
-    private Application readCalleeApplication(Buffer buffer) {
+    private Application readOutApplication(Buffer buffer) {
         short calleeServiceType = buffer.readShort();
         String calleeApplicationName = buffer.readPrefixedString();
         return applicationFactory.createApplication(calleeApplicationName, calleeServiceType);
     }
 
     private Application readCallerApplication(Buffer row) {
-        String callerApplicationName = row.read2PrefixedString();
+        String ApplicationName = row.read2PrefixedString();
         short callerServiceType = row.readShort();
-        return this.applicationFactory.createApplication(callerApplicationName, callerServiceType);
+        return this.applicationFactory.createApplication(ApplicationName, callerServiceType);
     }
 
     private byte[] getOriginalKey(byte[] rowKey) {

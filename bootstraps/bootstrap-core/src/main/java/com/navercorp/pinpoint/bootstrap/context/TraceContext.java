@@ -43,12 +43,16 @@ public interface TraceContext {
 
     Trace newTraceObject();
 
+    Trace newTraceObject(String urlPath);
+
     /**
      * internal experimental api
      */
     @InterfaceStability.Evolving
     @InterfaceAudience.LimitedPrivate("vert.x")
     Trace newAsyncTraceObject();
+
+    Trace newAsyncTraceObject(String urlPath);
 
     /**
      * internal experimental api
@@ -85,8 +89,6 @@ public interface TraceContext {
 
     // TODO extract jdbc related methods
     ParsingResult parseSql(String sql);
-
-    boolean cacheSql(ParsingResult parsingResult);
 
     TraceId createTraceId(String transactionId, long parentSpanId, long spanId, short flags);
 

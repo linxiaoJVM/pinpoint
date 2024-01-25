@@ -20,11 +20,12 @@ import com.navercorp.pinpoint.bootstrap.instrument.matcher.operand.InterfaceInte
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.operand.MatcherOperand;
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.operator.AndMatcherOperator;
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.operator.OrMatcherOperator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author jaehong.kim
@@ -32,43 +33,42 @@ import static org.junit.Assert.*;
 public class DefaultMultiClassBasedMatcherTest {
 
     @Test
-    public void getMatcherOperandWithMultiClassName() throws Exception {
+    public void getMatcherOperandWithMultiClassName() {
         // (class OR class)
         DefaultMultiClassBasedMatcher matcher = new DefaultMultiClassBasedMatcher(Arrays.asList("java.lang.String", "java.lang.Thread"));
-        assertTrue(matcher.getBaseClassNames().contains("java.lang.String"));
-        assertTrue(matcher.getBaseClassNames().contains("java.lang.Thread"));
+        assertThat(matcher.getBaseClassNames())
+                .contains("java.lang.String", "java.lang.Thread");
 
         MatcherOperand operand = matcher.getMatcherOperand();
-        assertTrue(operand instanceof OrMatcherOperator);
+        assertThat(operand).isInstanceOf(OrMatcherOperator.class);
         OrMatcherOperator operator = (OrMatcherOperator) operand;
-        assertTrue(operator.getLeftOperand() instanceof ClassInternalNameMatcherOperand);
+        assertThat(operator.getLeftOperand()).isInstanceOf(ClassInternalNameMatcherOperand.class);
         ClassInternalNameMatcherOperand leftOperand = (ClassInternalNameMatcherOperand) operator.getLeftOperand();
         assertEquals("java/lang/String", leftOperand.getClassInternalName());
 
-        assertTrue(operator.getRightOperand() instanceof ClassInternalNameMatcherOperand);
+        assertThat(operator.getRightOperand()).isInstanceOf(ClassInternalNameMatcherOperand.class);
         ClassInternalNameMatcherOperand rightOperand = (ClassInternalNameMatcherOperand) operator.getRightOperand();
         assertEquals("java/lang/Thread", rightOperand.getClassInternalName());
     }
 
     @Test
-    public void getMatcherOperandWithMultiClassNameAndAdditional() throws Exception {
+    public void getMatcherOperandWithMultiClassNameAndAdditional() {
         // (class OR class) AND interface
         InterfaceInternalNameMatcherOperand additional = new InterfaceInternalNameMatcherOperand("java/lang/Runnable", false);
         DefaultMultiClassBasedMatcher matcher = new DefaultMultiClassBasedMatcher(Arrays.asList("java.lang.String", "java.lang.Thread"), additional);
-        assertTrue(matcher.getBaseClassNames().contains("java.lang.String"));
-        assertTrue(matcher.getBaseClassNames().contains("java.lang.Thread"));
+        assertThat(matcher.getBaseClassNames())
+                .contains("java.lang.String", "java.lang.Thread");
 
         MatcherOperand operand = matcher.getMatcherOperand();
-        assertTrue(operand instanceof AndMatcherOperator);
+        assertThat(operand).isInstanceOf(AndMatcherOperator.class);
         AndMatcherOperator operator = (AndMatcherOperator) operand;
         // (class OR class)
-        assertTrue(operator.getLeftOperand() instanceof OrMatcherOperator);
+        assertThat(operator.getLeftOperand()).isInstanceOf(OrMatcherOperator.class);
         // ... AND interface
-        assertTrue(operator.getRightOperand() instanceof InterfaceInternalNameMatcherOperand);
+        assertThat(operator.getRightOperand()).isInstanceOf(InterfaceInternalNameMatcherOperand.class);
         InterfaceInternalNameMatcherOperand rightOperand = (InterfaceInternalNameMatcherOperand) operator.getRightOperand();
         assertEquals("java/lang/Runnable", rightOperand.getInterfaceInternalName());
     }
-
 
 
 }

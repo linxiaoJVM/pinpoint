@@ -16,17 +16,22 @@
 
 package com.navercorp.pinpoint.web.alarm.vo;
 
+import com.navercorp.pinpoint.web.vo.RuleInterface;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * @author minwoo.jung
  */
-public class Rule {
+public class Rule implements RuleInterface {
 
     private String ruleId;
-    private String applicationId;
+    @NotBlank private String applicationId;
     private String serviceType;
-    private String checkerName;
-    private Integer threshold;
-    private String userGroupId;
+    @NotBlank private String checkerName;
+    @NotNull private Integer threshold;
+    @NotBlank private String userGroupId;
     private boolean smsSend;
     private boolean emailSend;
     private boolean webhookSend;
@@ -126,7 +131,24 @@ public class Rule {
     public void setNotes(String notes) {
         this.notes = notes;
     }
-    
+
+    public static boolean isRuleInvalidForPost(Rule rule) {
+        return StringUtils.isEmpty(rule.getApplicationId()) ||
+                StringUtils.isEmpty(rule.getCheckerName()) ||
+                StringUtils.isEmpty(rule.getUserGroupId()) ||
+                rule.getThreshold() == null;
+    }
+
+
+    public static boolean isRuleInvalid(Rule rule) {
+        return StringUtils.isEmpty(rule.getRuleId()) ||
+                StringUtils.isEmpty(rule.getApplicationId()) ||
+                StringUtils.isEmpty(rule.getCheckerName()) ||
+                StringUtils.isEmpty(rule.getUserGroupId()) ||
+                rule.getThreshold() == null;
+    }
+
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("Rule{");

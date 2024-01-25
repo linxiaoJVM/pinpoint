@@ -1,25 +1,25 @@
 package com.navercorp.pinpoint.web.interceptor;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 @Aspect
 public class PerformanceLoggingInterceptor {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final long slow;
 
-    public PerformanceLoggingInterceptor(long slow) {
-        this.slow = slow;
+    public PerformanceLoggingInterceptor(int threadhold) {
+        this.slow = threadhold;
     }
 
-    @Around("within(@org.springframework.stereotype.Controller *)")
-    public Object logging(ProceedingJoinPoint joinPoint) throws Throwable {
 
+    @Around("@within(org.springframework.web.bind.annotation.RestController)")
+    public Object logging(ProceedingJoinPoint joinPoint) throws Throwable {
         final long start = System.currentTimeMillis();
         Throwable capture = null;
         try {
@@ -58,6 +58,6 @@ public class PerformanceLoggingInterceptor {
 
     private Logger getLogger(ProceedingJoinPoint joinPoint) {
         return logger;
-//        return LoggerFactory.getLogger(joinPoint.getTarget().getClass());
+//        return LogManager.getLogger(joinPoint.getTarget().getClass());
     }
 }

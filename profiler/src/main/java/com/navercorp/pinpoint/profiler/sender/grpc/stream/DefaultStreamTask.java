@@ -1,6 +1,5 @@
 package com.navercorp.pinpoint.profiler.sender.grpc.stream;
 
-import java.util.Objects;
 import com.navercorp.pinpoint.profiler.sender.grpc.ClientStreamingService;
 import com.navercorp.pinpoint.profiler.sender.grpc.MessageDispatcher;
 import com.navercorp.pinpoint.profiler.sender.grpc.StreamId;
@@ -8,9 +7,10 @@ import com.navercorp.pinpoint.profiler.sender.grpc.StreamState;
 import com.navercorp.pinpoint.profiler.sender.grpc.StreamTask;
 import com.navercorp.pinpoint.profiler.util.NamedRunnable;
 import io.grpc.stub.ClientCallStreamObserver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 public class DefaultStreamTask<M, ReqT, ResT> implements StreamTask<M, ReqT> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final StreamId streamId;
 
@@ -27,11 +27,11 @@ public class DefaultStreamTask<M, ReqT, ResT> implements StreamTask<M, ReqT> {
     private final BlockingQueue<M> queue;
     private final MessageDispatcher<M, ReqT> dispatcher;
     private final StreamState failState;
+    private boolean jobStarted = false;
 
     private volatile ClientCallStreamObserver<ReqT> stream;
     private volatile CountDownLatch latch;
     private volatile boolean stop = false;
-
 
     public DefaultStreamTask(String id, ClientStreamingService<ReqT, ResT> clientStreamingService,
                              StreamExecutorFactory<ReqT> streamExecutorFactory,
@@ -51,6 +51,7 @@ public class DefaultStreamTask<M, ReqT, ResT> implements StreamTask<M, ReqT> {
         StreamJob<ReqT> job = new StreamJob<ReqT>() {
             @Override
             public Future<?> start(final ClientCallStreamObserver<ReqT> requestStream) {
+                jobStarted = true;
                 Runnable runnable = DefaultStreamTask.this.newRunnable(requestStream, latch);
                 StreamExecutor<ReqT> streamExecutor = streamExecutorFactory.newStreamExecutor();
                 return streamExecutor.execute(runnable);
@@ -111,6 +112,7 @@ public class DefaultStreamTask<M, ReqT, ResT> implements StreamTask<M, ReqT> {
                     status = FinishStatus.INTERRUPTED;
                 } catch (Throwable th) {
                     logger.error("Unexpected DispatchThread error {}/{}", Thread.currentThread().getName(), this, th);
+                    stream.onError(th);
                 }
 
                 logger.info("dispatch thread end status:{} {}", status, this);
@@ -145,6 +147,22 @@ public class DefaultStreamTask<M, ReqT, ResT> implements StreamTask<M, ReqT> {
 
     public boolean isStop() {
         return stop;
+    }
+
+    @Override
+    public boolean callOnError(Throwable t) {
+        logger.info("call onError {}", this.streamId);
+        final ClientCallStreamObserver<ReqT> copy = this.stream;
+        if (copy != null) {
+            copy.onError(t);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isJobStarted() {
+        return jobStarted;
     }
 
     @Override

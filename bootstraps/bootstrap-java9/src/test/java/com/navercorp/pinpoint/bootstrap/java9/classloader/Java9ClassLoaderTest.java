@@ -19,23 +19,25 @@ package com.navercorp.pinpoint.bootstrap.java9.classloader;
 import com.navercorp.pinpoint.bootstrap.classloader.PinpointClassLoaderFactory;
 import com.navercorp.pinpoint.bootstrap.classloader.ProfilerLibs;
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class Java9ClassLoaderTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final Class slf4jClass = org.slf4j.LoggerFactory.class;
+    private final Class<?> clazz = org.apache.logging.log4j.LogManager.class;
 
     @Test
     public void newClassLoader_bootstrap() throws ClassNotFoundException, IOException {
@@ -47,44 +49,42 @@ public class Java9ClassLoaderTest {
     @Test
     public void testOnLoadClass() throws Exception {
 
-        ClassLoader cl = onLoadTest(Java9ClassLoader.class, slf4jClass);
+        ClassLoader cl = onLoadTest(Java9ClassLoader.class, clazz);
         close(cl);
     }
 
     /**
      * TODO duplicate code
      */
-    private ClassLoader onLoadTest(Class<?> classLoaderType, Class testClass) throws ClassNotFoundException {
+    private ClassLoader onLoadTest(Class<?> classLoaderType, Class<?> testClass) throws ClassNotFoundException {
         URL testClassJar = CodeSourceUtils.getCodeLocation(testClass);
         URL[] urls = {testClassJar};
         ClassLoader cl = PinpointClassLoaderFactory.createClassLoader(this.getClass().getName(), urls, null, ProfilerLibs.PINPOINT_PROFILER_CLASS);
-        Assert.assertSame(cl.getClass(), classLoaderType);
+        Assertions.assertSame(cl.getClass(), classLoaderType);
 
-        try {
+        Assertions.assertThrowsExactly(ClassNotFoundException.class, () -> {
             cl.loadClass("test");
-            Assert.fail();
-        } catch (ClassNotFoundException ignored) {
-        }
+        });
 
-        Class selfLoadClass = cl.loadClass(testClass.getName());
-        Assert.assertNotSame(testClass, selfLoadClass);
-        Assert.assertSame(cl, selfLoadClass.getClassLoader());
-        Assert.assertSame(testClass.getClassLoader(), this.getClass().getClassLoader());
+
+        Class<?> selfLoadClass = cl.loadClass(testClass.getName());
+        Assertions.assertNotSame(testClass, selfLoadClass);
+        Assertions.assertSame(cl, selfLoadClass.getClassLoader());
+        Assertions.assertSame(testClass.getClassLoader(), this.getClass().getClassLoader());
         return cl;
     }
-
 
 
     @Test
     public void loadClass_bootstrap() throws Exception {
 
         ClassLoader cl = PinpointClassLoaderFactory.createClassLoader(this.getClass().getName(), new URL[]{}, null, ProfilerLibs.PINPOINT_PROFILER_CLASS);
-        Assert.assertTrue(cl instanceof Java9ClassLoader);
+        assertThat(cl).isInstanceOf(Java9ClassLoader.class);
 
         Class<?> stringClazz1 = cl.loadClass("java.lang.String");
         Class<?> stringClazz2 = ClassLoader.getSystemClassLoader().loadClass("java.lang.String");
-        Assert.assertSame("reference", stringClazz1, stringClazz2);
-        Assert.assertSame("classLoader", stringClazz1.getClassLoader(), stringClazz2.getClassLoader());
+        Assertions.assertSame(stringClazz1, stringClazz2, "reference");
+        Assertions.assertSame(stringClazz1.getClassLoader(), stringClazz2.getClassLoader(), "classLoader");
 
         close(cl);
     }

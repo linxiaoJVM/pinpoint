@@ -16,24 +16,96 @@
 
 package com.navercorp.pinpoint.collector.grpc.config;
 
-import com.navercorp.pinpoint.collector.config.ExecutorConfiguration;
+import com.navercorp.pinpoint.collector.monitor.MonitoringExecutors;
 import com.navercorp.pinpoint.collector.receiver.BindAddress;
+import com.navercorp.pinpoint.common.server.thread.MonitoringExecutorProperties;
+import com.navercorp.pinpoint.common.server.util.CallerUtils;
 import com.navercorp.pinpoint.grpc.server.ServerOption;
+import org.springframework.beans.factory.FactoryBean;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.validation.annotation.Validated;
+
+import java.util.concurrent.ExecutorService;
 
 /**
- * Marker class for debugging
- * @author Taejin Koo
  * @author emeroad
  */
-public class GrpcAgentDataReceiverConfiguration extends GrpcReceiverConfiguration {
+@Configuration
+public class GrpcAgentDataReceiverConfiguration {
 
-
-    public GrpcAgentDataReceiverConfiguration(boolean enable,
-                                              BindAddress bindAddress,
-                                              ExecutorConfiguration serverExecutor,
-                                              ExecutorConfiguration workerExecutor,
-                                              ServerOption serverOption) {
-        super(enable, bindAddress, serverExecutor, workerExecutor, serverOption);
+    public GrpcAgentDataReceiverConfiguration() {
     }
 
+    @Bean
+    @Validated
+    @ConfigurationProperties("collector.receiver.grpc.agent.bindaddress")
+    public BindAddress.Builder grpcAgentBindAddressBuilder() {
+        BindAddress.Builder builder = BindAddress.newBuilder();
+        builder.setPort(9991);
+        return builder;
+    }
+
+    @Bean
+    @Validated
+    @ConfigurationProperties("collector.receiver.grpc.agent.server.executor")
+    public MonitoringExecutorProperties grpcAgentServerExecutorProperties() {
+        return new MonitoringExecutorProperties();
+    }
+
+    @Bean
+    @Validated
+    @ConfigurationProperties("collector.receiver.grpc.agent.server-call.executor")
+    public MonitoringExecutorProperties grpcAgentServerCallExecutorProperties() {
+        return new MonitoringExecutorProperties();
+    }
+
+    @Bean
+    @Validated
+    @ConfigurationProperties("collector.receiver.grpc.agent.worker.executor")
+    public MonitoringExecutorProperties grpcAgentWorkerExecutorProperties() {
+        return new MonitoringExecutorProperties();
+    }
+
+    @Bean
+    @ConfigurationProperties("collector.receiver.grpc.agent")
+    public GrpcPropertiesServerOptionBuilder grpcAgentServerOption() {
+        // Server option
+        return new GrpcPropertiesServerOptionBuilder();
+    }
+
+    @Bean
+    public GrpcReceiverProperties grpcAgentReceiverProperties(Environment environment) {
+        boolean enable = environment.getProperty("collector.receiver.grpc.agent.enable", boolean.class, false);
+
+        ServerOption serverOption = grpcAgentServerOption().build();
+        BindAddress bindAddress = grpcAgentBindAddressBuilder().build();
+
+        return new GrpcReceiverProperties(enable, bindAddress, serverOption);
+    }
+
+    @Bean
+    public FactoryBean<ExecutorService> grpcAgentWorkerExecutor(MonitoringExecutors executors) {
+        String beanName = CallerUtils.getCallerMethodName();
+        MonitoringExecutorProperties properties = grpcAgentWorkerExecutorProperties();
+        return executors.newExecutorFactoryBean(properties, beanName);
+    }
+
+
+    @Bean
+    public FactoryBean<ExecutorService> grpcAgentServerExecutor(MonitoringExecutors executors) {
+        String beanName = CallerUtils.getCallerMethodName();
+        MonitoringExecutorProperties properties = grpcAgentServerExecutorProperties();
+        return executors.newExecutorFactoryBean(properties, beanName);
+    }
+
+    @Bean
+    public FactoryBean<ExecutorService> grpcAgentServerCallExecutor(MonitoringExecutors executors) {
+        String beanName = CallerUtils.getCallerMethodName();
+        MonitoringExecutorProperties properties = grpcAgentServerCallExecutorProperties();
+        properties.setLogRate(1);
+        return executors.newExecutorFactoryBean(properties, beanName);
+    }
 }

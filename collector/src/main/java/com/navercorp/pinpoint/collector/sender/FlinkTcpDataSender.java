@@ -16,12 +16,12 @@
 package com.navercorp.pinpoint.collector.sender;
 
 import com.navercorp.pinpoint.io.request.FlinkRequest;
-import com.navercorp.pinpoint.profiler.sender.TcpDataSender;
 import com.navercorp.pinpoint.rpc.client.PinpointClientFactory;
-import com.navercorp.pinpoint.thrift.io.FlinkHeaderTBaseSerializer;
+import com.navercorp.pinpoint.thrift.io.TBaseSerializer;
+import com.navercorp.pinpoint.thrift.sender.TcpDataSender;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 import java.util.HashMap;
@@ -32,12 +32,12 @@ import java.util.Objects;
  */
 public class FlinkTcpDataSender extends TcpDataSender<TBase<?, ?>> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final FlinkHeaderTBaseSerializer flinkHeaderTBaseSerializer;
+    private final TBaseSerializer flinkHeaderTBaseSerializer;
     private final FlinkRequestFactory flinkRequestFactory;
 
-    public FlinkTcpDataSender(String name, String host, int port, PinpointClientFactory clientFactory, FlinkHeaderTBaseSerializer serializer, FlinkRequestFactory flinkRequestFactory) {
+    public FlinkTcpDataSender(String name, String host, int port, PinpointClientFactory clientFactory, TBaseSerializer serializer, FlinkRequestFactory flinkRequestFactory) {
         super(name, host, port, clientFactory);
 
         Assert.hasLength(name, "name");
@@ -55,16 +55,16 @@ public class FlinkTcpDataSender extends TcpDataSender<TBase<?, ?>> {
     }
 
     @Override
-    protected void sendPacket(Object flinkRequest) {
+    protected void sendPacket(Object request) {
         try {
-            if (flinkRequest instanceof FlinkRequest) {
-                byte[] copy = flinkHeaderTBaseSerializer.serialize((FlinkRequest) flinkRequest);
+            if (request instanceof FlinkRequest flinkRequest) {
+                byte[] copy = flinkHeaderTBaseSerializer.serialize(flinkRequest.getData(), flinkRequest.getHeaderEntity());
                 if (copy == null) {
                     return;
                 }
                 doSend(copy);
             } else {
-                logger.error("sendPacket fail. invalid dto type:{}", flinkRequest.getClass());
+                logger.error("sendPacket fail. invalid dto type:{}", request.getClass());
             }
         } catch (Exception e) {
             logger.warn("tcp send fail. Caused:{}", e.getMessage(), e);

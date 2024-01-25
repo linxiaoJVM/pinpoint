@@ -45,7 +45,7 @@ public class WebAppServletContextExecuteInterceptor implements AroundInterceptor
     private final boolean isDebug = logger.isDebugEnabled();
     private final boolean isInfo = logger.isInfoEnabled();
 
-    private MethodDescriptor methodDescriptor;
+    private final MethodDescriptor methodDescriptor;
     private final ServletRequestListener<ServletRequestImpl> servletRequestListener;
 
     public WebAppServletContextExecuteInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor, RequestRecorderFactory<ServletRequestImpl> requestRecorderFactory) {
@@ -57,6 +57,7 @@ public class WebAppServletContextExecuteInterceptor implements AroundInterceptor
 
         ServletRequestListenerBuilder<ServletRequestImpl> builder = new ServletRequestListenerBuilder<>(WeblogicConstants.WEBLOGIC, traceContext, requestAdaptor);
         builder.setExcludeURLFilter(config.getExcludeUrlFilter());
+        builder.setTraceExcludeMethodFilter(config.getTraceExcludeMethodFilter());
         builder.setParameterRecorder(parameterRecorder);
         builder.setRequestRecorderFactory(requestRecorderFactory);
 

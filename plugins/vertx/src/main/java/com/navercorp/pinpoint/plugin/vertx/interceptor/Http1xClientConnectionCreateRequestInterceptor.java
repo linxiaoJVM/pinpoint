@@ -34,7 +34,6 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.RequestTraceWriter;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieExtractor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorderFactory;
-import com.navercorp.pinpoint.common.util.ArrayUtils;
 import com.navercorp.pinpoint.plugin.vertx.HttpRequestClientHeaderAdaptor;
 import com.navercorp.pinpoint.plugin.vertx.VertxConstants;
 import com.navercorp.pinpoint.plugin.vertx.VertxCookieExtractor;
@@ -43,15 +42,18 @@ import com.navercorp.pinpoint.plugin.vertx.VertxHttpClientRequestWrapper;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 
-public class Http1xClientConnectionCreateRequestInterceptor implements AroundInterceptor {
+// vertx 3.8, 4.x+
+public abstract class Http1xClientConnectionCreateRequestInterceptor implements AroundInterceptor {
     private final PLogger logger = PLoggerFactory.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
 
-    private TraceContext traceContext;
-    private MethodDescriptor descriptor;
+    private final TraceContext traceContext;
+    private final MethodDescriptor descriptor;
     private final ClientRequestRecorder<ClientRequestWrapper> clientRequestRecorder;
     private final CookieRecorder<HttpRequest> cookieRecorder;
     private final RequestTraceWriter<HttpRequest> requestTraceWriter;
+
+    abstract String getHost(Object[] args);
 
     public Http1xClientConnectionCreateRequestInterceptor(TraceContext traceContext, MethodDescriptor descriptor) {
         this.traceContext = traceContext;
@@ -74,22 +76,12 @@ public class Http1xClientConnectionCreateRequestInterceptor implements AroundInt
             logger.beforeInterceptor(target, args);
         }
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = traceContext.currentRawTraceObject();
         if (trace == null) {
             return;
         }
 
-        if (!trace.canSampled()) {
-            return;
-        }
-
-        try {
-            final SpanEventRecorder recorder = trace.traceBlockBegin();
-        } catch (Throwable t) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("BEFORE. Caused:{}", t.getMessage(), t);
-            }
-        }
+        trace.traceBlockBegin();
     }
 
     @Override
@@ -98,25 +90,12 @@ public class Http1xClientConnectionCreateRequestInterceptor implements AroundInt
             logger.afterInterceptor(target, args, result, throwable);
         }
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = traceContext.currentRawTraceObject();
         if (trace == null) {
             return;
         }
 
-        if (!trace.canSampled()) {
-            if (result instanceof HttpRequest) {
-                final HttpRequest request = (HttpRequest) result;
-                requestTraceWriter.write(request);
-            }
-            return;
-        }
-
         try {
-            final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
-            recorder.recordApi(descriptor);
-            recorder.recordException(throwable);
-            recorder.recordServiceType(VertxConstants.VERTX_HTTP_CLIENT);
-
             if (!validate(args, result)) {
                 return;
             }
@@ -124,21 +103,28 @@ public class Http1xClientConnectionCreateRequestInterceptor implements AroundInt
             final HttpRequest request = (HttpRequest) result;
             final HttpHeaders headers = request.headers();
             if (headers == null) {
+                // defense code
                 return;
             }
 
-            String host = (String) args[4];
-            if (host == null) {
-                host = "UNKNOWN";
-            }
+            if (trace.canSampled()) {
+                final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
+                recorder.recordApi(descriptor);
+                recorder.recordException(throwable);
+                recorder.recordServiceType(VertxConstants.VERTX_HTTP_CLIENT);
 
-            // generate next trace id.
-            final TraceId nextId = trace.getTraceId().getNextTraceId();
-            recorder.recordNextSpanId(nextId.getSpanId());
-            requestTraceWriter.write(request, nextId, host);
-            final ClientRequestWrapper clientRequest = new VertxHttpClientRequestWrapper(request, host);
-            this.clientRequestRecorder.record(recorder, clientRequest, throwable);
-            this.cookieRecorder.record(recorder, request, throwable);
+                final String host = getHost(args);
+                // generate next trace id.
+                final TraceId nextId = trace.getTraceId().getNextTraceId();
+                recorder.recordNextSpanId(nextId.getSpanId());
+                requestTraceWriter.write(request, nextId, host);
+                final ClientRequestWrapper clientRequest = new VertxHttpClientRequestWrapper(request, host);
+                this.clientRequestRecorder.record(recorder, clientRequest, throwable);
+                this.cookieRecorder.record(recorder, request, throwable);
+            } else {
+                // write samplingRateFalse
+                requestTraceWriter.write(request);
+            }
         } catch (Throwable t) {
             if (logger.isWarnEnabled()) {
                 logger.warn("AFTER. Caused:{}", t.getMessage(), t);
@@ -149,18 +135,7 @@ public class Http1xClientConnectionCreateRequestInterceptor implements AroundInt
     }
 
     private boolean validate(final Object[] args, final Object result) {
-        if (ArrayUtils.getLength(args) < 5) {
-            logger.debug("Invalid args object. args={}.", args);
-            return false;
-        }
-
-        if (!(args[4] instanceof String)) {
-            logger.debug("Invalid args[4] object. args[4]={}.", args[4]);
-            return false;
-        }
-
         if (!(result instanceof HttpRequest)) {
-            logger.debug("Invalid result object. {}.", result);
             return false;
         }
 

@@ -1,13 +1,13 @@
 package com.navercorp.pinpoint.collector.dao.hbase.statistics;
 
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
-import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
-import com.navercorp.pinpoint.common.hbase.TableDescriptor;
+import com.navercorp.pinpoint.common.hbase.HbaseOperations;
+import com.navercorp.pinpoint.common.hbase.TableNameProvider;
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Increment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -20,45 +20,48 @@ public class DefaultBulkWriter implements BulkWriter {
 
     private final Logger logger;
 
-    private final HbaseOperations2 hbaseTemplate;
+    private final HbaseOperations hbaseTemplate;
     private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
 
     private final BulkIncrementer bulkIncrementer;
 
     private final BulkUpdater bulkUpdater;
 
-    private final TableDescriptor<? extends HbaseColumnFamily> tableDescriptor;
-    private final TableName tableName;
+    private final HbaseColumnFamily tableDescriptor;
+    private final TableNameProvider tableNameProvider;
 
 
     public DefaultBulkWriter(String loggerName,
-                             HbaseOperations2 hbaseTemplate,
+                             HbaseOperations hbaseTemplate,
                              RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix,
                              BulkIncrementer bulkIncrementer,
                              BulkUpdater bulkUpdater,
-                             TableDescriptor<? extends HbaseColumnFamily> tableDescriptor) {
-        this.logger = LoggerFactory.getLogger(loggerName);
+                             HbaseColumnFamily tableDescriptor,
+                             TableNameProvider tableNameProvider) {
+        this.logger = LogManager.getLogger(loggerName);
         this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
         this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
         this.bulkIncrementer = Objects.requireNonNull(bulkIncrementer, "bulkIncrementer");
         this.bulkUpdater = Objects.requireNonNull(bulkUpdater, "bulkUpdater");
         this.tableDescriptor = Objects.requireNonNull(tableDescriptor, "tableDescriptor");
-
-        this.tableName = this.tableDescriptor.getTableName();
+        this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
     }
 
     @Override
     public void increment(RowKey rowKey, ColumnName columnName) {
+        TableName tableName = tableNameProvider.getTableName(tableDescriptor.getTable());
         this.bulkIncrementer.increment(tableName, rowKey, columnName);
     }
 
     @Override
     public void increment(RowKey rowKey, ColumnName columnName, long addition) {
+        TableName tableName = tableNameProvider.getTableName(tableDescriptor.getTable());
         this.bulkIncrementer.increment(tableName, rowKey, columnName, addition);
     }
 
     @Override
     public void updateMax(RowKey rowKey, ColumnName columnName, long value) {
+        TableName tableName = tableNameProvider.getTableName(tableDescriptor.getTable());
         this.bulkUpdater.updateMax(tableName, rowKey, columnName, value);
     }
 
@@ -74,7 +77,7 @@ public class DefaultBulkWriter implements BulkWriter {
             if (logger.isDebugEnabled()) {
                 logger.debug("flush {} to [{}] Increment:{}", this.getClass().getSimpleName(), tableName, increments.size());
             }
-            hbaseTemplate.increment(tableName, increments);
+            hbaseTemplate.asyncIncrement(tableName, increments);
         }
 
     }
@@ -106,7 +109,7 @@ public class DefaultBulkWriter implements BulkWriter {
     }
 
     private byte[] getColumnFamilyName() {
-        return tableDescriptor.getColumnFamilyName();
+        return tableDescriptor.getName();
     }
 
     private byte[] getDistributedKey(byte[] rowKey) {

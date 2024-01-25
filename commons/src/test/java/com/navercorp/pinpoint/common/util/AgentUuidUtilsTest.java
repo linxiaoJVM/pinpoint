@@ -17,8 +17,9 @@
 package com.navercorp.pinpoint.common.util;
 
 import com.navercorp.pinpoint.common.PinpointConstants;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
@@ -27,47 +28,57 @@ import java.util.UUID;
  */
 public class AgentUuidUtilsTest {
 
-    @Test
+    @RepeatedTest(10)
     public void testEncodingAndDecoding() {
-        for (int i = 0; i < 1; ++i) {
-            UUID expected = UUID.randomUUID();
-            String encoded = AgentUuidUtils.encode(expected);
-            Assert.assertTrue(IdValidateUtils.validateId(encoded, PinpointConstants.AGENT_ID_MAX_LEN));
-            UUID actual = AgentUuidUtils.decode(encoded);
-            Assert.assertEquals(expected, actual);
-        }
+        UUID expected = UUID.randomUUID();
+        String encoded = AgentUuidUtils.encode(expected);
+        Assertions.assertTrue(IdValidateUtils.validateId(encoded, PinpointConstants.AGENT_ID_MAX_LEN));
+        UUID actual = AgentUuidUtils.decode(encoded);
+        Assertions.assertEquals(expected, actual);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void decodeShouldFailWhenSrcIsNot22CharactersLong() {
-        String invalid = "012345678901234567890";
-        AgentUuidUtils.decode(invalid);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            String invalid = "012345678901234567890";
+            AgentUuidUtils.decode(invalid);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void decodeShouldFailWhenSrcContainsInvalidCharacter() {
-        String invalid = "012345678901.345678901";
-        AgentUuidUtils.decode(invalid);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            String invalid = "012345678901.345678901";
+            AgentUuidUtils.decode(invalid);
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void encodeStringShouldThrowNpeForNullArgument() {
-        AgentUuidUtils.encode((String) null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+            AgentUuidUtils.encode((String) null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void encodeStringShouldThrowIllegalArgumentExceptionForInvalidUuidString() {
-        String invalidUuidString = "abcdefg";
-        AgentUuidUtils.encode(invalidUuidString);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            String invalidUuidString = "abcdefg";
+            AgentUuidUtils.encode(invalidUuidString);
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void encodeUuidShouldThrowNpeForNullArgument() {
-        AgentUuidUtils.encode((UUID) null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+            AgentUuidUtils.encode((UUID) null);
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void decodeShouldThrowNpeForNullArgument() {
-        AgentUuidUtils.decode(null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+            AgentUuidUtils.decode(null);
+        });
     }
 }

@@ -22,14 +22,19 @@ import com.navercorp.pinpoint.bootstrap.AgentOption;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.config.TransportModule;
 import com.navercorp.pinpoint.profiler.context.module.config.ConfigModule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.profiler.context.module.config.ConfigurationLoader;
+import com.navercorp.pinpoint.profiler.context.monitor.config.DefaultExceptionTraceConfig;
+import com.navercorp.pinpoint.profiler.context.monitor.config.ExceptionTraceConfig;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.Properties;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class ApplicationContextModuleFactory implements ModuleFactory {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Override
     public Module newModule(AgentOption agentOption) {
@@ -40,7 +45,28 @@ public class ApplicationContextModuleFactory implements ModuleFactory {
         final Module statsModule = new StatsModule();
         final Module thriftStatsModule = new ThriftStatsModule();
 
-        return Modules.combine(config, pluginModule, applicationContextModule, rpcModule, statsModule, thriftStatsModule);
+        final Properties properties = agentOption.getProfilerConfig().getProperties();
+        final Module exceptionTraceModule = newExceptionTraceModule(properties);
+
+        return Modules.combine(config, pluginModule, applicationContextModule,
+                rpcModule,
+                statsModule, thriftStatsModule,
+                exceptionTraceModule);
+    }
+
+    protected Module newExceptionTraceModule(Properties properties) {
+        ConfigurationLoader configurationLoader = new ConfigurationLoader(properties);
+        ExceptionTraceConfig exceptionTraceConfig = new DefaultExceptionTraceConfig();
+        configurationLoader.load(exceptionTraceConfig);
+        logger.info("{}", exceptionTraceConfig);
+
+        if (exceptionTraceConfig.isExceptionTraceEnable()) {
+            logger.info("load ExceptionTraceModule");
+            return new ExceptionTraceModule(exceptionTraceConfig);
+        } else {
+            logger.info("load DisabledExceptionTraceModule");
+            return new DisabledExceptionTraceModule(exceptionTraceConfig);
+        }
     }
 
     protected Module newRpcModule(AgentOption agentOption) {
@@ -50,11 +76,7 @@ public class ApplicationContextModuleFactory implements ModuleFactory {
             logger.info("load GrpcModule");
             return new GrpcModule(profilerConfig);
         }
-        if (TransportModule.THRIFT == transportModule) {
-            logger.info("load ThriftModule");
-            return new ThriftModule(profilerConfig);
-        }
-        logger.info("load ThriftModule");
-        return new ThriftModule(profilerConfig);
+        logger.info("load GrpcModule");
+        return new GrpcModule(profilerConfig);
     }
 }

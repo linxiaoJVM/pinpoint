@@ -17,6 +17,7 @@ package com.navercorp.pinpoint.bootstrap;
 import com.navercorp.pinpoint.ProductInfo;
 import com.navercorp.pinpoint.bootstrap.agentdir.AgentDirectory;
 import com.navercorp.pinpoint.bootstrap.agentdir.LogDirCleaner;
+import com.navercorp.pinpoint.bootstrap.banner.PinpointBannerImpl;
 import com.navercorp.pinpoint.bootstrap.classloader.PinpointClassLoaderFactory;
 import com.navercorp.pinpoint.bootstrap.classloader.ProfilerLibs;
 import com.navercorp.pinpoint.bootstrap.config.DefaultProfilerConfig;
@@ -25,6 +26,7 @@ import com.navercorp.pinpoint.bootstrap.config.ProfilerConfigLoader;
 import com.navercorp.pinpoint.bootstrap.config.PropertyLoader;
 import com.navercorp.pinpoint.bootstrap.config.PropertyLoaderFactory;
 import com.navercorp.pinpoint.common.Version;
+import com.navercorp.pinpoint.common.banner.PinpointBanner;
 import com.navercorp.pinpoint.common.util.OsEnvSimpleProperty;
 import com.navercorp.pinpoint.common.util.PropertySnapshot;
 import com.navercorp.pinpoint.common.util.SimpleProperty;
@@ -33,13 +35,16 @@ import com.navercorp.pinpoint.common.util.SystemProperty;
 
 import java.lang.instrument.Instrumentation;
 import java.net.URL;
+import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * @author Jongho Moon
@@ -55,7 +60,7 @@ class PinpointStarter {
     public static final String BOOT_CLASS = "com.navercorp.pinpoint.profiler.DefaultAgent";
 
     public static final String PLUGIN_TEST_AGENT = "PLUGIN_TEST";
-    public static final String PLUGIN_TEST_BOOT_CLASS = "com.navercorp.pinpoint.test.PluginTestAgent";
+    public static final String PLUGIN_TEST_BOOT_CLASS = "com.navercorp.pinpoint.profiler.test.PluginTestAgent";
 
     private SimpleProperty systemProperty = SystemProperty.INSTANCE;
 
@@ -123,7 +128,8 @@ class PinpointStarter {
 
             // this is the library list that must be loaded
             URL[] urls = resolveLib(agentDirectory);
-            final ClassLoader agentClassLoader = createClassLoader("pinpoint.agent", urls, parentClassLoader);
+            List<String> agentClassloaderLibs = getAgentClassloaderLibs(profilerConfig);
+            final ClassLoader agentClassLoader = createClassLoader("pinpoint.agent", urls, parentClassLoader, agentClassloaderLibs);
             if (moduleBootLoader != null) {
                 this.logger.info("defineAgentModule");
                 moduleBootLoader.defineAgentModule(agentClassLoader, urls);
@@ -133,15 +139,23 @@ class PinpointStarter {
             AgentBootLoader agentBootLoader = new AgentBootLoader(bootClass, agentClassLoader);
             logger.info(String.format("pinpoint agent [%s] starting...", bootClass));
 
-            final List<String> pluginJars = agentDirectory.getPlugins();
+            final List<Path> pluginJars = agentDirectory.getPlugins();
             final String agentName = agentIds.getAgentName();
-            AgentOption option = createAgentOption(agentId, agentName, applicationName, isContainer, profilerConfig,
-                    instrumentation, pluginJars, agentDirectory);
+            AgentOption option = createAgentOption(agentId, agentName, applicationName, isContainer,
+                    profilerConfig,
+                    instrumentation,
+                    pluginJars,
+                    agentDirectory.getBootDir().getJarPath());
             Agent pinpointAgent = agentBootLoader.boot(option);
             pinpointAgent.start();
             pinpointAgent.registerStopHandler();
 
             logger.info("pinpoint agent started normally.");
+
+            final PinpointBannerImpl banner = new PinpointBannerImpl(profilerConfig.readList("pinpoint.banner.configs"), logger);
+            banner.setPinpointBannerMode(PinpointBanner.Mode.valueOf(profilerConfig.readString("pinpoint.banner.mode", "CONSOLE").toUpperCase()));
+            banner.setPinpointBannerProperty(properties);
+            banner.printBanner();
         } catch (Exception e) {
             // unexpected exception that did not be checked above
             logger.warn(ProductInfo.NAME + " start failed.", e);
@@ -150,7 +164,17 @@ class PinpointStarter {
         return true;
     }
 
-    private void cleanLogDir(String agentLogFilePath, ProfilerConfig config) {
+    private List<String> getAgentClassloaderLibs(ProfilerConfig profilerConfig) {
+        Set<String> libs = new HashSet<>();
+        libs.addAll(ProfilerLibs.PINPOINT_PROFILER_CLASS);
+        libs.addAll(profilerConfig.getAgentClassloaderAdditionalLibs());
+
+        List<String> copy = new ArrayList<>(libs);
+        copy.sort(String.CASE_INSENSITIVE_ORDER);
+        return copy;
+    }
+
+    private void cleanLogDir(Path agentLogFilePath, ProfilerConfig config) {
         final int logDirMaxBackupSize = config.getLogDirMaxBackupSize();
         logger.info("Log directory maxbackupsize=" + logDirMaxBackupSize);
         LogDirCleaner logDirCleaner = new LogDirCleaner(agentLogFilePath, logDirMaxBackupSize);
@@ -168,8 +192,8 @@ class PinpointStarter {
 
     private Properties loadProperties() {
 
-        final String agentDirPath = agentDirectory.getAgentDirPath();
-        final String profilesPath = agentDirectory.getProfilesPath();
+        final Path agentDirPath = agentDirectory.getAgentDirPath();
+        final Path profilesPath = agentDirectory.getProfilesPath();
         final String[] profileDirs = agentDirectory.getProfileDirs();
 
         final SimpleProperty javaSystemProperty = copyJavaSystemProperty();
@@ -198,17 +222,15 @@ class PinpointStarter {
     }
 
 
-    private ClassLoader createClassLoader(final String name, final URL[] urls, final ClassLoader parentClassLoader) {
+    private ClassLoader createClassLoader(final String name, final URL[] urls, final ClassLoader parentClassLoader, List<String> libClass) {
         if (System.getSecurityManager() != null) {
             return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
                 public ClassLoader run() {
-                    return PinpointClassLoaderFactory.createClassLoader(name, urls, parentClassLoader,
-                            ProfilerLibs.PINPOINT_PROFILER_CLASS);
+                    return PinpointClassLoaderFactory.createClassLoader(name, urls, parentClassLoader, libClass);
                 }
             });
         } else {
-            return PinpointClassLoaderFactory.createClassLoader(name, urls, parentClassLoader,
-                    ProfilerLibs.PINPOINT_PROFILER_CLASS);
+            return PinpointClassLoaderFactory.createClassLoader(name, urls, parentClassLoader, libClass);
         }
     }
 
@@ -236,10 +258,19 @@ class PinpointStarter {
     private AgentOption createAgentOption(String agentId, String agentName, String applicationName, boolean isContainer,
                                           ProfilerConfig profilerConfig,
                                           Instrumentation instrumentation,
-                                          List<String> pluginJars,
-                                          AgentDirectory agentDirectory) {
-        List<String> bootstrapJarPaths = agentDirectory.getBootDir().toList();
-        return new DefaultAgentOption(instrumentation, agentId, agentName, applicationName, isContainer, profilerConfig, pluginJars, bootstrapJarPaths);
+                                          List<Path> pluginJars,
+                                          List<Path> bootstrapJarPaths) {
+        List<String> pluginJarStrPath = toPathList(pluginJars);
+        List<String> bootstrapJarPathStrPath = toPathList(bootstrapJarPaths);
+        return new DefaultAgentOption(instrumentation, agentId, agentName, applicationName, isContainer, profilerConfig, pluginJarStrPath, bootstrapJarPathStrPath);
+    }
+
+    private List<String> toPathList(List<Path> paths) {
+        List<String> list = new ArrayList<>(paths.size());
+        for (Path path : paths) {
+            list.add(path.toString());
+        }
+        return list;
     }
 
     // for test
@@ -251,9 +282,9 @@ class PinpointStarter {
         systemProperty.setProperty(AgentIdResolver.AGENT_ID_SYSTEM_PROPERTY, agentIds.getAgentId());
     }
 
-    private void saveLogFilePath(String agentLogFilePath) {
+    private void saveLogFilePath(Path agentLogFilePath) {
         logger.info("logPath:" + agentLogFilePath);
-        systemProperty.setProperty(ProductInfo.NAME + ".log", agentLogFilePath);
+        systemProperty.setProperty(ProductInfo.NAME + ".log", agentLogFilePath.toString());
     }
 
     private void savePinpointVersion() {
@@ -263,28 +294,27 @@ class PinpointStarter {
 
     private URL[] resolveLib(AgentDirectory classPathResolver) {
         // this method may handle only absolute path,  need to handle relative path (./..agentlib/lib)
-        String agentJarFullPath = classPathResolver.getAgentJarFullPath();
-        String agentLibPath = classPathResolver.getAgentLibPath();
-        List<URL> libUrlList = resolveLib(classPathResolver.getLibs());
-        String agentConfigPath = classPathResolver.getAgentConfigPath();
+        Path agentJarFullPath = classPathResolver.getAgentJarFullPath();
+        Path agentLibPath = classPathResolver.getAgentLibPath();
+        List<Path> libUrlList = resolveLib(classPathResolver.getLibs());
+        Path agentConfigPath = classPathResolver.getAgentConfigPath();
 
         if (logger.isInfoEnabled()) {
             logger.info(String.format("agent JarPath:%s", agentJarFullPath));
             logger.info(String.format("agent LibDir:%s", agentLibPath));
-            for (URL url : libUrlList) {
+            for (Path url : libUrlList) {
                 logger.info(String.format("agent Lib:%s", url));
             }
             logger.info(String.format("agent config:%s", agentConfigPath));
         }
-
-        return libUrlList.toArray(new URL[0]);
+        return PathUtils.toURLs(libUrlList);
     }
 
-    private static String PINPOINT_PREFIX = "pinpoint-";
+    private static final String PINPOINT_PREFIX = "pinpoint-";
 
-    private List<URL> resolveLib(List<URL> urlList) {
+    private List<Path> resolveLib(List<Path> urlList) {
         if (DEFAULT_AGENT.equalsIgnoreCase(getAgentType())) {
-            final List<URL> releaseLib = filterTest(urlList);
+            final List<Path> releaseLib = filterTest(urlList);
             return order(releaseLib);
         } else {
             logger.info("load " + PLUGIN_TEST_AGENT + " lib");
@@ -293,45 +323,33 @@ class PinpointStarter {
         }
     }
 
-    private List<URL> order(List<URL> releaseLib) {
-        final List<URL> orderList = new ArrayList<>(releaseLib.size());
+    private List<Path> order(List<Path> releaseLib) {
+        final List<Path> orderList = new ArrayList<>(releaseLib.size());
         // pinpoint module first
-        for (URL url : releaseLib) {
-            String fileName = getFileName(url);
-            if (fileName == null) {
-                continue;
-            }
-            if (fileName.startsWith(PINPOINT_PREFIX)) {
-                orderList.add(url);
+        for (Path path : releaseLib) {
+            Path fileName = path.getFileName();
+            if(fileName != null) {
+                if (fileName.startsWith(PINPOINT_PREFIX)) {
+                    orderList.add(path);
+                }
             }
         }
-        for (URL url : releaseLib) {
-            String fileName = getFileName(url);
-            if (fileName == null) {
-                continue;
-            }
-            if (!fileName.startsWith(PINPOINT_PREFIX)) {
-                orderList.add(url);
+        for (Path path : releaseLib) {
+            Path fileName = path.getFileName();
+            if(fileName != null) {
+                if (!fileName.startsWith(PINPOINT_PREFIX)) {
+                    orderList.add(path);
+                }
             }
         }
         return orderList;
     }
 
-    private String getFileName(URL url) {
-        final String externalFrom = url.toExternalForm();
-        final int lastIndex = externalFrom.lastIndexOf('/');
-        if (lastIndex == -1) {
-            return null;
-        }
-        return externalFrom.substring(lastIndex + 1);
-    }
-
-    private List<URL> filterTest(List<URL> urlList) {
-        final List<URL> releaseLib = new ArrayList<>(urlList.size());
-        for (URL url : urlList) {
-            String externalFrom = url.toExternalForm();
-            if (!externalFrom.contains("pinpoint-profiler-test")) {
-                releaseLib.add(url);
+    private List<Path> filterTest(List<Path> pathList) {
+        final List<Path> releaseLib = new ArrayList<>(pathList.size());
+        for (Path path : pathList) {
+            if (!path.toString().contains("pinpoint-profiler-test")) {
+                releaseLib.add(path);
             }
         }
         return releaseLib;

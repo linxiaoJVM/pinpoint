@@ -16,38 +16,35 @@
 
 package com.navercorp.pinpoint.rpc.client;
 
+import com.navercorp.pinpoint.rpc.PinpointSocketException;
+import com.navercorp.pinpoint.rpc.packet.ResponsePacket;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.Timer;
+import org.jboss.netty.util.TimerTask;
+
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.util.Timeout;
-import org.jboss.netty.util.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.navercorp.pinpoint.rpc.ChannelWriteFailListenableFuture;
-import com.navercorp.pinpoint.rpc.DefaultFuture;
-import com.navercorp.pinpoint.rpc.FailureEventHandler;
-import com.navercorp.pinpoint.rpc.PinpointSocketException;
-import com.navercorp.pinpoint.rpc.ResponseMessage;
-import com.navercorp.pinpoint.rpc.packet.RequestPacket;
-import com.navercorp.pinpoint.rpc.packet.ResponsePacket;
-import com.navercorp.pinpoint.rpc.server.PinpointServer;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 /**
  * @author emeroad
  */
-public class RequestManager {
+public class RequestManager<RES> {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final AtomicInteger requestId = new AtomicInteger(1);
 
-    private final ConcurrentMap<Integer, DefaultFuture<ResponseMessage>> requestMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Integer, CompletableFuture<RES>> requestMap = new ConcurrentHashMap<>();
     // Have to move Timer into factory?
     private final Timer timer;
     private final long defaultTimeoutMillis;
@@ -61,30 +58,37 @@ public class RequestManager {
         this.defaultTimeoutMillis = defaultTimeoutMillis;
     }
 
-    private FailureEventHandler createFailureEventHandler(final int requestId) {
-        FailureEventHandler failureEventHandler = new FailureEventHandler() {
+    private BiConsumer<RES, Throwable> createFailureEventHandler(final int requestId) {
+        return new BiConsumer<RES, Throwable>() {
             @Override
-            public boolean fireFailure() {
-                DefaultFuture<ResponseMessage> future = removeMessageFuture(requestId);
-                if (future != null) {
-                    // removed perfectly.
-                    return true;
+            public void accept(RES responseMessage, Throwable throwable) {
+                if (throwable != null) {
+                    removeMessageFuture(requestId);
                 }
-                return false;
             }
         };
-        return failureEventHandler;
     }
 
-    private void addTimeoutTask(DefaultFuture future, long timeoutMillis) {
+    private void addTimeoutTask(CompletableFuture<RES> future, long timeoutMillis) {
         Objects.requireNonNull(future, "future");
 
         try {
-            Timeout timeout = timer.newTimeout(future, timeoutMillis, TimeUnit.MILLISECONDS);
-            future.setTimeout(timeout);
+            Timeout timeout = timer.newTimeout(new TimerTask() {
+                @Override
+                public void run(Timeout timeout) throws Exception {
+                    if (timeout.isCancelled()) {
+                        return;
+                    }
+                    if (future.isDone()) {
+                        return;
+                    }
+                    future.completeExceptionally(new TimeoutException("Timeout by RequestManager-TIMER"));
+                }
+            }, timeoutMillis, TimeUnit.MILLISECONDS);
+            future.thenAccept(t -> timeout.cancel());
         } catch (IllegalStateException e) {
             // this case is that timer has been shutdown. That maybe just means that socket has been closed.
-            future.setFailure(new PinpointSocketException("socket closed")) ;
+            future.completeExceptionally(new PinpointSocketException("socket closed")) ;
         }
     }
 
@@ -92,60 +96,53 @@ public class RequestManager {
         return this.requestId.getAndIncrement();
     }
 
-    public void messageReceived(ResponsePacket responsePacket, String objectUniqName) {
-        final int requestId = responsePacket.getRequestId();
-        final DefaultFuture<ResponseMessage> future = removeMessageFuture(requestId);
-        if (future == null) {
-            logger.warn("future not found:{}, objectUniqName:{}", responsePacket, objectUniqName);
+    public void messageReceived(ResponsePacket responsePacket, Supplier<RES> serializer, Supplier<Object> objectUniqName) {
+        final int responseId = responsePacket.getRequestId();
+        final CompletableFuture<RES> responseFuture = messageReceived(responseId, objectUniqName);
+        if (responseFuture == null) {
+            logger.warn("Response future is timeout responseId:{}", responseId);
             return;
-        } else {
-            logger.debug("responsePacket arrived packet:{}, objectUniqName:{}", responsePacket, objectUniqName);
         }
-
-        ResponseMessage response = new ResponseMessage();
-        response.setMessage(responsePacket.getPayload());
-        future.setResult(response);
+        try {
+            RES response = serializer.get();
+            responseFuture.complete(response);
+        } catch(Throwable th) {
+            responseFuture.completeExceptionally(new PinpointSocketException(th.getMessage()));
+        }
     }
 
-    public void messageReceived(ResponsePacket responsePacket, PinpointServer pinpointServer) {
-        final int requestId = responsePacket.getRequestId();
-        final DefaultFuture<ResponseMessage> future = removeMessageFuture(requestId);
+    public CompletableFuture<RES> messageReceived(int responseId, Supplier<Object> sourceName) {
+        final CompletableFuture<RES> future = removeMessageFuture(responseId);
         if (future == null) {
-            logger.warn("future not found:{}, pinpointServer:{}", responsePacket, pinpointServer);
-            return;
+            logger.warn("ResponseFuture not found. responseId:{}, sourceName:{}", responseId, sourceName.get());
+            return null;
         } else {
-            logger.debug("responsePacket arrived packet:{}, pinpointServer:{}", responsePacket, pinpointServer);
+            logger.debug("ResponsePacket arrived responseId:{}, sourceName:{}", responseId, sourceName.get());
         }
-
-        ResponseMessage response = new ResponseMessage();
-        response.setMessage(responsePacket.getPayload());
-        future.setResult(response);
+        return future;
     }
 
-    public DefaultFuture<ResponseMessage> removeMessageFuture(int requestId) {
+
+
+    public CompletableFuture<RES> removeMessageFuture(int requestId) {
         return this.requestMap.remove(requestId);
     }
 
-    public void messageReceived(RequestPacket requestPacket, Channel channel) {
-        logger.error("unexpectedMessage received:{} address:{}", requestPacket, channel.getRemoteAddress());
-    }
-
-    public ChannelWriteFailListenableFuture<ResponseMessage> register(int requestId) {
+    public CompletableFuture<RES> register(int requestId) {
         return register(requestId, defaultTimeoutMillis);
     }
 
-    public ChannelWriteFailListenableFuture<ResponseMessage> register(int requestId, long timeoutMillis) {
+    public CompletableFuture<RES> register(int requestId, long timeoutMillis) {
         // shutdown check
-        final ChannelWriteFailListenableFuture<ResponseMessage> responseFuture = new ChannelWriteFailListenableFuture<>(timeoutMillis);
+        final CompletableFuture<RES> responseFuture = new CompletableFuture<>();
 
-        final DefaultFuture old = this.requestMap.put(requestId, responseFuture);
+        final CompletableFuture<RES> old = this.requestMap.put(requestId, responseFuture);
         if (old != null) {
             throw new PinpointSocketException("unexpected error. old future exist:" + old + " id:" + requestId);
         }
-
         // when future fails, put a handle in order to remove a failed future in the requestMap.
-        FailureEventHandler removeTable = createFailureEventHandler(requestId);
-        responseFuture.setFailureEventHandler(removeTable);
+        BiConsumer<RES, Throwable> removeTable = createFailureEventHandler(requestId);
+        responseFuture.whenComplete(removeTable);
 
         addTimeoutTask(responseFuture, timeoutMillis);
         return responseFuture;
@@ -193,8 +190,8 @@ public class RequestManager {
 //            }
 //        }
         int requestFailCount = 0;
-        for (Map.Entry<Integer, DefaultFuture<ResponseMessage>> entry : requestMap.entrySet()) {
-            if (entry.getValue().setFailure(closed)) {
+        for (Map.Entry<Integer, CompletableFuture<RES>> entry : requestMap.entrySet()) {
+            if (entry.getValue().completeExceptionally(closed)) {
                 requestFailCount++;
             }
         }

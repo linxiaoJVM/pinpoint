@@ -28,7 +28,6 @@ import com.navercorp.pinpoint.bootstrap.plugin.http.HttpStatusCodeRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.proxy.ProxyRequestRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.method.ServletSyncMethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.ParameterRecorder;
-import com.navercorp.pinpoint.bootstrap.plugin.uri.UriStatRecorder;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 
 import java.util.Objects;
@@ -48,6 +47,7 @@ public class ServletRequestListener<REQ> {
     private final RequestAdaptor<REQ> requestAdaptor;
 
     private final Filter<String> excludeUrlFilter;
+    private final Filter<String> excludeMethodFilter;
     private final RequestTraceReader<REQ> requestTraceReader;
     private final ServerRequestRecorder<REQ> serverRequestRecorder;
     private final HttpStatusCodeRecorder httpStatusCodeRecorder;
@@ -56,41 +56,26 @@ public class ServletRequestListener<REQ> {
 
     private final ProxyRequestRecorder<REQ> proxyRequestRecorder;
 
-    private final UriStatRecorder<REQ> uriStatRecorder;
-
-    private final boolean recordStatusCode;
-
     public ServletRequestListener(final ServiceType serviceType,
                                   final TraceContext traceContext,
                                   final RequestAdaptor<REQ> requestAdaptor,
                                   final RequestTraceReader<REQ> requestTraceReader,
                                   final Filter<String> excludeUrlFilter,
+                                  final Filter<String> excludeMethodFilter,
                                   final ParameterRecorder<REQ> parameterRecorder,
                                   final ProxyRequestRecorder<REQ> proxyRequestRecorder,
                                   final ServerRequestRecorder<REQ> serverRequestRecorder,
-                                  final HttpStatusCodeRecorder httpStatusCodeRecorder,
-                                  final UriStatRecorder<REQ> uriStatRecorder,
-                                  final boolean  recordStatusCode) {
+                                  final HttpStatusCodeRecorder httpStatusCodeRecorder) {
         this.serviceType = Objects.requireNonNull(serviceType, "serviceType");
         this.traceContext = Objects.requireNonNull(traceContext, "traceContext");
         this.requestAdaptor = Objects.requireNonNull(requestAdaptor, "requestAdaptor");
         this.requestTraceReader = Objects.requireNonNull(requestTraceReader, "requestTraceReader");
-
         this.proxyRequestRecorder = Objects.requireNonNull(proxyRequestRecorder, "proxyRequestRecorder");
-
         this.excludeUrlFilter = Objects.requireNonNull(excludeUrlFilter, "excludeUrlFilter");
-        
+        this.excludeMethodFilter = Objects.requireNonNull(excludeMethodFilter, "excludeMethodFilter");
         this.parameterRecorder = Objects.requireNonNull(parameterRecorder, "parameterRecorder");
-
-
         this.serverRequestRecorder = Objects.requireNonNull(serverRequestRecorder, "serverRequestRecorder");
-
         this.httpStatusCodeRecorder = Objects.requireNonNull(httpStatusCodeRecorder, "httpStatusCodeRecorder");
-
-        this.uriStatRecorder = Objects.requireNonNull(uriStatRecorder, "uriStatRecorder");
-
-        this.recordStatusCode = recordStatusCode;
-
         this.traceContext.cacheApi(SERVLET_SYNC_METHOD_DESCRIPTOR);
     }
 
@@ -101,7 +86,8 @@ public class ServletRequestListener<REQ> {
         Objects.requireNonNull(methodDescriptor, "methodDescriptor");
 
         if (isDebug) {
-            logger.debug("Initialized requestEvent. request={}, serviceType={}, methodDescriptor={}", request, serviceType, methodDescriptor);
+            // An error may occur when the request variable is output to the log.
+            logger.debug("Initialized requestEvent. serviceType={}, methodDescriptor={}", serviceType, methodDescriptor);
         }
 
         final Trace trace = createTrace(request);
@@ -109,13 +95,11 @@ public class ServletRequestListener<REQ> {
             return;
         }
 
-        if (!trace.canSampled()) {
-            return;
-        }
-
         final SpanEventRecorder recorder = trace.traceBlockBegin();
-        recorder.recordServiceType(serviceType);
-        recorder.recordApi(methodDescriptor);
+        if (trace.canSampled()) {
+            recorder.recordServiceType(serviceType);
+            recorder.recordApi(methodDescriptor);
+        }
     }
 
     private Trace createTrace(REQ request) {
@@ -123,6 +107,14 @@ public class ServletRequestListener<REQ> {
         if (this.excludeUrlFilter.filter(requestURI)) {
             if (isTrace) {
                 logger.trace("Filter requestURI={}", requestURI);
+            }
+            return null;
+        }
+
+        final String methodName = requestAdaptor.getMethodName(request);
+        if (this.excludeMethodFilter.filter(methodName)) {
+            if (isTrace) {
+                logger.trace("Filter methodName={}", methodName);
             }
             return null;
         }
@@ -141,13 +133,14 @@ public class ServletRequestListener<REQ> {
     }
 
     /**
-     * @param request request
-     * @param throwable error
+     * @param request    request
+     * @param throwable  error
      * @param statusCode status code
      */
     public void destroyed(REQ request, final Throwable throwable, final int statusCode) {
         if (isDebug) {
-            logger.debug("Destroyed requestEvent. request={}, throwable={}, statusCode={}", request, throwable, statusCode);
+            // An error may occur when the request variable is output to the log.
+            logger.debug("Destroyed requestEvent. throwable={}, statusCode={}", throwable, statusCode);
         }
 
         final Trace trace = this.traceContext.currentRawTraceObject();
@@ -155,43 +148,18 @@ public class ServletRequestListener<REQ> {
             return;
         }
 
-        final String rpcName = requestAdaptor.getRpcName(request);
-
-        // TODO STATDISABLE this logic was added to disable statistics tracing
-        if (!trace.canSampled()) {
-            traceContext.removeTraceObject();
-            trace.close();
-            boolean status = isNotFailedStatus(statusCode);
-            uriStatRecorder.record(request, rpcName, status, trace.getStartTime(), System.currentTimeMillis());
-            return;
-        }
-
         try {
+            this.httpStatusCodeRecorder.record(trace.getSpanRecorder(), statusCode);
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
-            recorder.recordException(throwable);
-            if (this.recordStatusCode) {
-                this.httpStatusCodeRecorder.record(trace.getSpanRecorder(), statusCode);
+            if (trace.canSampled()) {
+                recorder.recordException(throwable);
+                // Must be executed in destroyed()
+                this.parameterRecorder.record(recorder, request, throwable);
             }
-            // Must be executed in destroyed()
-            this.parameterRecorder.record(recorder, request, throwable);
         } finally {
             trace.traceBlockEnd();
             this.traceContext.removeTraceObject();
             trace.close();
-            boolean status = isNotFailedStatus(statusCode);
-            uriStatRecorder.record(request, rpcName, status, trace.getStartTime(), System.currentTimeMillis());
         }
     }
-
-    public static boolean isNotFailedStatus(int statusCode) {
-        int statusPrefix = statusCode / 100;
-
-        // 2 : success. 3 : redirect, 1: information
-        if (statusPrefix == 2 || statusPrefix == 3 || statusPrefix == 1) {
-            return true;
-        }
-
-        return false;
-    }
-
 }

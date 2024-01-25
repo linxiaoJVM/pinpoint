@@ -16,43 +16,96 @@
 
 package com.navercorp.pinpoint.batch.job;
 
-import com.navercorp.pinpoint.batch.common.BatchConfiguration;
+import com.navercorp.pinpoint.batch.common.BatchProperties;
+import com.navercorp.pinpoint.web.dao.ApplicationIndexDao;
 import com.navercorp.pinpoint.web.service.AdminService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.navercorp.pinpoint.web.vo.Application;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepContribution;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 
+import jakarta.annotation.Nonnull;
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
+import java.util.stream.Collectors;
 
 /**
  * @author Taejin Koo
  */
-public class CleanupInactiveAgentsTasklet implements Tasklet {
+public class CleanupInactiveAgentsTasklet implements Tasklet, StepExecutionListener {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final int durationDays;
 
     private final AdminService adminService;
 
-    public CleanupInactiveAgentsTasklet(BatchConfiguration batchConfiguration, AdminService adminService) {
-        Objects.requireNonNull(batchConfiguration, "batchConfiguration");
-        this.durationDays = batchConfiguration.getCleanupInactiveAgentsDurationDays();
+    private final ApplicationIndexDao applicationIndexDao;
+
+    private Queue<String> applicationNameQueue;
+    private int progress;
+    private int total;
+    private int inactiveCount;
+
+    public CleanupInactiveAgentsTasklet(
+            BatchProperties batchProperties,
+            AdminService adminService,
+            ApplicationIndexDao applicationIndexDao
+    ) {
+        Objects.requireNonNull(batchProperties, "batchProperties");
+        this.durationDays = batchProperties.getCleanupInactiveAgentsDurationDays();
         this.adminService = Objects.requireNonNull(adminService, "adminService");
+        this.applicationIndexDao = Objects.requireNonNull(applicationIndexDao, "applicationIndexDao");
     }
 
     @Override
-    public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-        try {
-            adminService.removeInactiveAgents(durationDays);
+    public void beforeStep(@Nonnull StepExecution stepExecution) {
+         List<String> applicationNames = this.applicationIndexDao.selectAllApplicationNames()
+                .stream()
+                .map(Application::getName)
+                .distinct()
+                .collect(Collectors.toList());
+        Collections.shuffle(applicationNames);
+
+        this.applicationNameQueue = new ArrayDeque<>(applicationNames);
+        this.progress = 0;
+        this.total = applicationNames.size();
+        this.inactiveCount = 0;
+    }
+
+    @Override
+    public ExitStatus afterStep(@Nonnull StepExecution stepExecution) {
+        logger.info("Cleaned up {} agents", inactiveCount);
+        return ExitStatus.COMPLETED;
+    }
+
+    @Override
+    public RepeatStatus execute(
+            @Nonnull StepContribution contribution,
+            @Nonnull ChunkContext chunkContext
+    ) throws Exception {
+        String applicationName = this.applicationNameQueue.poll();
+        if (applicationName == null) {
             return RepeatStatus.FINISHED;
-        } catch (Exception e) {
-            logger.warn("Failed to execute. message:{}", e.getMessage(), e);
-            throw e;
         }
+
+        try {
+            logger.info("Cleaning application {} ({}/{})", applicationName, ++progress, total);
+            inactiveCount += adminService.removeInactiveAgentInApplication(applicationName, durationDays);
+        } catch (Exception e) {
+            logger.warn("Failed to clean application {}. message: {}", applicationName, e.getMessage(), e);
+        }
+
+        return RepeatStatus.CONTINUABLE;
     }
 
 }

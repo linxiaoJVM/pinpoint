@@ -16,37 +16,27 @@
 
 package com.navercorp.pinpoint.profiler.sender.grpc;
 
+import com.google.protobuf.GeneratedMessageV3;
+import com.navercorp.pinpoint.common.profiler.message.EnhancedDataSender;
+import com.navercorp.pinpoint.common.profiler.message.MessageConverter;
 import com.navercorp.pinpoint.grpc.client.ChannelFactory;
 import com.navercorp.pinpoint.grpc.client.SocketIdClientInterceptor;
 import com.navercorp.pinpoint.grpc.trace.AgentGrpc;
 import com.navercorp.pinpoint.grpc.trace.PAgentInfo;
 import com.navercorp.pinpoint.grpc.trace.PResult;
-import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
+import com.navercorp.pinpoint.io.ResponseMessage;
 import com.navercorp.pinpoint.profiler.receiver.ProfilerCommandServiceLocator;
 import com.navercorp.pinpoint.profiler.receiver.grpc.CommandServiceStubFactory;
 import com.navercorp.pinpoint.profiler.receiver.grpc.GrpcCommandService;
-import com.navercorp.pinpoint.profiler.sender.EnhancedDataSender;
-import com.navercorp.pinpoint.rpc.DefaultFuture;
-import com.navercorp.pinpoint.rpc.FutureListener;
-import com.navercorp.pinpoint.rpc.ResponseMessage;
-import com.navercorp.pinpoint.rpc.client.PinpointClientReconnectEventListener;
-
-import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.stub.StreamObserver;
-import org.jboss.netty.buffer.ChannelBuffers;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.BiConsumer;
 
 /**
  * @author jaehong.kim
  */
-public class AgentGrpcDataSender<T> extends GrpcDataSender<T> implements EnhancedDataSender<T> {
-
-    static {
-        // preClassLoad
-        ChannelBuffers.buffer(2);
-    }
-
+public class AgentGrpcDataSender<T> extends GrpcDataSender<T> implements EnhancedDataSender<T, ResponseMessage> {
     private final AgentGrpc.AgentStub agentInfoStub;
     private final AgentGrpc.AgentStub agentPingStub;
     private final GrpcCommandService grpcCommandService;
@@ -105,7 +95,7 @@ public class AgentGrpcDataSender<T> extends GrpcDataSender<T> implements Enhance
     }
 
     @Override
-    public boolean request(T data, final FutureListener<ResponseMessage> listener) {
+    public boolean request(T data, final BiConsumer<ResponseMessage, Throwable> listener) {
         final GeneratedMessageV3 message = this.messageConverter.toMessage(data);
         if (!(message instanceof PAgentInfo)) {
             throw new IllegalArgumentException("unsupported message " + data);
@@ -146,37 +136,23 @@ public class AgentGrpcDataSender<T> extends GrpcDataSender<T> implements Enhance
         this.release();
     }
 
-    @Override
-    public boolean addReconnectEventListener(PinpointClientReconnectEventListener eventListener) {
-        throw new UnsupportedOperationException("unsupported operation addReconnectEventListener(eventListener)");
-    }
-
-    @Override
-    public boolean removeReconnectEventListener(PinpointClientReconnectEventListener eventListener) {
-        throw new UnsupportedOperationException("unsupported operation removeReconnectEventListener(eventListener)");
-    }
 
     private static class FutureListenerStreamObserver implements StreamObserver<PResult> {
-        private final FutureListener<ResponseMessage> listener;
+        private final BiConsumer<ResponseMessage, Throwable> listener;
 
-        private FutureListenerStreamObserver(FutureListener<ResponseMessage> listener) {
+        private FutureListenerStreamObserver(BiConsumer<ResponseMessage, Throwable> listener) {
             this.listener = listener;
         }
 
         @Override
         public void onNext(PResult result) {
-            final DefaultFuture<ResponseMessage> future = new DefaultFuture<>();
-            final ResponseMessage responseMessage = new ResponseMessage();
-            responseMessage.setMessage(result.toByteArray());
-            future.setResult(responseMessage);
-            future.setListener(listener);
+            final ResponseMessage response = ResponseMessage.wrap(result.toByteArray());
+            listener.accept(response, null);
         }
 
         @Override
         public void onError(Throwable throwable) {
-            final DefaultFuture<ResponseMessage> future = new DefaultFuture<>();
-            future.setFailure(throwable);
-            future.setListener(listener);
+            listener.accept(null, throwable);
         }
 
         @Override

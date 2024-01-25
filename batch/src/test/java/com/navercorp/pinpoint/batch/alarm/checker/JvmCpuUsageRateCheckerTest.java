@@ -16,43 +16,45 @@
 
 package com.navercorp.pinpoint.batch.alarm.checker;
 
-import com.navercorp.pinpoint.web.alarm.CheckerCategory;
-import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
 import com.navercorp.pinpoint.batch.alarm.DataCollectorFactory;
 import com.navercorp.pinpoint.batch.alarm.collector.AgentStatDataCollector;
+import com.navercorp.pinpoint.common.server.bo.stat.AgentStatType;
 import com.navercorp.pinpoint.common.server.bo.stat.CpuLoadBo;
 import com.navercorp.pinpoint.common.server.bo.stat.JvmGcBo;
-import com.navercorp.pinpoint.common.trace.ServiceType;
+import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.web.alarm.CheckerCategory;
+import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
-import com.navercorp.pinpoint.web.dao.ApplicationIndexDao;
 import com.navercorp.pinpoint.web.dao.stat.AgentStatDao;
-import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.Range;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JvmCpuUsageRateCheckerTest {
 
     private static final String SERVICE_NAME = "local_service";
     private static final String SERVICE_TYPE = "tomcat";
+    private static final List<String> mockAgentIds = List.of("local_tomcat");
 
-    private static ApplicationIndexDao applicationIndexDao;
 
     private static AgentStatDao<JvmGcBo> jvmGcDao;
 
     private static AgentStatDao<CpuLoadBo> cpuLoadDao;
-    
-    @BeforeClass
+
+    @BeforeAll
     public static void before() {
-        jvmGcDao = new AgentStatDao<JvmGcBo>() {
+        jvmGcDao = new AgentStatDao<>() {
+
+            @Override
+            public String getChartType() {
+                return AgentStatType.JVM_GC.getChartType();
+            }
 
             @Override
             public List<JvmGcBo> getAgentStatList(String agentId, Range range) {
@@ -65,17 +67,21 @@ public class JvmCpuUsageRateCheckerTest {
             }
         };
 
-        cpuLoadDao = new AgentStatDao<CpuLoadBo>() {
+        cpuLoadDao = new AgentStatDao<>() {
+            @Override
+            public String getChartType() {
+                return AgentStatType.CPU_LOAD.getChartType();
+            }
 
             public List<CpuLoadBo> getAgentStatList(String agentId, Range range) {
-                List<CpuLoadBo> cpuLoads = new LinkedList<>();
-                
+                List<CpuLoadBo> cpuLoads = new ArrayList<>();
+
                 for (int i = 0; i < 36; i++) {
                     CpuLoadBo cpuLoad = new CpuLoadBo();
                     cpuLoad.setJvmCpuLoad(0.6);
                     cpuLoads.add(cpuLoad);
                 }
-                
+
                 return cpuLoads;
             }
 
@@ -84,67 +90,25 @@ public class JvmCpuUsageRateCheckerTest {
                 return true;
             }
         };
-        
-        applicationIndexDao = new ApplicationIndexDao() {
-
-            @Override
-            public List<Application> selectAllApplicationNames() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public List<Application> selectApplicationName(String applicationName) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public List<String> selectAgentIds(String applicationName) {
-                if (SERVICE_NAME.equals(applicationName)) {
-                    List<String> agentIds = new LinkedList<>();
-                    agentIds.add("local_tomcat");
-                    return agentIds;
-                }
-                
-                throw new IllegalArgumentException();
-            }
-
-            @Override
-            public void deleteApplicationName(String applicationName) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public void deleteAgentIds(Map<String, List<String>> applicationAgentIdMap) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public void deleteAgentId(String applicationName, String agentId) {
-                throw new UnsupportedOperationException();
-            }
-            
-        };
     }
 
-    
+
     @Test
     public void checkTest1() {
         Rule rule = new Rule(SERVICE_NAME, SERVICE_TYPE, CheckerCategory.JVM_CPU_USAGE_RATE.getName(), 60, "testGroup", false, false, false, "");
-        Application application = new Application(SERVICE_NAME, ServiceType.STAND_ALONE);
-        AgentStatDataCollector collector = new AgentStatDataCollector(DataCollectorCategory.AGENT_STAT, application, jvmGcDao, cpuLoadDao, applicationIndexDao, System.currentTimeMillis(), DataCollectorFactory.SLOT_INTERVAL_FIVE_MIN);
-        AgentChecker checker = new JvmCpuUsageRateChecker(collector, rule);
-        
+        AgentStatDataCollector collector = new AgentStatDataCollector(DataCollectorCategory.AGENT_STAT, jvmGcDao, cpuLoadDao, mockAgentIds, System.currentTimeMillis(), DataCollectorFactory.SLOT_INTERVAL_FIVE_MIN);
+        AgentChecker<Long> checker = new JvmCpuUsageRateChecker(collector, rule);
+
         checker.check();
         assertTrue(checker.isDetected());
     }
-    
+
     @Test
     public void checkTest2() {
         Rule rule = new Rule(SERVICE_NAME, SERVICE_TYPE, CheckerCategory.JVM_CPU_USAGE_RATE.getName(), 61, "testGroup", false, false, false, "");
-        Application application = new Application(SERVICE_NAME, ServiceType.STAND_ALONE);
-        AgentStatDataCollector collector = new AgentStatDataCollector(DataCollectorCategory.AGENT_STAT, application, jvmGcDao, cpuLoadDao, applicationIndexDao, System.currentTimeMillis(), DataCollectorFactory.SLOT_INTERVAL_FIVE_MIN);
-        AgentChecker checker = new JvmCpuUsageRateChecker(collector, rule);
-        
+        AgentStatDataCollector collector = new AgentStatDataCollector(DataCollectorCategory.AGENT_STAT, jvmGcDao, cpuLoadDao, mockAgentIds, System.currentTimeMillis(), DataCollectorFactory.SLOT_INTERVAL_FIVE_MIN);
+        AgentChecker<Long> checker = new JvmCpuUsageRateChecker(collector, rule);
+
         checker.check();
         assertFalse(checker.isDetected());
     }

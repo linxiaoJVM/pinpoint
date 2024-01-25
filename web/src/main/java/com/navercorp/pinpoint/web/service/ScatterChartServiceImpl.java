@@ -27,11 +27,11 @@ import com.navercorp.pinpoint.web.util.ListListUtils;
 import com.navercorp.pinpoint.web.scatter.ScatterDataBuilder;
 import com.navercorp.pinpoint.web.vo.GetTraceInfo;
 import com.navercorp.pinpoint.web.vo.LimitedScanResult;
-import com.navercorp.pinpoint.web.vo.Range;
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.web.vo.scatter.Dot;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
 @Service
 public class ScatterChartServiceImpl implements ScatterChartService {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final ApplicationTraceIndexDao applicationTraceIndexDao;
 
@@ -57,8 +57,7 @@ public class ScatterChartServiceImpl implements ScatterChartService {
 
     public ScatterChartServiceImpl(ApplicationTraceIndexDao applicationTraceIndexDao,
                                    TraceDao traceDao,
-                                   SpanService spanService
-    ) {
+                                   SpanService spanService) {
         this.applicationTraceIndexDao = Objects.requireNonNull(applicationTraceIndexDao, "applicationTraceIndexDao");
         this.traceDao = Objects.requireNonNull(traceDao, "traceDao");
         this.spanService = Objects.requireNonNull(spanService, "spanService");

@@ -4,6 +4,7 @@ import com.navercorp.pinpoint.testapp.util.Description;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,6 +20,14 @@ public class SimpleController {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("getCurrentTimestamp", System.currentTimeMillis());
 
+        return map;
+    }
+
+    @RequestMapping("/testUserInputRequestAttribute")
+    public Map<String, Object> testUserInputAttribute(HttpServletRequest request) {
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("message", "test user input attribute");
+        request.setAttribute("pinpoint.metric.uri-template", "/userInput");
         return map;
     }
 
@@ -53,5 +62,27 @@ public class SimpleController {
         map.put("message", "ok");
 
         return map;
+    }
+
+    @RequestMapping("/randomResponseTime/**")
+    @Description("Waits for random time and then returns")
+    public Map<String, Object> randomResponseTime() throws InterruptedException {
+        double a = Math.random() * 10000;
+        double fail = Math.random() * 10;
+
+        Thread.sleep(Math.round(a));
+
+        if ( fail < 2.0 ) {
+            throw new RuntimeException();
+        }
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("message", "ok");
+
+        return map;
+    }
+
+    @RequestMapping("/fails")
+    public void fails() throws Exception {
+        throw new RuntimeException();
     }
 }

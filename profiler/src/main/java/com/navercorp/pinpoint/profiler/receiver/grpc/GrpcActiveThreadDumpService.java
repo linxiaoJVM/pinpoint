@@ -17,6 +17,7 @@
 package com.navercorp.pinpoint.profiler.receiver.grpc;
 
 import java.util.Objects;
+
 import com.navercorp.pinpoint.common.util.JvmUtils;
 import com.navercorp.pinpoint.grpc.trace.PActiveThreadDump;
 import com.navercorp.pinpoint.grpc.trace.PCmdActiveThreadDump;
@@ -29,14 +30,15 @@ import com.navercorp.pinpoint.grpc.trace.ProfilerCommandServiceGrpc;
 import com.navercorp.pinpoint.profiler.context.active.ActiveTraceRepository;
 import com.navercorp.pinpoint.profiler.context.active.ActiveTraceSnapshot;
 import com.navercorp.pinpoint.profiler.context.grpc.GrpcThreadDumpMessageConverter;
+import com.navercorp.pinpoint.profiler.context.grpc.mapper.ThreadDumpMapper;
 import com.navercorp.pinpoint.profiler.monitor.metric.deadlock.ThreadDumpMetricSnapshot;
 import com.navercorp.pinpoint.profiler.receiver.service.ActiveThreadDumpCoreService;
 import com.navercorp.pinpoint.profiler.receiver.service.ThreadDump;
 import com.navercorp.pinpoint.profiler.receiver.service.ThreadDumpRequest;
 import com.navercorp.pinpoint.profiler.util.ThreadDumpUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.lang.management.ThreadInfo;
 import java.util.ArrayList;
@@ -50,16 +52,20 @@ public class GrpcActiveThreadDumpService implements ProfilerGrpcCommandService {
 
     static final String JAVA = "JAVA";
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-
-    private final GrpcThreadDumpMessageConverter grpcThreadDumpMessageConverter = new GrpcThreadDumpMessageConverter();
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final ActiveThreadDumpCoreService activeThreadDump;
+    private final GrpcThreadDumpMessageConverter grpcThreadDumpMessageConverter;
 
-    public GrpcActiveThreadDumpService(ActiveTraceRepository activeTraceRepository) {
+
+    public GrpcActiveThreadDumpService(
+            ActiveTraceRepository activeTraceRepository,
+            ThreadDumpMapper threadDumpMapper
+    ) {
         Objects.requireNonNull(activeTraceRepository, "activeTraceRepository");
 
         this.activeThreadDump = new ActiveThreadDumpCoreService(activeTraceRepository);
+        this.grpcThreadDumpMessageConverter = new GrpcThreadDumpMessageConverter(threadDumpMapper);
     }
 
     @Override

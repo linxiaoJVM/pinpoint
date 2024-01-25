@@ -24,7 +24,6 @@ import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.plugin.kafka.field.accessor.EndPointFieldAccessor;
 import com.navercorp.pinpoint.plugin.kafka.field.accessor.SocketChannelListFieldAccessor;
 import com.navercorp.pinpoint.plugin.kafka.field.getter.SelectorGetter;
-
 import org.apache.kafka.clients.ClientResponse;
 import org.apache.kafka.common.requests.FetchResponse;
 
@@ -33,8 +32,6 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * @author Taejin Koo
@@ -57,54 +54,51 @@ public class NetworkClientPollInterceptor implements AroundInterceptor {
             logger.afterInterceptor(target, args);
         }
 
-        if (!(target instanceof SelectorGetter)) {
-            return;
-        }
-        Object selector = ((SelectorGetter) target)._$PINPOINT$_getSelector();
-        if (!(selector instanceof SocketChannelListFieldAccessor)) {
+        if (!(result instanceof List<?>) || CollectionUtils.isEmpty((List<?>) result)) {
             return;
         }
 
-        if (!(result instanceof List) || CollectionUtils.isEmpty((List) result)) {
+
+        final String endPointAddress = getEndPointAddressString(target);
+        if (endPointAddress == null) {
             return;
         }
 
-        final String endPointAddress = getEndPointAddressString((SocketChannelListFieldAccessor) selector);
-
-        for (Object object : (List) result) {
+        for (Object object : (List<?>) result) {
 
             if (!(object instanceof ClientResponse)) {
                 continue;
             }
             ClientResponse clientResponse = (ClientResponse) object;
             Object responseBody = clientResponse.responseBody();
+
             if (!(responseBody instanceof FetchResponse)) {
                 continue;
             }
 
-            FetchResponse fetchResponse = (FetchResponse) responseBody;
-            Map responseData = fetchResponse.responseData();
-            if (responseData == null) {
+            if (!(responseBody instanceof EndPointFieldAccessor)) {
                 continue;
             }
 
-            Set keySet = responseData.keySet();
-            for (Object key : keySet) {
-                if (key instanceof EndPointFieldAccessor) {
-                    EndPointFieldAccessor endPointFieldAccessor = (EndPointFieldAccessor) key;
-
-                    if (endPointFieldAccessor._$PINPOINT$_getEndPoint() == null) {
-                        endPointFieldAccessor._$PINPOINT$_setEndPoint(endPointAddress);
-                    }
-                }
-
+            EndPointFieldAccessor endPointFieldAccessor = (EndPointFieldAccessor) responseBody;
+            if (endPointFieldAccessor._$PINPOINT$_getEndPoint() == null) {
+                endPointFieldAccessor._$PINPOINT$_setEndPoint(endPointAddress);
             }
         }
     }
 
 
-    private String getEndPointAddressString(SocketChannelListFieldAccessor socketChannelListFieldAccessor) {
-        List<SocketChannel> socketChannels = socketChannelListFieldAccessor._$PINPOINT$_getSocketChannelList();
+    private String getEndPointAddressString(Object target) {
+        if (!(target instanceof SelectorGetter)) {
+            return null;
+        }
+
+        Object selector = ((SelectorGetter) target)._$PINPOINT$_getSelector();
+        if (!(selector instanceof SocketChannelListFieldAccessor)) {
+            return null;
+        }
+
+        List<SocketChannel> socketChannels = ((SocketChannelListFieldAccessor)selector)._$PINPOINT$_getSocketChannelList();
         if (CollectionUtils.isEmpty(socketChannels)) {
             return null;
         }
@@ -120,7 +114,7 @@ public class NetworkClientPollInterceptor implements AroundInterceptor {
 
                 String ipPort = getIpPort(localAddress);
                 endPointAddressList.add(ipPort);
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
         }
 

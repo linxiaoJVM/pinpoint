@@ -16,27 +16,26 @@
 
 package com.navercorp.pinpoint.bootstrap.interceptor;
 
-import static org.mockito.Mockito.*;
-
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.navercorp.pinpoint.bootstrap.context.SpanRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class SpanSimpleAroundInterceptorTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
 
     @Test
-    public void lifeCycle() throws Exception {
+    public void lifeCycle() {
         Trace trace = newTrace();
         TraceContext context = newTraceContext(trace);
 
@@ -46,7 +45,7 @@ public class SpanSimpleAroundInterceptorTest {
     }
 
     @Test
-    public void beforeExceptionLifeCycle() throws Exception {
+    public void beforeExceptionLifeCycle() {
 
         Trace trace = newTrace();
         TraceContext context = newTraceContext(trace);
@@ -95,7 +94,7 @@ public class SpanSimpleAroundInterceptorTest {
 
 
     @Test
-    public void afterExceptionLifeCycle() throws Exception {
+    public void afterExceptionLifeCycle() {
 
         Trace trace = newTrace();
         TraceContext context = newTraceContext(trace);
@@ -112,7 +111,7 @@ public class SpanSimpleAroundInterceptorTest {
     }
 
     @Test
-    public void beforeAfterExceptionLifeCycle() throws Exception {
+    public void beforeAfterExceptionLifeCycle() {
 
         Trace trace = newTrace();
         TraceContext context = newTraceContext(trace);
@@ -147,38 +146,37 @@ public class SpanSimpleAroundInterceptorTest {
     private void checkSpanInterceptor(TraceContext context, TestSpanSimpleAroundInterceptor interceptor) {
         Trace createTrace = interceptor.createTrace(null, null);
         interceptor.before(new Object(), null);
-        Assert.assertEquals("beforeTouchCount", interceptor.getBeforeTouchCount(), 1);
+        Assertions.assertEquals(interceptor.getBeforeTouchCount(), 1, "beforeTouchCount");
         Trace before = context.currentRawTraceObject();
-        Assert.assertEquals(createTrace, before);
+        Assertions.assertEquals(createTrace, before);
 
         interceptor.after(new Object(), null, null, null);
-        Assert.assertEquals("afterTouchCount", interceptor.getAfterTouchCount(), 1);
+        Assertions.assertEquals(interceptor.getAfterTouchCount(), 1, "afterTouchCount");
         Trace after = context.currentRawTraceObject();
-        Assert.assertNull(after);
+        Assertions.assertNull(after);
     }
 
     private void checkTraceCreateFailInterceptor(TraceContext context, TestSpanSimpleAroundInterceptor interceptor) {
         Trace createTrace = interceptor.createTrace(null, null);
-        Assert.assertNull(createTrace);
+        Assertions.assertNull(createTrace);
         interceptor.before(new Object(), null);
 
-        Assert.assertEquals(interceptor.getBeforeTouchCount(), 0);
-        Assert.assertNull(context.currentRawTraceObject());
+        Assertions.assertEquals(interceptor.getBeforeTouchCount(), 0);
+        Assertions.assertNull(context.currentRawTraceObject());
 
         interceptor.after(new Object(), null, null, null);
-        Assert.assertEquals(interceptor.getAfterTouchCount(), 0);
-        Assert.assertNull(context.currentRawTraceObject());
+        Assertions.assertEquals(interceptor.getAfterTouchCount(), 0);
+        Assertions.assertNull(context.currentRawTraceObject());
     }
 
 
-
     @Test
-    public void testCreateTrace() throws Exception {
+    public void testCreateTrace() {
 
     }
 
     @Test
-    public void testDoInAfterTrace() throws Exception {
+    public void testDoInAfterTrace() {
 
     }
 

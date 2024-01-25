@@ -25,7 +25,7 @@ import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
-import com.navercorp.pinpoint.common.util.ArrayUtils;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.plugin.okhttp.OkHttpConstants;
 
 /**
@@ -49,12 +49,13 @@ public class DispatcherEnqueueMethodInterceptor implements AroundInterceptor {
             logger.beforeInterceptor(target, args);
         }
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = traceContext.currentRawTraceObject();
         if (trace == null) {
             return;
         }
 
-        if (!validate(args)) {
+        AsyncContextAccessor accessor = getAsyncContextAccessor(args);
+        if (accessor == null) {
             return;
         }
 
@@ -63,7 +64,7 @@ public class DispatcherEnqueueMethodInterceptor implements AroundInterceptor {
             // set asynchronous trace
             final AsyncContext asyncContext = recorder.recordNextAsyncContext();
             // AsyncTraceIdAccessor typeCheck validate();
-            ((AsyncContextAccessor) args[0])._$PINPOINT$_setAsyncContext(asyncContext);
+            accessor._$PINPOINT$_setAsyncContext(asyncContext);
             if (isDebug) {
                 logger.debug("Set AsyncContext {}", asyncContext);
             }
@@ -72,16 +73,15 @@ public class DispatcherEnqueueMethodInterceptor implements AroundInterceptor {
         }
     }
 
-    private boolean validate(Object[] args) {
-        Object asyncContextAccessor = ArrayUtils.get(args, 0);
-        if (!(asyncContextAccessor instanceof AsyncContextAccessor)) {
+    private AsyncContextAccessor getAsyncContextAccessor(Object[] args) {
+        AsyncContextAccessor asyncContextAccessor = ArrayArgumentUtils.getArgument(args, 0, AsyncContextAccessor.class);
+        if (asyncContextAccessor == null) {
             if (isDebug) {
                 logger.debug("Invalid args[0] object {}. Need field accessor({}).", args, AsyncContextAccessor.class.getName());
             }
-            return false;
         }
 
-        return true;
+        return asyncContextAccessor;
     }
 
     @Override
@@ -90,20 +90,23 @@ public class DispatcherEnqueueMethodInterceptor implements AroundInterceptor {
             logger.afterInterceptor(target, args);
         }
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = traceContext.currentRawTraceObject();
         if (trace == null) {
             return;
         }
 
-        if (!validate(args)) {
+        AsyncContextAccessor accessor = getAsyncContextAccessor(args);
+        if (accessor == null) {
             return;
         }
 
         try {
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
-            recorder.recordApi(methodDescriptor);
-            recorder.recordServiceType(OkHttpConstants.OK_HTTP_CLIENT_INTERNAL);
-            recorder.recordException(throwable);
+            if (trace.canSampled()) {
+                recorder.recordApi(methodDescriptor);
+                recorder.recordServiceType(OkHttpConstants.OK_HTTP_CLIENT_INTERNAL);
+                recorder.recordException(throwable);
+            }
         } finally {
             trace.traceBlockEnd();
         }

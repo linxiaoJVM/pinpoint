@@ -23,10 +23,12 @@ import com.navercorp.pinpoint.bootstrap.instrument.transformer.TransformCallback
 import com.navercorp.pinpoint.bootstrap.instrument.transformer.TransformTemplate;
 import com.navercorp.pinpoint.bootstrap.instrument.transformer.TransformTemplateAware;
 import com.navercorp.pinpoint.bootstrap.interceptor.BasicMethodInterceptor;
+import com.navercorp.pinpoint.bootstrap.logging.PLogger;
+import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
 import com.navercorp.pinpoint.bootstrap.plugin.ProfilerPlugin;
 import com.navercorp.pinpoint.bootstrap.plugin.ProfilerPluginSetupContext;
-import com.navercorp.pinpoint.bootstrap.plugin.uri.UriMappingExtractorProvider;
 import com.navercorp.pinpoint.plugin.spring.web.interceptor.InvocableHandlerMethodInvokeForRequestMethodInterceptor;
+import com.navercorp.pinpoint.plugin.spring.web.javax.interceptor.ProcessRequestInterceptor;
 
 import java.security.ProtectionDomain;
 
@@ -37,34 +39,128 @@ import static com.navercorp.pinpoint.common.util.VarArgs.va;
  * @author jaehong.kim
  */
 public class SpringWebMvcPlugin implements ProfilerPlugin, TransformTemplateAware {
-
+    private final PLogger logger = PLoggerFactory.getLogger(getClass());
     private TransformTemplate transformTemplate;
 
     @Override
     public void setup(ProfilerPluginSetupContext context) {
-        transformTemplate.transform("org.springframework.web.servlet.FrameworkServlet", FrameworkServletTransform.class);
-
         SpringWebMvcConfig config = new SpringWebMvcConfig(context.getConfig());
-        if (config.isUriStatEnable()) {
-            UriMappingExtractorProvider uriMappingExtractorProvider = new UriMappingExtractorProvider(
-                    SpringWebMvcConstants.SPRING_MVC_URI_EXTRACTOR_TYPE,
-                    SpringWebMvcConstants.SPRING_MVC_URI_MAPPING_ATTRIBUTE_KEYS
-            );
-            context.addUriExtractor(uriMappingExtractorProvider);
+        if (Boolean.FALSE == config.isEnable()) {
+            logger.info("{} disabled", this.getClass().getSimpleName());
+            return;
         }
+
+        transformTemplate.transform("org.springframework.web.servlet.FrameworkServlet", FrameworkServletTransform.class, new Object[]{config.isUriStatEnable(), config.isUriStatUseUserInput()}, new Class[]{Boolean.class, Boolean.class});
+
         // Async
         transformTemplate.transform("org.springframework.web.method.support.InvocableHandlerMethod", InvocableHandlerMethodTransform.class);
+
+        // uri stat
+        if (config.isUriStatEnable()) {
+            transformTemplate.transform("org.springframework.web.servlet.handler.AbstractHandlerMethodMapping", AbstractHandlerMethodMappingTransform.class, new Object[]{config.isUriStatCollectMethod()}, new Class[]{Boolean.class});
+            transformTemplate.transform("org.springframework.web.servlet.handler.AbstractUrlHandlerMapping", AbstractUrlHandlerMappingTransform.class, new Object[]{config.isUriStatCollectMethod()}, new Class[]{Boolean.class});
+        }
+
+    }
+
+    public static class AbstractHandlerMethodMappingTransform implements TransformCallback {
+        private final Boolean isUriStatCollectMethod;
+
+        public AbstractHandlerMethodMappingTransform(Boolean isUriStatCollectMethod) {
+            this.isUriStatCollectMethod = isUriStatCollectMethod;
+
+        }
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+
+            // Add attribute listener.
+            final InstrumentMethod lookupHandlerMethod = target.getDeclaredMethod("lookupHandlerMethod", "java.lang.String", "javax.servlet.http.HttpServletRequest");
+            if (lookupHandlerMethod != null) {
+                lookupHandlerMethod.addInterceptor(com.navercorp.pinpoint.plugin.spring.web.javax.interceptor.LookupHandlerMethodInterceptor.class, va(isUriStatCollectMethod));
+            }
+
+            // Spring 6
+            final InstrumentMethod lookupHandlerMethodJakarta = target.getDeclaredMethod("lookupHandlerMethod", "java.lang.String", "jakarta.servlet.http.HttpServletRequest");
+            if (lookupHandlerMethodJakarta != null) {
+                lookupHandlerMethodJakarta.addInterceptor(com.navercorp.pinpoint.plugin.spring.web.jakarta.interceptor.LookupHandlerMethodInterceptor.class, va(isUriStatCollectMethod));
+            }
+
+            return target.toBytecode();
+        }
+    }
+
+    public static class AbstractUrlHandlerMappingTransform implements TransformCallback {
+        private final Boolean isUriStatCollectMethod;
+        public AbstractUrlHandlerMappingTransform(Boolean isUriStatCollectMethod) {
+            this.isUriStatCollectMethod = isUriStatCollectMethod;
+        }
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader classLoader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            final InstrumentClass target = instrumentor.getInstrumentClass(classLoader, className, classfileBuffer);
+
+            // Add attribute listener.
+            final InstrumentMethod exposePathWithinMapping = target.getDeclaredMethod("exposePathWithinMapping", "java.lang.String", "java.lang.String", "javax.servlet.http.HttpServletRequest");
+            if (exposePathWithinMapping != null) {
+                exposePathWithinMapping.addInterceptor(com.navercorp.pinpoint.plugin.spring.web.javax.interceptor.ExposePathWithinMappingInterceptor.class, va(this.isUriStatCollectMethod));
+            }
+
+            // Spring 6
+            final InstrumentMethod exposePathWithinMappingJakarta = target.getDeclaredMethod("exposePathWithinMapping", "java.lang.String", "java.lang.String", "jakarta.servlet.http.HttpServletRequest");
+            if (exposePathWithinMappingJakarta != null) {
+                exposePathWithinMappingJakarta.addInterceptor(com.navercorp.pinpoint.plugin.spring.web.jakarta.interceptor.ExposePathWithinMappingInterceptor.class, va(this.isUriStatCollectMethod));
+            }
+
+            return target.toBytecode();
+        }
     }
 
     public static class FrameworkServletTransform implements TransformCallback {
 
+        private final Boolean uriStatEnable;
+        private final Boolean uriStatUseUserInput;
+
+        public FrameworkServletTransform(Boolean uriStatEnable, Boolean uriStatUseUserInput) {
+            this.uriStatEnable = uriStatEnable;
+            this.uriStatUseUserInput = uriStatUseUserInput;
+        }
+
         @Override
         public byte[] doInTransform(Instrumentor instrumentor, ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
-            InstrumentClass target = instrumentor.getInstrumentClass(loader, className, classfileBuffer);
-            InstrumentMethod doGet = target.getDeclaredMethod("doGet", "javax.servlet.http.HttpServletRequest", "javax.servlet.http.HttpServletResponse");
-            doGet.addInterceptor(BasicMethodInterceptor.class, va(SpringWebMvcConstants.SPRING_MVC));
-            InstrumentMethod doPost = target.getDeclaredMethod("doPost", "javax.servlet.http.HttpServletRequest", "javax.servlet.http.HttpServletResponse");
-            doPost.addInterceptor(BasicMethodInterceptor.class, va(SpringWebMvcConstants.SPRING_MVC));
+            final InstrumentClass target = instrumentor.getInstrumentClass(loader, className, classfileBuffer);
+
+            final InstrumentMethod doGet = target.getDeclaredMethod("doGet", "javax.servlet.http.HttpServletRequest", "javax.servlet.http.HttpServletResponse");
+            final InstrumentMethod doPost = target.getDeclaredMethod("doPost", "javax.servlet.http.HttpServletRequest", "javax.servlet.http.HttpServletResponse");
+            if (doGet != null) {
+                doGet.addInterceptor(BasicMethodInterceptor.class, va(SpringWebMvcConstants.SPRING_MVC));
+            }
+            if (doPost != null) {
+                doPost.addInterceptor(BasicMethodInterceptor.class, va(SpringWebMvcConstants.SPRING_MVC));
+            }
+
+            // Spring 6
+            final InstrumentMethod doGetJakarta = target.getDeclaredMethod("doGet", "jakarta.servlet.http.HttpServletRequest", "jakarta.servlet.http.HttpServletResponse");
+            final InstrumentMethod doPostJakarta = target.getDeclaredMethod("doPost", "jakarta.servlet.http.HttpServletRequest", "jakarta.servlet.http.HttpServletResponse");
+            if (doGetJakarta != null) {
+                doGetJakarta.addInterceptor(BasicMethodInterceptor.class, va(SpringWebMvcConstants.SPRING_MVC));
+            }
+            if (doPostJakarta != null) {
+                doPostJakarta.addInterceptor(BasicMethodInterceptor.class, va(SpringWebMvcConstants.SPRING_MVC));
+            }
+
+            if (this.uriStatEnable) {
+                final InstrumentMethod processRequest = target.getDeclaredMethod("processRequest", "javax.servlet.http.HttpServletRequest", "javax.servlet.http.HttpServletResponse");
+                if (processRequest != null) {
+                    processRequest.addInterceptor(ProcessRequestInterceptor.class, va(this.uriStatUseUserInput));
+                }
+
+                // Spring 6
+                final InstrumentMethod processRequestJakarta = target.getDeclaredMethod("processRequest", "jakarta.servlet.http.HttpServletRequest", "jakarta.servlet.http.HttpServletResponse");
+                if (processRequestJakarta != null) {
+                    processRequestJakarta.addInterceptor(com.navercorp.pinpoint.plugin.spring.web.jakarta.interceptor.ProcessRequestInterceptor.class, va(this.uriStatUseUserInput));
+                }
+            }
+
             return target.toBytecode();
         }
     }

@@ -61,12 +61,12 @@ public final class MathUtils {
      */
     public static long floorMod(final long a, final long b) {
 
-        if (b == 0l) {
+        if (b == 0L) {
             throw new IllegalArgumentException("denominator must be different from 0");
         }
 
         final long m = a % b;
-        if ((a ^ b) >= 0l || m == 0l) {
+        if ((a ^ b) >= 0L || m == 0L) {
             // a an b have same sign, or division is exact
             return m;
         } else {
@@ -104,5 +104,13 @@ public final class MathUtils {
             return b + m;
         }
 
+    }
+
+    public static double average(long sum, long count) {
+        return count > 0 ? (double) sum / count : 0.0d;
+    }
+
+    public static double average(double sum, double count) {
+        return count > 0 ? sum / count : 0.0d;
     }
 }

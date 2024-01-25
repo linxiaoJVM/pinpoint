@@ -16,10 +16,14 @@
 
 package com.navercorp.pinpoint.plugin.paho.mqtt.interceptor;
 
-import com.navercorp.pinpoint.bootstrap.context.*;
-import com.navercorp.pinpoint.bootstrap.logging.PLogger;
-import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
+import com.navercorp.pinpoint.bootstrap.context.Header;
+import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
+import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
+import com.navercorp.pinpoint.bootstrap.context.Trace;
+import com.navercorp.pinpoint.bootstrap.context.TraceContext;
+import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.bootstrap.sampler.SamplingFlagUtils;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.plugin.paho.mqtt.PahoMqttPluginConfig;
 import org.eclipse.paho.mqttv5.common.packet.MqttProperties;
 import org.eclipse.paho.mqttv5.common.packet.UserProperty;
@@ -33,7 +37,6 @@ import java.util.List;
  */
 public class MqttV5ClientPublishInterceptor extends MqttClientPublishInterceptor {
 
-    private final PLogger logger = PLoggerFactory.getLogger(getClass());
 
     public MqttV5ClientPublishInterceptor(TraceContext traceContext, MethodDescriptor descriptor, PahoMqttPluginConfig config) {
         super(traceContext, descriptor, config);
@@ -41,7 +44,7 @@ public class MqttV5ClientPublishInterceptor extends MqttClientPublishInterceptor
 
     @Override
     protected void setCallerDataWhenSampled(Trace trace, SpanEventRecorder recorder, Object[] args, boolean canSampled) {
-        MqttProperties mqttProperties = getMqttProperties(args[1]);
+        MqttProperties mqttProperties = getMqttProperties(args);
         if (mqttProperties == null) {
             return;
         }
@@ -66,9 +69,10 @@ public class MqttV5ClientPublishInterceptor extends MqttClientPublishInterceptor
         mqttProperties.setUserProperties(userPropertiesWithHeader);
     }
 
-    private MqttProperties getMqttProperties(Object arg) {
-        if (arg instanceof org.eclipse.paho.mqttv5.common.MqttMessage) {
-            org.eclipse.paho.mqttv5.common.MqttMessage mqttMessage = (org.eclipse.paho.mqttv5.common.MqttMessage) arg;
+    private MqttProperties getMqttProperties(Object[] args) {
+        org.eclipse.paho.mqttv5.common.MqttMessage mqttMessage
+                = ArrayArgumentUtils.getArgument(args, 1, org.eclipse.paho.mqttv5.common.MqttMessage.class);
+        if (mqttMessage != null) {
             return mqttMessage.getProperties();
         }
         return null;

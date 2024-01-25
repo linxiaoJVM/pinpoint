@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.web.dao.memory;
 
 import com.navercorp.pinpoint.web.dao.AgentStatisticsDao;
 import com.navercorp.pinpoint.web.vo.AgentCountStatistics;
-import com.navercorp.pinpoint.web.vo.Range;
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -36,7 +36,7 @@ public class MemoryAgentStatisticsDao implements AgentStatisticsDao {
 
     private static final Comparator<Long> REVERSE = Collections.reverseOrder(Long::compare);
 
-    private final Map<Long, Integer> agentCountPerTime = new TreeMap<>(REVERSE);
+    private final TreeMap<Long, Integer> agentCountPerTime = new TreeMap<>(REVERSE);
 
     @Override
     public boolean insertAgentCount(AgentCountStatistics agentCountStatistics) {
@@ -66,6 +66,24 @@ public class MemoryAgentStatisticsDao implements AgentStatisticsDao {
         return result;
     }
 
+    @Override
+    public List<AgentCountStatistics> selectLatestAgentCount(Integer size) {
+        if (agentCountPerTime.isEmpty()) {
+            return null;
+        }
 
+        List<AgentCountStatistics> result = new ArrayList<>();
+
+        for (Long timestamp: agentCountPerTime.descendingKeySet()) {
+            Integer agentCount = agentCountPerTime.get(timestamp);
+            result.add(new AgentCountStatistics(agentCount, timestamp));
+
+            if (result.size() >= size) {
+                break;
+            }
+        }
+
+        return result;
+    }
 
 }

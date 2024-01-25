@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint-plugins</artifactId>
-        <version>2.3.1-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-spring-webflux-plugin</artifactId>
@@ -16,8 +16,7 @@
         <jdk.version>1.8</jdk.version>
         <jdk.home>${env.JAVA_8_HOME}</jdk.home>
         <test.jdk.home>${env.JAVA_8_HOME}</test.jdk.home>
-        <sniffer.artifactid>java18</sniffer.artifactid>
-        <spring.version>5.2.7.RELEASE</spring.version>
+        <spring.version>${spring5.version}</spring.version>
     </properties>
 
     <dependencies>
@@ -30,14 +29,23 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webflux</artifactId>
-            <version>${spring.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
-            <version>${spring.version}</version>
+<!--            <version>${spring5.version}</version>-->
             <scope>provided</scope>
         </dependency>
 

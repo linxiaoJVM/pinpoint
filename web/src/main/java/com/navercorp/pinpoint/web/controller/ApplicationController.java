@@ -17,14 +17,21 @@ package com.navercorp.pinpoint.web.controller;
 
 import com.navercorp.pinpoint.common.PinpointConstants;
 import com.navercorp.pinpoint.common.util.IdValidateUtils;
+import com.navercorp.pinpoint.web.response.CodeResult;
 import com.navercorp.pinpoint.web.service.AgentInfoService;
 import com.navercorp.pinpoint.web.service.ApplicationService;
-import com.navercorp.pinpoint.web.vo.ApplicationAgentHostList;
-import com.navercorp.pinpoint.web.vo.CodeResult;
+import com.navercorp.pinpoint.web.vo.tree.ApplicationAgentHostList;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Objects;
 
@@ -33,10 +40,9 @@ import java.util.Objects;
  */
 
 @RestController
+@Validated
 public class ApplicationController {
-
-    private static final int CODE_SUCCESS = 0;
-    private static final int CODE_FAIL = -1;
+    public static final int MAX_PAGING_LIMIT = 100;
 
     private final AgentInfoService agentInfoService;
 
@@ -47,36 +53,39 @@ public class ApplicationController {
         this.applicationService = Objects.requireNonNull(applicationService, "applicationService");
     }
 
-    @GetMapping(value = "/getApplicationHostInfo", params = {"!durationDays"})
+    @GetMapping(value = "/getApplicationHostInfo")
     public ApplicationAgentHostList getApplicationHostInfo (
-            @RequestParam(value = "offset", required = false, defaultValue = "1") int offset,
-            @RequestParam(value = "limit", required = false, defaultValue = "100") int limit) throws Exception {
-        return agentInfoService.getApplicationAgentHostList(offset, limit);
-    }
+            @RequestParam(value = "offset", required = false, defaultValue = "1") @Positive int offset,
+            @RequestParam(value = "limit", required = false, defaultValue = "100") @Positive int limit,
+            @RequestParam(value = "durationDays", required = false) @PositiveOrZero Integer durationDays
+    ) {
+        int maxLimit = Math.min(MAX_PAGING_LIMIT, limit);
+        durationDays = ObjectUtils.defaultIfNull(durationDays, AgentInfoService.NO_DURATION);
 
-    @GetMapping(value = "/getApplicationHostInfo", params = {"durationDays"})
-    public ApplicationAgentHostList getApplicationHostInfo (
-            @RequestParam(value = "offset", required = false, defaultValue = "1") int offset,
-            @RequestParam(value = "limit", required = false, defaultValue = "100") int limit,
-            @RequestParam(value = "durationDays") int durationDays) throws Exception {
-        return agentInfoService.getApplicationAgentHostList(offset, limit, durationDays);
+        return agentInfoService.getApplicationAgentHostList(offset, maxLimit, durationDays);
     }
 
     @RequestMapping(value = "/isAvailableApplicationName")
-    public CodeResult isAvailableApplicationName(@RequestParam("applicationName") String applicationName) {
-        if (!IdValidateUtils.checkLength(applicationName, PinpointConstants.APPLICATION_NAME_MAX_LEN)) {
-            return new CodeResult(CODE_FAIL, "length range is 1 ~ 24");
+    public CodeResult<String> isAvailableApplicationName(
+            @RequestParam("applicationName") @NotBlank String applicationName
+    ) {
+        final IdValidateUtils.CheckResult result =
+                IdValidateUtils.checkId(applicationName, PinpointConstants.APPLICATION_NAME_MAX_LEN);
+        if (result == IdValidateUtils.CheckResult.FAIL_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "length range is 1 ~ 24");
         }
-
-        if (!IdValidateUtils.validateId(applicationName, PinpointConstants.APPLICATION_NAME_MAX_LEN)) {
-            return new CodeResult(CODE_FAIL, "invalid pattern(" + IdValidateUtils.ID_PATTERN_VALUE + ")");
+        if (result == IdValidateUtils.CheckResult.FAIL_PATTERN) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "invalid pattern(" + IdValidateUtils.ID_PATTERN_VALUE + ")"
+            );
         }
 
         if (applicationService.isExistApplicationName(applicationName)) {
-            return new CodeResult(CODE_FAIL, "already exist applicationName");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "applicationName already exists");
         }
 
-        return new CodeResult(CODE_SUCCESS, "OK");
+        return CodeResult.ok("OK");
     }
 
 }

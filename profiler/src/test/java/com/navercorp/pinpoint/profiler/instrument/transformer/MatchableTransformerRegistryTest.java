@@ -16,27 +16,26 @@
 
 package com.navercorp.pinpoint.profiler.instrument.transformer;
 
-import com.navercorp.pinpoint.profiler.instrument.config.DefaultInstrumentMatcherCacheConfig;
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.Matcher;
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.Matchers;
 import com.navercorp.pinpoint.bootstrap.instrument.matcher.operand.MatcherOperand;
+import com.navercorp.pinpoint.profiler.instrument.config.DefaultInstrumentMatcherCacheConfig;
 import com.navercorp.pinpoint.profiler.plugin.Foo;
 import com.navercorp.pinpoint.profiler.plugin.MatchableClassFileTransformer;
 import com.navercorp.pinpoint.profiler.sender.Bar;
 import com.navercorp.pinpoint.profiler.util.BytecodeUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.Assert.assertEquals;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author jaehong.kim
@@ -44,7 +43,7 @@ import static org.junit.Assert.assertEquals;
 public class MatchableTransformerRegistryTest {
 
     @Test
-    public void findTransformer() throws Exception {
+    public void findTransformer() {
         List<MatchableClassFileTransformer> matchableClassFileTransformerList = new ArrayList<>();
         MockMatchableClassFileTransformer mock1 = new MockMatchableClassFileTransformer(Matchers.newPackageBasedMatcher("com.navercorp.pinpoint.profiler.plugin"));
         MockMatchableClassFileTransformer mock2 = new MockMatchableClassFileTransformer(Matchers.newPackageBasedMatcher("com.navercorp.pinpoint.profiler.sender"));
@@ -71,12 +70,7 @@ public class MatchableTransformerRegistryTest {
     @Test
     public void packageNameBasedIndex() {
         // sorted
-        TreeMap<String, String> packageNameBasedIndex = new TreeMap<String, String>(new Comparator<String>() {
-            @Override
-            public int compare(String key1, String key2) {
-                return key1.compareTo(key2);
-            }
-        });
+        Map<String, String> packageNameBasedIndex = new TreeMap<>();
 
         packageNameBasedIndex.put("a", "a");
         packageNameBasedIndex.put("aa", "a");

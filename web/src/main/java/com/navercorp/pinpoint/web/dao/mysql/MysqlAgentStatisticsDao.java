@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.web.dao.mysql;
 
 import com.navercorp.pinpoint.web.dao.AgentStatisticsDao;
 import com.navercorp.pinpoint.web.vo.AgentCountStatistics;
-import com.navercorp.pinpoint.web.vo.Range;
+import com.navercorp.pinpoint.common.server.util.time.Range;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -51,4 +51,8 @@ public class MysqlAgentStatisticsDao implements AgentStatisticsDao {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectAgentCount", range);
     }
 
+    @Override
+    public List<AgentCountStatistics> selectLatestAgentCount(Integer size) {
+        return sqlSessionTemplate.selectList(NAMESPACE + "selectLatestAgentCount", size);
+    }
 }

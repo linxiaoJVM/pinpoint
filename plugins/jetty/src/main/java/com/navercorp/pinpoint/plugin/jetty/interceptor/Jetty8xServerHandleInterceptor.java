@@ -19,7 +19,7 @@ package com.navercorp.pinpoint.plugin.jetty.interceptor;
 import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.plugin.RequestRecorderFactory;
-import com.navercorp.pinpoint.common.util.ArrayUtils;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import org.eclipse.jetty.server.AbstractHttpConnection;
 
 import javax.servlet.http.HttpServletRequest;
@@ -40,15 +40,12 @@ public class Jetty8xServerHandleInterceptor extends AbstractServerHandleIntercep
 
     @Override
     HttpServletRequest toHttpServletRequest(Object[] args) {
-        if (ArrayUtils.isEmpty(args)) {
-            return null;
-        }
-
-        if (args[0] instanceof AbstractHttpConnection) {
+        AbstractHttpConnection connection = getArgument(args);
+        if (connection != null) {
             try {
-                AbstractHttpConnection connection = (AbstractHttpConnection) args[0];
                 return connection.getRequest();
             } catch (Throwable ignored) {
+                // ignore
             }
         }
         return null;
@@ -56,17 +53,18 @@ public class Jetty8xServerHandleInterceptor extends AbstractServerHandleIntercep
 
     @Override
     HttpServletResponse toHttpServletResponse(Object[] args) {
-        if (ArrayUtils.isEmpty(args)) {
-            return null;
-        }
-
-        if (args[0] instanceof AbstractHttpConnection) {
+        AbstractHttpConnection connection = getArgument(args);
+        if (connection != null) {
             try {
-                AbstractHttpConnection connection = (AbstractHttpConnection) args[0];
                 return connection.getResponse();
             } catch (Throwable ignored) {
+                // ignore
             }
         }
         return null;
+    }
+
+    private AbstractHttpConnection getArgument(Object[] args) {
+        return ArrayArgumentUtils.getArgument(args, 0, AbstractHttpConnection.class);
     }
 }

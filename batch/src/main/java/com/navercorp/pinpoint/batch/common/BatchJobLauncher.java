@@ -16,34 +16,47 @@
 
 package com.navercorp.pinpoint.batch.common;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.configuration.JobLocator;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.Date;
+import java.util.Objects;
 
 /**
  * @author minwoo.jung<minwoo.jung@navercorp.com>
  */
 public class BatchJobLauncher extends JobLaunchSupport {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    public static final String CLEANUP_INACTIVE_AGENTS_JOB_NAME = "cleanupInactiveAgentsJob";
+    private final BatchProperties batchProperties;
 
-    private final boolean enableCleanupInactiveAgentsJob;
-
-    public BatchJobLauncher(JobLocator locator, JobLauncher launcher, BatchConfiguration batchConfiguration) {
+    public BatchJobLauncher(@Qualifier("jobRegistry") JobLocator locator,
+                            @Qualifier("jobLauncher") JobLauncher launcher, BatchProperties batchProperties) {
         super(locator, launcher);
-        this.enableCleanupInactiveAgentsJob = batchConfiguration.isEnableCleanupInactiveAgents();
+        this.batchProperties = Objects.requireNonNull(batchProperties, "batchProperties");
     }
 
     public void alarmJob() {
-        JobParameters params = createTimeParameter();
-        run("alarmJob", params);
+        if (batchProperties.isAlarmJobEnable()) {
+            run("alarmJob", createTimeParameter());
+        } else {
+            logger.debug("Skip alarmJob, because 'enableUriStatAlarmJob' is disabled.");
+        }
+
+    }
+
+    public void uriStatAlarmJob() {
+        if (batchProperties.isUriStatAlarmJobEnable()) {
+            run("uriAlarmJob", createTimeParameter());
+        } else {
+            logger.debug("Skip uriAlarmJob, because 'enableUriStatAlarmJob' is disabled.");
+        }
     }
 
     private JobParameters createTimeParameter() {
@@ -54,19 +67,26 @@ public class BatchJobLauncher extends JobLaunchSupport {
     }
 
     public void agentCountJob() {
-        run("agentCountJob", createTimeParameter());
-    }
-
-    public void flinkCheckJob() {
-        run("flinkCheckJob", createTimeParameter());
-    }
-
-    public void cleanupInactiveAgentsJob() {
-        if (enableCleanupInactiveAgentsJob) {
-            run(CLEANUP_INACTIVE_AGENTS_JOB_NAME, createTimeParameter());
+        if (batchProperties.isAgentCountJobEnable()) {
+            run("agentCountJob", createTimeParameter());
         } else {
-            logger.debug("Skip " + CLEANUP_INACTIVE_AGENTS_JOB_NAME + ", because 'enableCleanupInactiveAgentsJob' is disabled.");
+            logger.debug("Skip agentCountJob, because 'enableAgentCountJob' is disabled.");
         }
     }
 
+    public void flinkCheckJob() {
+        if (batchProperties.isFlinkCheckJobEnable()) {
+            run("flinkCheckJob", createTimeParameter());
+        } else {
+            logger.debug("Skip flinkCheckJob, because 'enableFlinkCheckJob' is disabled.");
+        }
+    }
+
+    public void cleanupInactiveAgentsJob() {
+        if (batchProperties.isCleanupInactiveAgentsJobEnable()) {
+            run("cleanupInactiveAgentsJob", createTimeParameter());
+        } else {
+            logger.debug("Skip cleanupInactiveAgentsJob, because 'enableCleanupInactiveAgentsJob' is disabled.");
+        }
+    }
 }

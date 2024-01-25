@@ -19,12 +19,24 @@ package com.navercorp.pinpoint.hbase.manager.config;
 import com.navercorp.pinpoint.common.hbase.ConnectionFactoryBean;
 import com.navercorp.pinpoint.common.hbase.HbaseAdminFactory;
 import com.navercorp.pinpoint.common.hbase.HbaseConfigurationFactoryBean;
+import com.navercorp.pinpoint.common.hbase.HbaseSecurityProvider;
 import com.navercorp.pinpoint.common.hbase.HbaseTableFactory;
-import com.navercorp.pinpoint.common.hbase.HbaseTemplate2;
+import com.navercorp.pinpoint.common.hbase.HbaseTemplate;
+import com.navercorp.pinpoint.common.hbase.SimpleHbaseSecurityProvider;
+import com.navercorp.pinpoint.common.hbase.TableFactory;
+import com.navercorp.pinpoint.common.hbase.async.AsyncConnectionFactoryBean;
+import com.navercorp.pinpoint.common.hbase.async.AsyncTableCustomizer;
+import com.navercorp.pinpoint.common.hbase.async.AsyncTableFactory;
+import com.navercorp.pinpoint.common.hbase.async.DefaultAsyncTableCustomizer;
+import com.navercorp.pinpoint.common.hbase.async.HbaseAsyncTableFactory;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.AsyncConnection;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.security.User;
+import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
 import java.util.Properties;
@@ -32,7 +44,7 @@ import java.util.Properties;
 /**
  * @author HyunGil Jeong
  */
-@Configuration
+@org.springframework.context.annotation.Configuration
 @PropertySource("classpath:hbase.properties")
 public class HbaseConfig {
 
@@ -56,6 +68,9 @@ public class HbaseConfig {
 
     @Value("${hbase.client.operation.timeout:5000}")
     private String clientOperationTimeout;
+
+    @Value("${hbase.client.meta.operation.timeout:5000}")
+    private String clientMetaOperationTimeout;
 
     @Value("${hbase.ipc.client.socket.timeout.read:5000}")
     private String ipcClientSocketTimeoutRead;
@@ -119,6 +134,14 @@ public class HbaseConfig {
         this.clientOperationTimeout = clientOperationTimeout;
     }
 
+    public String getClientMetaOperationTimeout() {
+        return clientMetaOperationTimeout;
+    }
+
+    public void setClientMetaOperationTimeout(String clientMetaOperationTimeout) {
+        this.clientMetaOperationTimeout = clientMetaOperationTimeout;
+    }
+
     public String getIpcClientSocketTimeoutRead() {
         return ipcClientSocketTimeoutRead;
     }
@@ -136,7 +159,7 @@ public class HbaseConfig {
     }
 
     @Bean
-    public HbaseConfigurationFactoryBean hbaseConfiguration() {
+    public FactoryBean<Configuration> hbaseConfiguration() {
         Properties properties = new Properties();
         properties.setProperty("hbase.zookeeper.quorum", host);
         properties.setProperty("hbase.zookeeper.property.clientPort", port);
@@ -145,6 +168,7 @@ public class HbaseConfig {
         properties.setProperty("hbase.ipc.client.tcpnodelay", ipcClientTcpNoDelay);
         properties.setProperty("hbase.rpc.timeout", rpcTimeout);
         properties.setProperty("hbase.client.operation.timeout", clientOperationTimeout);
+        properties.setProperty("hbase.client.meta.operation.timeout", clientMetaOperationTimeout);
         properties.setProperty("hbase.ipc.client.socket.timeout.read", ipcClientSocketTimeoutRead);
         properties.setProperty("hbase.ipc.client.socket.timeout.write", ipcClientSocketTimeoutWrite);
         HbaseConfigurationFactoryBean factoryBean = new HbaseConfigurationFactoryBean();
@@ -152,14 +176,38 @@ public class HbaseConfig {
         return factoryBean;
     }
 
+
     @Bean
-    public ConnectionFactoryBean connectionFactory(org.apache.hadoop.conf.Configuration configuration) {
-        return new ConnectionFactoryBean(configuration);
+    @ConditionalOnProperty(name = "pinpoint.modules.hbase.security.auth", havingValue = "simple", matchIfMissing = true)
+    public User hbaseLoginUser(Configuration configuration) {
+        HbaseSecurityProvider securityProvider = new SimpleHbaseSecurityProvider(configuration);
+        return securityProvider.login();
+    }
+
+
+    @Bean
+    public FactoryBean<Connection> connectionFactory(Configuration configuration, User user) {
+        return new ConnectionFactoryBean(configuration, user);
     }
 
     @Bean
-    public HbaseTableFactory hbaseTableFactory(Connection connection) {
+    public TableFactory hbaseTableFactory(Connection connection) {
         return new HbaseTableFactory(connection);
+    }
+
+    @Bean
+    public FactoryBean<AsyncConnection> hbaseAsyncConnectionFactory(Configuration configuration, User user) {
+        return new AsyncConnectionFactoryBean(configuration, user);
+    }
+
+    @Bean
+    public AsyncTableCustomizer asyncTableCustomizer() {
+        return new DefaultAsyncTableCustomizer();
+    }
+
+    @Bean
+    public AsyncTableFactory hbaseAsyncTableFactory(AsyncConnection connection, AsyncTableCustomizer customizer) {
+        return new HbaseAsyncTableFactory(connection, customizer);
     }
 
     @Bean
@@ -168,11 +216,13 @@ public class HbaseConfig {
     }
 
     @Bean
-    public HbaseTemplate2 hbaseTemplate(org.apache.hadoop.conf.Configuration configuration,
-                                        HbaseTableFactory hbaseTableFactory) {
-        HbaseTemplate2 hbaseTemplate2 = new HbaseTemplate2();
+    public HbaseTemplate hbaseTemplate(Configuration configuration,
+                                       TableFactory hbaseTableFactory,
+                                       AsyncTableFactory hbaseAsyncTableFactory) {
+        HbaseTemplate hbaseTemplate2 = new HbaseTemplate();
         hbaseTemplate2.setConfiguration(configuration);
         hbaseTemplate2.setTableFactory(hbaseTableFactory);
+        hbaseTemplate2.setAsyncTableFactory(hbaseAsyncTableFactory);
         return hbaseTemplate2;
     }
 }

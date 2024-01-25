@@ -20,12 +20,10 @@ import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.common.server.bo.SpanEventBo;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
-
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -37,21 +35,16 @@ public class SpanAlignerTest {
 
     private ServiceTypeRegistryService serviceTypeRegistryService;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         serviceTypeRegistryService = Mockito.mock(ServiceTypeRegistryService.class);
         Mockito.when(serviceTypeRegistryService.findServiceType(Mockito.anyShort())).thenReturn(ServiceType.UNKNOWN);
     }
 
     @Test
-    public void singleSpan() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#");
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
+    public void singleSpan() {
+        List<String> expectResult = List.of("#", "##", "###", "####");
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(-1);
         span.setSpanId(1);
@@ -59,7 +52,8 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, -1));
         span.addSpanEvent(makeSpanEvent(2, 3, -1));
-        list.add(span);
+
+        List<SpanBo> list = List.of(span);
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
         final CallTree callTree = spanAligner.align();
@@ -67,18 +61,18 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void nextSpan() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#");
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
-        expectResult.add("#####"); // nextSpan
-        expectResult.add("######");
-        expectResult.add("#######");
-        expectResult.add("########");
+    public void nextSpan() {
+        List<String> expectResult = List.of(
+                "#",
+                "##",
+                "###",
+                "####",
+                "#####", // nextSpan
+                "######",
+                "#######",
+                "########");
 
-        List<SpanBo> list = new ArrayList<>();
+
         SpanBo span = new SpanBo();
         span.setParentSpanId(-1);
         span.setSpanId(1);
@@ -86,7 +80,6 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, -1));
         span.addSpanEvent(makeSpanEvent(2, 3, 100));
-        list.add(span);
 
         SpanBo nextSpan = new SpanBo();
         nextSpan.setParentSpanId(1);
@@ -94,7 +87,8 @@ public class SpanAlignerTest {
         nextSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         nextSpan.addSpanEvent(makeSpanEvent(1, 2, -1));
         nextSpan.addSpanEvent(makeSpanEvent(2, 3, -1));
-        list.add(nextSpan);
+
+        List<SpanBo> list = List.of(span, nextSpan);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -103,20 +97,20 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void duplicatedNextSpan() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#");
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
-        expectResult.add("#####"); // nextSpan
-        expectResult.add("######");
-        expectResult.add("#######");
-        expectResult.add("########");
-        expectResult.add("###");
-        expectResult.add("####");
+    public void duplicatedNextSpan() {
+        List<String> expectResult = List.of(
+                "#",
+                "##",
+                "###",
+                "####",
+                "#####", // nextSpan
+                "######",
+                "#######",
+                "########",
+                "###",
+                "####"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(-1);
         span.setSpanId(1);
@@ -127,7 +121,6 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(3, 2, -1));
         // Duplicated next span
         span.addSpanEvent(makeSpanEvent(4, 3, 100));
-        list.add(span);
 
         SpanBo nextSpan = new SpanBo();
         nextSpan.setParentSpanId(1);
@@ -135,7 +128,6 @@ public class SpanAlignerTest {
         nextSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         nextSpan.addSpanEvent(makeSpanEvent(1, 2, -1));
         nextSpan.addSpanEvent(makeSpanEvent(2, 3, -1));
-        list.add(nextSpan);
 
         // Duplicated span - skip(in LinkMap)
         SpanBo nextSpan2 = new SpanBo();
@@ -144,7 +136,8 @@ public class SpanAlignerTest {
         nextSpan2.addSpanEvent(makeSpanEvent(0, 1, -1));
         nextSpan2.addSpanEvent(makeSpanEvent(1, 2, -1));
         nextSpan2.addSpanEvent(makeSpanEvent(2, 3, -1));
-        list.add(nextSpan2);
+
+        List<SpanBo> list = List.of(span, nextSpan, nextSpan2);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -153,14 +146,15 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void notFoundNextSpan() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#");
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
+    public void notFoundNextSpan() {
+        List<String> expectResult = List.of(
+                "#",
+                "##",
+                "###",
+                "####"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
+
         SpanBo span = new SpanBo();
         span.setParentSpanId(-1);
         span.setSpanId(1);
@@ -168,7 +162,8 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, -1));
         span.addSpanEvent(makeSpanEvent(2, 3, 100));
-        list.add(span);
+
+        List<SpanBo> list = List.of(span);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -177,21 +172,22 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void notFoundRoot() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#"); // unknown
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
+    public void notFoundRoot() {
+        List<String> expectResult = List.of(
+                "#", // unknown
+                "##",
+                "###",
+                "####"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(1);
         span.setSpanId(2);
 
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, -1));
-        list.add(span);
+
+        List<SpanBo> list = List.of(span);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -200,20 +196,19 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void duplicatedRoot() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#");
-        expectResult.add("##");
-        expectResult.add("###");
+    public void duplicatedRoot() {
+        List<String> expectResult = List.of(
+                "#", // unknown
+                "##",
+                "###"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo rootSpan1 = new SpanBo();
         rootSpan1.setParentSpanId(-1);
         rootSpan1.setSpanId(2);
 
         rootSpan1.addSpanEvent(makeSpanEvent(0, 1, -1));
         rootSpan1.addSpanEvent(makeSpanEvent(1, 2, -1));
-        list.add(rootSpan1);
 
         SpanBo rootSpan2 = new SpanBo();
         rootSpan2.setParentSpanId(-1);
@@ -221,7 +216,8 @@ public class SpanAlignerTest {
 
         rootSpan2.addSpanEvent(makeSpanEvent(0, 1, -1));
         rootSpan2.addSpanEvent(makeSpanEvent(1, 1, -1));
-        list.add(rootSpan2);
+
+        List<SpanBo> list = List.of(rootSpan1, rootSpan2);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -230,18 +226,18 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void fill() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#"); // unknown - not found root
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
-        expectResult.add("#####"); // unknown - fill link
-        expectResult.add("######");
-        expectResult.add("#######");
-        expectResult.add("########");
+    public void fill() {
+        List<String> expectResult = List.of(
+                "#", // unknown - not found root
+                "##",
+                "###",
+                "####",
+                "#####", // unknown - fill link
+                "######",
+                "#######",
+                "########"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(0);
         span.setSpanId(1);
@@ -249,7 +245,6 @@ public class SpanAlignerTest {
 
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, 100, 2));
-        list.add(span);
 
         // missing middle span
         // parentSpanId = 1, spanId = 100
@@ -262,7 +257,7 @@ public class SpanAlignerTest {
         nextSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         nextSpan.addSpanEvent(makeSpanEvent(1, 2, -1));
 
-        list.add(nextSpan);
+        List<SpanBo> list = List.of(span, nextSpan);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -271,14 +266,14 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void notFoundFill() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#"); // unknown - not found root
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
+    public void notFoundFill() {
+        List<String> expectResult = List.of(
+                "#", // unknown - not found root
+                "##",
+                "###",
+                "####"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(0);
         span.setSpanId(1);
@@ -286,7 +281,6 @@ public class SpanAlignerTest {
 
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, 100, 2));
-        list.add(span);
 
         // missing middle span
         // parentSpanId = 1, spanId = 100
@@ -299,7 +293,7 @@ public class SpanAlignerTest {
         nextSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         nextSpan.addSpanEvent(makeSpanEvent(1, 2, -1));
 
-        list.add(nextSpan);
+        List<SpanBo> list = List.of(span, nextSpan);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -308,15 +302,16 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void duplicatedSpan() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#"); // unknown - not found root
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
-        expectResult.add("#####");
+    public void duplicatedSpan() {
+        List<String> expectResult = List.of(
+                "#", // unknown - not found root
+                "##",
+                "###",
+                "####",
+                "#####"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
+
         SpanBo span = new SpanBo();
         span.setParentSpanId(0);
         span.setSpanId(1);
@@ -324,7 +319,6 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, -1));
         span.addSpanEvent(makeSpanEvent(2, 3, 100, 3));
-        list.add(span);
 
         SpanBo duplicatedSpan = new SpanBo();
         duplicatedSpan.setParentSpanId(0);
@@ -334,7 +328,6 @@ public class SpanAlignerTest {
         duplicatedSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         duplicatedSpan.addSpanEvent(makeSpanEvent(1, 2, -1));
         duplicatedSpan.addSpanEvent(makeSpanEvent(2, 3, 200));
-        list.add(duplicatedSpan);
 
         SpanBo nextSpan = new SpanBo();
         nextSpan.setParentSpanId(1);
@@ -344,7 +337,8 @@ public class SpanAlignerTest {
         nextSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         nextSpan.addSpanEvent(makeSpanEvent(1, 1, -1));
         nextSpan.addSpanEvent(makeSpanEvent(2, 2, -1));
-        list.add(nextSpan);
+
+        List<SpanBo> list = List.of(span, duplicatedSpan, nextSpan);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -353,19 +347,19 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void multipleSpanNotFoundRoot() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#"); // unknown - not found root
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
-        expectResult.add("#####");
-        expectResult.add("##");
-        expectResult.add("###");
-        expectResult.add("####");
-        expectResult.add("#####");
+    public void multipleSpanNotFoundRoot() {
+        List<String> expectResult = List.of(
+                "#", // unknown - not found root
+                "##",
+                "###",
+                "####",
+                "#####",
+                "##",
+                "###",
+                "####",
+                "#####"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(0);
         span.setSpanId(1);
@@ -373,7 +367,6 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, -1));
         span.addSpanEvent(makeSpanEvent(2, 3, 100, 3));
-        list.add(span);
 
         SpanBo secondSpan = new SpanBo();
         secondSpan.setParentSpanId(0);
@@ -382,7 +375,8 @@ public class SpanAlignerTest {
         secondSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         secondSpan.addSpanEvent(makeSpanEvent(1, 2, -1));
         secondSpan.addSpanEvent(makeSpanEvent(2, 3, -1));
-        list.add(secondSpan);
+
+        List<SpanBo> list = List.of(span, secondSpan);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -391,13 +385,13 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void corrupted() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#");
-        expectResult.add("##");
-        expectResult.add("###"); // corrupted
+    public void corrupted() {
+        List<String> expectResult = List.of(
+                "#",
+                "##",
+                "###" // corrupted
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(-1);
         span.setSpanId(1);
@@ -405,7 +399,8 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         // missing span event
         span.addSpanEvent(makeSpanEvent(2, 3, 100, 3));
-        list.add(span);
+
+        List<SpanBo> list = List.of(span);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -414,15 +409,15 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void corruptedNextSpan() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#");
-        expectResult.add("##");
-        expectResult.add("###"); // corrupted
-        expectResult.add("####"); // nextSpan
-        expectResult.add("#####");
+    public void corruptedNextSpan() {
+        List<String> expectResult = List.of(
+                "#",
+                "##",
+                "###", // corrupted
+                "####", // nextSpan
+                "#####"
+        );
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(-1);
         span.setSpanId(1);
@@ -430,14 +425,14 @@ public class SpanAlignerTest {
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         // missing span event
         span.addSpanEvent(makeSpanEvent(2, 3, 100, 3));
-        list.add(span);
 
         SpanBo nextSpan = new SpanBo();
         nextSpan.setParentSpanId(1);
         nextSpan.setSpanId(100);
 
         nextSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
-        list.add(nextSpan);
+
+        List<SpanBo> list = List.of(span, nextSpan);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
@@ -446,30 +441,26 @@ public class SpanAlignerTest {
     }
 
     @Test
-    public void emptySpanList() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#"); // unknown
+    public void emptySpanList() {
+        List<String> expectResult = List.of("#");
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
-        List<SpanBo> list = new ArrayList<>();
-        SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);
+
+        SpanAligner spanAligner = new SpanAligner(List.of(), filter, serviceTypeRegistryService);
         final CallTree callTree = spanAligner.align();
         CallTreeAssert.assertDepth("emptySpanList", callTree, expectResult);
     }
 
     @Test
-    public void loopSpanList() throws Exception {
-        List<String> expectResult = new ArrayList<>();
-        expectResult.add("#"); // unknown
+    public void loopSpanList() {
+        List<String> expectResult = List.of("#"); // unknown
 
-        List<SpanBo> list = new ArrayList<>();
         SpanBo span = new SpanBo();
         span.setParentSpanId(100);
         span.setSpanId(1);
 
         span.addSpanEvent(makeSpanEvent(0, 1, -1));
         span.addSpanEvent(makeSpanEvent(1, 2, 100));
-        list.add(span);
 
         SpanBo nextSpan = new SpanBo();
         nextSpan.setParentSpanId(1);
@@ -477,7 +468,8 @@ public class SpanAlignerTest {
 
         nextSpan.addSpanEvent(makeSpanEvent(0, 1, -1));
         nextSpan.addSpanEvent(makeSpanEvent(0, 2, 1));
-        list.add(nextSpan);
+
+        List<SpanBo> list = List.of(span, nextSpan);
 
         Predicate<SpanBo> filter = SpanFilters.collectorAcceptTimeFilter(1);
         SpanAligner spanAligner = new SpanAligner(list, filter, serviceTypeRegistryService);

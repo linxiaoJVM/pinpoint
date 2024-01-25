@@ -41,7 +41,7 @@ public class HttpServerRequestAdaptor implements RequestAdaptor<HttpServerReques
     @Override
     public Collection<String> getHeaderNames(HttpServerRequest request) {
         final MultiMap headers = request.headers();
-        return headers == null ? Collections.<String>emptyList() : headers.names();
+        return headers == null ? Collections.emptyList() : headers.names();
     }
 
 
@@ -51,13 +51,24 @@ public class HttpServerRequestAdaptor implements RequestAdaptor<HttpServerReques
     }
 
     @Override
+    public String getMethodName(HttpServerRequest request) {
+        return request.method().name();
+    }
+
+    @Override
     public String getEndPoint(HttpServerRequest request) {
         if (request.localAddress() != null) {
             final int port = request.localAddress().port();
             if (port <= 0) {
                 return request.host();
-            } else {
-                return request.host() + ":" + port;
+            }
+            final String host = request.host();
+            if (host != null) {
+                if (host.contains(":")) {
+                    return host;
+                } else {
+                    return host + ":" + port;
+                }
             }
         }
         return null;
@@ -69,11 +80,11 @@ public class HttpServerRequestAdaptor implements RequestAdaptor<HttpServerReques
         if (socketAddress != null) {
             return socketAddress.toString();
         }
-        return "unknown";
+        return "UNKNOWN";
     }
 
     @Override
     public String getAcceptorHost(HttpServerRequest request) {
-        return NetworkUtils.getHostFromURL(request.uri().toString());
+        return NetworkUtils.getHostFromURL(request.uri());
     }
 }

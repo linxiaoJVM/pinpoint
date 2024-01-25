@@ -19,8 +19,8 @@ package com.navercorp.pinpoint.web.calltree.span;
 import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.List;
 import java.util.Objects;
@@ -32,7 +32,7 @@ import java.util.function.Predicate;
  * @author jaehong.kim
  */
 public class SpanAligner {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
 
     private final TraceState traceState = new TraceState();
@@ -165,11 +165,13 @@ public class SpanAligner {
         }
         int size = nodeList.size();
         if (size > 1) {
+            boolean result = false;
             for (Node node : nodeList) {
                 if (putNodeToLink(link, node, true)) {
-                    return true;
+                    result = true;
                 }
             }
+            return result;
         } else if (size == 1) {
             Node node = nodeList.get(0);
             if (putNodeToLink(link, node, false)) {
@@ -252,7 +254,7 @@ public class SpanAligner {
         // find root
         final NodeList rootNodeList = nodeList.filter(NodeList.rootFilter());
         if (rootNodeList.size() >= 1) {
-            return selectInRootNodeList(rootNodeList);
+            return selectInRootNodeList(rootNodeList, true);
         }
 
         // Corner case : root node not found
@@ -274,6 +276,8 @@ public class SpanAligner {
     private CallTree selectFirstSpan(NodeList topNodeList) {
         final Node node = topNodeList.get(0);
         if (node.getSpanCallTree().isRootSpan()) {
+            logger.info("Select root span in top node list");
+
             traceState.complete();
             return node.getSpanCallTree();
         }
@@ -307,13 +311,18 @@ public class SpanAligner {
         return selectInNodeList(node, topNodeList);
     }
 
-    private CallTree selectInRootNodeList(final NodeList rootNodeList) {
+    private CallTree selectInRootNodeList(final NodeList rootNodeList, boolean bestMatchingState) {
         // in root list
         if (rootNodeList.size() == 1) {
             logger.info("Select root span in top node list");
 
             final Node node = rootNodeList.get(0);
-            traceState.progress();
+
+            if (bestMatchingState) {
+                traceState.complete();
+            } else {
+                traceState.progress();
+            }
             return node.getSpanCallTree();
         }
         // find focus

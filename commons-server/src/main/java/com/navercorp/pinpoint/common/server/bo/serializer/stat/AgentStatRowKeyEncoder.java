@@ -20,8 +20,6 @@ import com.navercorp.pinpoint.common.server.bo.serializer.RowKeyEncoder;
 import com.navercorp.pinpoint.common.util.BytesUtils;
 import com.navercorp.pinpoint.common.util.TimeUtils;
 
-import org.springframework.stereotype.Component;
-
 import java.util.Objects;
 
 import static com.navercorp.pinpoint.common.hbase.HbaseTableConstants.AGENT_ID_MAX_LEN;
@@ -29,7 +27,6 @@ import static com.navercorp.pinpoint.common.hbase.HbaseTableConstants.AGENT_ID_M
 /**
  * @author HyunGil Jeong
  */
-@Component
 public class AgentStatRowKeyEncoder implements RowKeyEncoder<AgentStatRowKeyComponent> {
 
     @Override

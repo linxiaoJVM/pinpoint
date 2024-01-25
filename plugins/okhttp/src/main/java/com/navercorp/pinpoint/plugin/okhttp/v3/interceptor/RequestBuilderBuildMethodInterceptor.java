@@ -16,7 +16,6 @@
 
 package com.navercorp.pinpoint.plugin.okhttp.v3.interceptor;
 
-import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.context.TraceId;
@@ -43,13 +42,12 @@ public class RequestBuilderBuildMethodInterceptor implements AroundInterceptor {
     private final boolean isDebug = logger.isDebugEnabled();
 
     private final TraceContext traceContext;
-    private final MethodDescriptor methodDescriptor;
     private final InterceptorScope interceptorScope;
-    private final RequestTraceWriter<Request.Builder> requestTraceWriter;;
+    private final RequestTraceWriter<Request.Builder> requestTraceWriter;
+    ;
 
-    public RequestBuilderBuildMethodInterceptor(TraceContext traceContext, MethodDescriptor methodDescriptor, InterceptorScope interceptorScope) {
+    public RequestBuilderBuildMethodInterceptor(TraceContext traceContext, InterceptorScope interceptorScope) {
         this.traceContext = traceContext;
-        this.methodDescriptor = methodDescriptor;
         this.interceptorScope = interceptorScope;
 
         ClientHeaderAdaptor<Request.Builder> clientHeaderAdaptor = new RequestBuilder3ClientHeaderAdaptor();
@@ -72,22 +70,21 @@ public class RequestBuilderBuildMethodInterceptor implements AroundInterceptor {
                 return;
             }
             final Request.Builder builder = ((Request.Builder) target);
-            if (!trace.canSampled()) {
-                this.requestTraceWriter.write(builder);
-                return;
-            }
-
-            final InterceptorScopeInvocation invocation = interceptorScope.getCurrentInvocation();
-            final Object attachment = getAttachment(invocation);
-            if (!(attachment instanceof TraceId)) {
-                if (isDebug) {
-                    logger.debug("Invalid interceptor scope invocation. {}", invocation);
+            if (trace.canSampled()) {
+                final InterceptorScopeInvocation invocation = interceptorScope.getCurrentInvocation();
+                final Object attachment = getAttachment(invocation);
+                if (!(attachment instanceof TraceId)) {
+                    if (isDebug) {
+                        logger.debug("Invalid interceptor scope invocation. {}", invocation);
+                    }
+                    return;
                 }
-                return;
+                final TraceId nextId = (TraceId) attachment;
+                final String host = getHost(target);
+                this.requestTraceWriter.write(builder, nextId, host);
+            } else {
+                this.requestTraceWriter.write(builder);
             }
-            final TraceId nextId = (TraceId) attachment;
-            final String host = getHost(target);
-            this.requestTraceWriter.write(builder, nextId, host);
         } catch (Throwable t) {
             logger.warn("Failed to BEFORE process. {}", t.getMessage(), t);
         }
@@ -112,7 +109,7 @@ public class RequestBuilderBuildMethodInterceptor implements AroundInterceptor {
 
     private String getDestinationId(HttpUrl httpUrl) {
         if (httpUrl == null || httpUrl.host() == null) {
-            return "Unknown";
+            return "UNKNOWN";
         }
         final int port = EndPointUtils.getPort(httpUrl.port(), HttpUrl.defaultPort(httpUrl.scheme()));
         return HostAndPort.toHostAndPortString(httpUrl.host(), port);
@@ -120,8 +117,5 @@ public class RequestBuilderBuildMethodInterceptor implements AroundInterceptor {
 
     @Override
     public void after(Object target, Object[] args, Object result, Throwable throwable) {
-        if (isDebug) {
-            logger.afterInterceptor(target, args);
-        }
     }
 }

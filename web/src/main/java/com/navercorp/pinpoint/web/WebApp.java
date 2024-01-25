@@ -17,26 +17,41 @@
 package com.navercorp.pinpoint.web;
 
 import com.navercorp.pinpoint.common.server.util.ServerBootLogger;
-import com.navercorp.pinpoint.web.cache.CacheConfiguration;
+import com.navercorp.pinpoint.datasource.MainDataSourcePropertySource;
+import com.navercorp.pinpoint.login.basic.PinpointBasicLoginConfig;
+import com.navercorp.pinpoint.redis.RedisPropertySources;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.ImportResource;
 
 @SpringBootConfiguration
-@EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class, TransactionAutoConfiguration.class,
-        SecurityAutoConfiguration.class})
-@ImportResource({"classpath:applicationContext-web.xml", "classpath:servlet-context-web.xml"})
-@Import({WebAppPropertySources.class, WebServerConfig.class, WebMvcConfig.class, CacheConfiguration.class})
+@EnableAutoConfiguration(exclude = {
+        TransactionAutoConfiguration.class,
+        SecurityAutoConfiguration.class,
+        SqlInitializationAutoConfiguration.class,
+        SpringDataWebAutoConfiguration.class,
+        RedisAutoConfiguration.class,
+        RedisRepositoriesAutoConfiguration.class,
+        RedisReactiveAutoConfiguration.class,
+})
+@Import({
+        PinpointWebModule.class,
+        MainDataSourcePropertySource.class,
+        RedisPropertySources.class,
+})
 public class WebApp  {
     private static final ServerBootLogger logger = ServerBootLogger.getLogger(WebApp.class);
 
     public static void main(String[] args) {
         try {
-            WebStarter starter = new WebStarter(WebApp.class, PinpointBasicLoginConfig.class);
+            WebStarter starter = new WebStarter(WebApp.class, PinpointBasicLoginConfig.class, AuthorizationConfig.class);
             starter.start(args);
         } catch (Exception exception) {
             logger.error("[WebApp] could not launch app.", exception);

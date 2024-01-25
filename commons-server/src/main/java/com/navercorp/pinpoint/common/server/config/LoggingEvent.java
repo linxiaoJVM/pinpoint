@@ -17,7 +17,7 @@
 package com.navercorp.pinpoint.common.server.config;
 
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.lang.reflect.Field;
@@ -38,7 +38,7 @@ public class LoggingEvent implements AnnotationVisitor.FieldVisitor {
     public void visit(Field field, Object value) {
         if (logger.isDebugEnabled()) {
             final Value annotation = field.getAnnotation(Value.class);
-            logger.debug("{} {} @Value(\"{}\") = {}", field.getType().getSimpleName(), field.getName(), annotation.value(), value);
+            logger.debug("{} {} @Value('{}') = {}", field.getType().getSimpleName(), field.getName(), annotation.value(), value);
         }
     }
 }

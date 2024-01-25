@@ -16,6 +16,7 @@
 package com.navercorp.pinpoint.web.view;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.navercorp.pinpoint.common.profiler.util.TransactionId;
 import com.navercorp.pinpoint.common.profiler.util.TransactionIdUtils;
@@ -24,14 +25,13 @@ import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogramFormat;
 import com.navercorp.pinpoint.web.applicationmap.link.Link;
 import com.navercorp.pinpoint.web.applicationmap.nodes.Node;
 import com.navercorp.pinpoint.web.calltree.span.TraceState;
-import com.navercorp.pinpoint.web.config.LogConfiguration;
 import com.navercorp.pinpoint.web.vo.callstacks.Record;
 import com.navercorp.pinpoint.web.vo.callstacks.RecordSet;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -49,18 +49,28 @@ public class TransactionInfoViewModel {
     private final RecordSet recordSet;
     private final TraceState.State completeState;
 
-
-    private final LogConfiguration logConfiguration;
+    private final LogLinkView logLinkView;
     private TimeHistogramFormat timeHistogramFormat = TimeHistogramFormat.V1;
 
-    public TransactionInfoViewModel(TransactionId transactionId, long spanId, Collection<Node> nodes, Collection<Link> links, RecordSet recordSet, TraceState.State state, LogConfiguration logConfiguration) {
+    public TransactionInfoViewModel(TransactionId transactionId, long spanId,
+                                    Collection<Node> nodes, Collection<Link> links,
+                                    RecordSet recordSet, TraceState.State state,
+                                    LogLinkView logLinkView) {
         this.transactionId = transactionId;
         this.spanId = spanId;
-        this.nodes = nodes;
-        this.links = links;
+        if (nodes == null) {
+            this.nodes = Collections.EMPTY_LIST;
+        } else {
+            this.nodes = nodes;
+        }
+        if (links == null) {
+            this.links = Collections.EMPTY_LIST;
+        } else {
+            this.links = links;
+        }
         this.recordSet = recordSet;
         this.completeState = state;
-        this.logConfiguration = Objects.requireNonNull(logConfiguration, "logConfiguration");
+        this.logLinkView = Objects.requireNonNull(logLinkView, "logLinkView");
     }
 
     public void setTimeHistogramFormat(TimeHistogramFormat timeHistogramFormat) {
@@ -112,55 +122,25 @@ public class TransactionInfoViewModel {
         return completeState.toString();
     }
 
-    @JsonProperty("logLinkEnable")
-    public boolean isLogLinkEnable() {
-        return logConfiguration.isLogLinkEnable();
-    }
-
     @JsonProperty("loggingTransactionInfo")
     public boolean isLoggingTransactionInfo() {
         return recordSet.isLoggingTransactionInfo();
     }
 
-    @JsonProperty("logButtonName")
-    public String getLogButtonName() {
-        return logConfiguration.getLogButtonName();
-    }
-
-    @JsonProperty("logPageUrl")
-    public String getLogPageUrl() {
-        final String logPageUrl = logConfiguration.getLogPageUrl();
-        if (StringUtils.isNotEmpty(logPageUrl)) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("transactionId=").append(getTransactionId());
-            sb.append("&spanId=").append(spanId);
-            sb.append("&applicationName=").append(getApplicationId());
-            sb.append("&time=").append(recordSet.getStartTime());
-            return logPageUrl + "?" + sb.toString();
-        }
-
-        return "";
-    }
-
-    @JsonProperty("disableButtonMessage")
-    public String getDisableButtonMessage() {
-        return logConfiguration.getDisableButtonMessage();
+    @JsonUnwrapped
+    public LogLinkView getLogLink() {
+        return logLinkView;
     }
 
     @JsonProperty("callStackIndex")
     public Map<String, Integer> getCallStackIndex() {
-        final Map<String, Integer> index = new HashMap<String, Integer>();
-        for (int i = 0; i < CallStack.INDEX.length; i++) {
-            index.put(CallStack.INDEX[i], i);
-        }
-
-        return index;
+        return Field.getFieldMap();
     }
 
     @JsonProperty("callStack")
     public List<CallStack> getCallStack() {
 
-        List<CallStack> list = new ArrayList<CallStack>();
+        List<CallStack> list = new ArrayList<>();
         boolean first = true;
         long barRatio = 0;
         for (Record record : recordSet.getRecordList()) {
@@ -182,8 +162,8 @@ public class TransactionInfoViewModel {
     }
 
     @JsonProperty("applicationMapData")
-    public Map<String, List<Object>> getApplicationMapData() {
-        Map<String, List<Object>> result = new HashMap<String, List<Object>>();
+    public Map<String, Collection<?>> getApplicationMapData() {
+
         if (timeHistogramFormat == TimeHistogramFormat.V2) {
             for (Node node : nodes) {
                 node.setTimeHistogramFormat(timeHistogramFormat);
@@ -193,48 +173,67 @@ public class TransactionInfoViewModel {
             }
         }
 
-        List<Object> nodeDataArray = new ArrayList<>(nodes);
-        result.put("nodeDataArray", nodeDataArray);
-        List<Object> linkDataArray = new ArrayList<>(links);
-        result.put("linkDataArray", linkDataArray);
+        return Map.of(
+                "nodeDataArray", nodes,
+                "linkDataArray", links
+        );
+    }
 
-        return result;
+    enum Field {
+        depth,
+        begin,
+        end,
+        excludeFromTimeline,
+        applicationName,
+        tab,
+        id,
+        parentId,
+        isMethod,
+        hasChild,
+        title,
+        arguments,
+        executeTime,
+        gap,
+        elapsedTime,
+        barWidth,
+        executionMilliseconds,
+        simpleClassName,
+        methodType,
+        apiType,
+        agent,
+        isFocused,
+        hasException,
+        isAuthorized,
+        agentName,
+        lineNumber,
+        location,
+        applicationServiceType,
+        exceptionChainId;
+
+        private static final Map<String, Integer> MAP = Collections.unmodifiableMap(toNameOrdinalMap());
+
+
+        private static Map<String, Integer> toNameOrdinalMap() {
+            final Map<String, Integer> index = new LinkedHashMap<>();
+            for (Field field : Field.values()) {
+                index.put(field.name(), field.ordinal());
+            }
+            return index;
+        }
+
+        public static Map<String, Integer> getFieldMap() {
+            return MAP;
+        }
     }
 
     @JsonSerialize(using = TransactionInfoCallStackSerializer.class)
     public static class CallStack {
-        static final String[] INDEX = {"depth",
-                "begin",
-                "end",
-                "excludeFromTimeline",
-                "applicationName",
-                "tab",
-                "id",
-                "parentId",
-                "isMethod",
-                "hasChild",
-                "title",
-                "arguments",
-                "executeTime",
-                "gap",
-                "elapsedTime",
-                "barWidth",
-                "executionMilliseconds",
-                "simpleClassName",
-                "methodType",
-                "apiType",
-                "agent",
-                "isFocused",
-                "hasException",
-                "isAuthorized",
-                "agentName"
-        };
-
         private String depth = "";
         private long begin;
         private long end;
         private boolean excludeFromTimeline;
         private String applicationName = "";
+        private String applicationServiceType = "";
         private int tab;
         private String id = "";
         private String parentId = "";
@@ -254,13 +253,17 @@ public class TransactionInfoViewModel {
         private String agentName = "";
         private boolean isFocused;
         private boolean hasException;
+        private String exceptionChainId = "";
         private boolean isAuthorized;
+        private int lineNumber;
+        private String location = "";
 
         public CallStack(final Record record, long barRatio) {
             begin = record.getBegin();
             end = record.getBegin() + record.getElapsed();
             excludeFromTimeline = record.isExcludeFromTimeline();
             applicationName = record.getApplicationName();
+            applicationServiceType = record.getApplicationServiceType();
             tab = record.getTab();
             id = String.valueOf(record.getId());
             if (record.getParentId() > 0) {
@@ -284,7 +287,10 @@ public class TransactionInfoViewModel {
             agentName = record.getAgentName();
             isFocused = record.isFocused();
             hasException = record.getHasException();
+            exceptionChainId = record.getExceptionChainId() >= 0 ? String.valueOf(record.getExceptionChainId()) : "";
             isAuthorized = record.isAuthorized();
+            lineNumber = record.getLineNumber();
+            location = record.getLocation();
         }
 
         public String getDepth() {
@@ -305,6 +311,10 @@ public class TransactionInfoViewModel {
 
         public String getApplicationName() {
             return applicationName;
+        }
+
+        public String getApplicationServiceType() {
+            return applicationServiceType;
         }
 
         public int getTab() {
@@ -383,8 +393,20 @@ public class TransactionInfoViewModel {
             return hasException;
         }
 
+        public String getExceptionChainId() {
+            return exceptionChainId;
+        }
+
         public boolean isAuthorized() {
             return isAuthorized;
+        }
+
+        public int getLineNumber() {
+            return lineNumber;
+        }
+
+        public String getLocation() {
+            return location;
         }
     }
 }

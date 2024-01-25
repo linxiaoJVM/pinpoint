@@ -17,10 +17,10 @@
 package com.navercorp.pinpoint.profiler.context.grpc.config;
 
 import com.navercorp.pinpoint.bootstrap.agentdir.AgentDirectory;
-import com.navercorp.pinpoint.bootstrap.config.Value;
-import com.navercorp.pinpoint.bootstrap.config.util.ValueAnnotationProcessor;
 import com.navercorp.pinpoint.bootstrap.module.JavaModule;
-import com.navercorp.pinpoint.bootstrap.util.spring.PropertyPlaceholderHelper;
+import com.navercorp.pinpoint.common.config.Value;
+import com.navercorp.pinpoint.common.config.util.ValueAnnotationProcessor;
+import com.navercorp.pinpoint.common.config.util.spring.PropertyPlaceholderHelper;
 import com.navercorp.pinpoint.grpc.client.config.ClientOption;
 import com.navercorp.pinpoint.grpc.client.config.SslOption;
 
@@ -60,10 +60,14 @@ public class GrpcTransportConfig {
     private static final long DEFAULT_DISCARD_MAX_PENDING_THRESHOLD = 1024;
     private static final long DEFAULT_DISCARD_COUNT_FOR_RECONNECT = 1000;
     private static final long DEFAULT_NOT_READY_TIMEOUT_MILLIS = 5 * 60 * 1000;
+    private static final long DEFAULT_RPC_MAX_AGE_MILLIS = 3153600000000L; // Disabled
+    private static final long DEFAULT_RENEW_TRANSPORT_PERIOD_MILLIS = 3153600000000L; // Disabled
 
     private static final int DEFAULT_METADATA_RETRY_MAX_COUNT = 3;
     private static final int DEFAULT_METADATA_RETRY_DELAY_MILLIS = 1000;
     public static final boolean DEFAULT_NETTY_SYSTEM_PROPERTY_TRY_REFLECTIVE_SET_ACCESSIBLE = true;
+
+    private static final boolean DEFAULT_ENABLE_SPAN_STATS_LOGGING = false;
 
     private ClientOption agentClientOption = new ClientOption();
     private ClientOption metadataClientOption = new ClientOption();
@@ -130,6 +134,8 @@ public class GrpcTransportConfig {
     private int spanSenderExecutorQueueSize = DEFAULT_SPAN_SENDER_EXECUTOR_QUEUE_SIZE;
     @Value("${profiler.transport.grpc.span.sender.channel.executor.queue.size}")
     private int spanChannelExecutorQueueSize = DEFAULT_SPAN_CHANNEL_EXECUTOR_QUEUE_SIZE;
+    @Value("${profiler.transport.grpc.span.stats.logging.enable}")
+    private boolean spanEnableStatLogging = DEFAULT_ENABLE_SPAN_STATS_LOGGING;
 
     @Value("${profiler.transport.grpc.span.sender.discardpolicy.logger.discard.ratelimit}")
     private int spanDiscardLogRateLimit = DEFAULT_DISCARD_LOG_RATE_LIMIT;
@@ -139,6 +145,11 @@ public class GrpcTransportConfig {
     private long spanDiscardCountForReconnect = DEFAULT_DISCARD_COUNT_FOR_RECONNECT;
     @Value("${profiler.transport.grpc.span.sender.discardpolicy.not-ready-timeout-millis}")
     private long spanNotReadyTimeoutMillis = DEFAULT_NOT_READY_TIMEOUT_MILLIS;
+    @Value("${profiler.transport.grpc.span.sender.rpc.age.max.millis}")
+    private long spanRpcMaxAgeMillis = DEFAULT_RPC_MAX_AGE_MILLIS;
+
+    @Value("${profiler.transport.grpc.loadbalancer.renew.period.millis}")
+    private long renewTransportPeriodMillis = DEFAULT_RENEW_TRANSPORT_PERIOD_MILLIS;
 
     @Value("${" + KEY_PROFILER_CONFIG_NETTY_TRY_REFLECTION_SET_ACCESSIBLE + "}")
     private boolean nettySystemPropertyTryReflectiveSetAccessible = DEFAULT_NETTY_SYSTEM_PROPERTY_TRY_REFLECTIVE_SET_ACCESSIBLE;
@@ -161,8 +172,7 @@ public class GrpcTransportConfig {
         this.spanClientOption = readSpanClientOption(properties);
 
         // Ssl
-        SslOption sslOption = readSslOption(properties);
-        this.sslOption = sslOption;
+        this.sslOption = readSslOption(properties);
     }
 
     private ClientOption readAgentClientOption(final Properties properties) {
@@ -292,6 +302,12 @@ public class GrpcTransportConfig {
     public long getSpanNotReadyTimeoutMillis() {
         return spanNotReadyTimeoutMillis;
     }
+    public long getSpanRpcMaxAgeMillis() {
+        return spanRpcMaxAgeMillis;
+    }
+    public long getRenewTransportPeriodMillis() {
+        return renewTransportPeriodMillis;
+    }
 
     public long getAgentRequestTimeout() {
         return agentRequestTimeout;
@@ -351,6 +367,10 @@ public class GrpcTransportConfig {
 
     public int getMetadataRetryDelayMillis() {
         return metadataRetryDelayMillis;
+    }
+
+    public boolean isSpanEnableStatLogging() {
+        return spanEnableStatLogging;
     }
 
     public boolean isNettySystemPropertyTryReflectiveSetAccessible() {

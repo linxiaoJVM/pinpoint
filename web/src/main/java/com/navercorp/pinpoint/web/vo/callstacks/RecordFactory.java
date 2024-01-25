@@ -15,35 +15,32 @@
  */
 package com.navercorp.pinpoint.web.vo.callstacks;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
 import com.navercorp.pinpoint.common.server.bo.AnnotationBo;
 import com.navercorp.pinpoint.common.server.bo.ApiMetaDataBo;
 import com.navercorp.pinpoint.common.server.bo.MethodTypeEnum;
 import com.navercorp.pinpoint.common.server.trace.Api;
 import com.navercorp.pinpoint.common.server.trace.ApiParser;
 import com.navercorp.pinpoint.common.server.trace.ApiParserProvider;
-import com.navercorp.pinpoint.loader.service.AnnotationKeyRegistryService;
-import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
+import com.navercorp.pinpoint.common.server.util.AnnotationUtils;
 import com.navercorp.pinpoint.common.trace.AnnotationKey;
 import com.navercorp.pinpoint.common.trace.AnnotationKeyMatcher;
 import com.navercorp.pinpoint.common.trace.ServiceType;
-import com.navercorp.pinpoint.common.server.util.AnnotationUtils;
+import com.navercorp.pinpoint.loader.service.AnnotationKeyRegistryService;
+import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
 import com.navercorp.pinpoint.web.calltree.span.Align;
 import com.navercorp.pinpoint.web.calltree.span.CallTreeNode;
-import com.navercorp.pinpoint.web.service.AnnotationKeyMatcherService;
+import com.navercorp.pinpoint.web.component.AnnotationKeyMatcherService;
 import com.navercorp.pinpoint.web.service.ProxyRequestTypeRegistryService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 
 /**
  * @author minwoo.jung
  */
 public class RecordFactory {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     // spans with id = 0 are regarded as root - start at 1
     private int idGen = 1;
@@ -95,7 +92,9 @@ public class RecordFactory {
                 align.getSpanId(),
                 align.getExecutionMilliseconds(),
                 api.getMethodTypeEnum(),
-                true);
+                true,
+                api.getLineNumber(),
+                api.getLocation());
         record.setSimpleClassName(api.getClassName());
         record.setFullApiDescription(api.getDescription());
 
@@ -168,7 +167,9 @@ public class RecordFactory {
                 align.getSpanId(),
                 align.getExecutionMilliseconds(),
                 MethodTypeEnum.DEFAULT,
-                false);
+                false,
+                0,
+                "");
 
         return record;
     }
@@ -177,7 +178,12 @@ public class RecordFactory {
         if (!align.hasException()) {
             return null;
         }
-        return new ExceptionRecord(depth, getNextId(), parentId, align);
+        return new ExceptionRecord(
+                depth, getNextId(), parentId, align,
+                registry.findServiceType(
+                        align.getApplicationServiceType()
+                )
+        );
     }
 
     public List<Record> getAnnotations(final int depth, final int parentId, Align align) {
@@ -187,7 +193,9 @@ public class RecordFactory {
             if (key.isViewInRecordSet()) {
                 final String title = this.annotationRecordFormatter.formatTitle(key, annotation, align);
                 final String arguments = this.annotationRecordFormatter.formatArguments(key, annotation, align);
-                final Record record = new AnnotationRecord(depth, getNextId(), parentId, title, arguments, annotation.isAuthorized());
+                final Record record = new AnnotationRecord(
+                        depth, getNextId(), parentId, title, arguments, annotation.isAuthorized()
+                );
                 list.add(record);
             }
         }
@@ -223,11 +231,14 @@ public class RecordFactory {
                 return parser.parse(apiMetaData);
             }
             // parse error
-            return new Api(apiInfo, "", apiInfo, apiMetaData.getMethodTypeEnum());
+            return new Api.Builder(apiInfo, "", apiInfo, apiMetaData.getMethodTypeEnum())
+                    .setLineNumber(apiMetaData.getLineNumber())
+                    .setLocation(apiMetaData.getLocation())
+                    .build();
         } else {
             AnnotationKey apiMetaDataError = getApiMetaDataError(align.getAnnotationBoList());
 
-            return new Api(apiMetaDataError.getName(), "", "", MethodTypeEnum.DEFAULT);
+            return new Api.Builder(apiMetaDataError.getName(), "", "", MethodTypeEnum.DEFAULT).build();
         }
     }
 

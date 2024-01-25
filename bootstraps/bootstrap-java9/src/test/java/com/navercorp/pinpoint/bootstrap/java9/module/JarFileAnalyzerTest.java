@@ -18,19 +18,22 @@ package com.navercorp.pinpoint.bootstrap.java9.module;
 
 import com.navercorp.pinpoint.bootstrap.module.Providers;
 import com.navercorp.pinpoint.common.util.CodeSourceUtils;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -38,13 +41,13 @@ import static org.mockito.Mockito.when;
  * @author Woonduk Kang(emeroad)
  */
 public class JarFileAnalyzerTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final Set<String> SLF4J_API_PACKAGE = Set.of("org.slf4j", "org.slf4j.event", "org.slf4j.helpers", "org.slf4j.spi");
+    private static final String PACKAGE_PREFIX = "org.apache.commons.io.";
 
     @Test
     public void packageAnalyzer() throws IOException {
-        URL url = CodeSourceUtils.getCodeLocation(Logger.class);
+        URL url = CodeSourceUtils.getCodeLocation(IOUtils.class);
 
         JarFile jarFile = new JarFile(url.getFile());
         logger.debug("jarFile:{}", jarFile.getName());
@@ -55,7 +58,21 @@ public class JarFileAnalyzerTest {
 
         logger.debug("package:{}", packageSet);
 
-        Assert.assertEquals(packageSet, SLF4J_API_PACKAGE);
+        long packageCount = jarFile.stream()
+                .filter(this::packageFilter)
+                .count();
+
+        assertThat(packageSet).hasSize((int) packageCount);
+    }
+
+    private boolean packageFilter(JarEntry jarEntry) {
+        String directoryPrefix = PACKAGE_PREFIX.replace(".", "/");
+        if (jarEntry.isDirectory()) {
+            if (jarEntry.getName().startsWith(directoryPrefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Test
@@ -63,11 +80,12 @@ public class JarFileAnalyzerTest {
         URL url = CodeSourceUtils.getCodeLocation(Logger.class);
         logger.debug("url:{}", url);
 
+        try (JarFile jarFile = new JarFile(url.getFile())) {
+            logger.debug("jarFile:{}", jarFile.getName());
 
-        JarFile jarFile = new JarFile(url.getFile());
-        logger.debug("jarFile:{}", jarFile.getName());
-        File file = new File(jarFile.getName());
-        logger.debug("url1:{}", file.toURI());
+            Path file = Paths.get(jarFile.getName());
+            logger.debug("url1:{}", file.toUri());
+        }
     }
 
 
@@ -78,21 +96,21 @@ public class JarFileAnalyzerTest {
         when(jarEntry.getName()).thenReturn("test.class");
 
         String empty = filter.filter(jarEntry);
-        Assert.assertNull(empty);
+        Assertions.assertNull(empty);
     }
 
     @Test
     public void providers() throws IOException {
         // Jar
-        URL url = CodeSourceUtils.getCodeLocation(com.mysql.jdbc.Driver.class);
+        URL url = CodeSourceUtils.getCodeLocation(org.apache.logging.log4j.LogManager.class);
 
         JarFile jarFile = new JarFile(url.getFile());
         PackageAnalyzer analyzer = new JarFileAnalyzer(jarFile);
         PackageInfo analyze = analyzer.analyze();
         List<Providers> providers = analyze.getProviders();
         Providers first = providers.get(0);
-        Assert.assertEquals(first.getService(), "java.sql.Driver");
-        Assert.assertTrue(first.getProviders().contains("com.mysql.jdbc.Driver"));
+        Assertions.assertEquals("org.apache.logging.log4j.util.PropertySource", first.getService());
+        assertThat(first.getProviders()).contains("org.apache.logging.log4j.util.EnvironmentPropertySource");
 
 
     }

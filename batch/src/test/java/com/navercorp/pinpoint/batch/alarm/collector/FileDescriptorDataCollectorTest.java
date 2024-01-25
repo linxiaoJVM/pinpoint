@@ -16,21 +16,17 @@
 
 package com.navercorp.pinpoint.batch.alarm.collector;
 
-import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
-import com.navercorp.pinpoint.common.server.bo.stat.FileDescriptorBo;
-import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.batch.alarm.DataCollectorFactory;
-import com.navercorp.pinpoint.web.dao.ApplicationIndexDao;
-import com.navercorp.pinpoint.web.dao.stat.FileDescriptorDao;
-import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.Range;
-import org.junit.Test;
+import com.navercorp.pinpoint.common.server.bo.stat.FileDescriptorBo;
+import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.web.alarm.DataCollectorCategory;
+import com.navercorp.pinpoint.web.dao.stat.AgentStatDao;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,49 +37,56 @@ public class FileDescriptorDataCollectorTest {
 
     @Test
     public void collect() {
-        String applicationId = "test";
         String agentId1 = "testAgent1";
         String agentId2 = "testAgent2";
-        Application application = new Application(applicationId, ServiceType.STAND_ALONE);
-        List<String> agentList = new ArrayList<>();
-        agentList.add(agentId1);
-        agentList.add(agentId2);
-        ApplicationIndexDao applicationIndexDao = mock(ApplicationIndexDao.class);
-        when(applicationIndexDao.selectAgentIds(applicationId)).thenReturn(agentList);
 
-        FileDescriptorDao fileDescriptorDao = mock(FileDescriptorDao.class);
+        List<String> agentList = List.of(agentId1, agentId2);
+
+        @SuppressWarnings("unchecked")
+        AgentStatDao<FileDescriptorBo> fileDescriptorDao = (AgentStatDao<FileDescriptorBo>) mock(AgentStatDao.class);
         long timeStamp = 1558936971494L;
         Range range = Range.newUncheckedRange(timeStamp - DataCollectorFactory.SLOT_INTERVAL_FIVE_MIN, timeStamp);
 
-        List<FileDescriptorBo> fileDescriptorBoList1 = new ArrayList<>();
         FileDescriptorBo fileDescriptorBo1_1 = new FileDescriptorBo();
         fileDescriptorBo1_1.setOpenFileDescriptorCount(200);
         FileDescriptorBo fileDescriptorBo1_2 = new FileDescriptorBo();
         fileDescriptorBo1_2.setOpenFileDescriptorCount(300);
         FileDescriptorBo fileDescriptorBo1_3 = new FileDescriptorBo();
         fileDescriptorBo1_3.setOpenFileDescriptorCount(400);
-        fileDescriptorBoList1.add(fileDescriptorBo1_1);
-        fileDescriptorBoList1.add(fileDescriptorBo1_2);
-        fileDescriptorBoList1.add(fileDescriptorBo1_3);
+
+        List<FileDescriptorBo> fileDescriptorBoList1 = List.of(
+                fileDescriptorBo1_1,
+                fileDescriptorBo1_2,
+                fileDescriptorBo1_3
+        );
         when(fileDescriptorDao.getAgentStatList(agentId1, range)).thenReturn(fileDescriptorBoList1);
 
-        List<FileDescriptorBo> fileDescriptorBoList2 = new ArrayList<>();
         FileDescriptorBo fileDescriptorBo2_1 = new FileDescriptorBo();
         fileDescriptorBo2_1.setOpenFileDescriptorCount(250);
         FileDescriptorBo fileDescriptorBo2_2 = new FileDescriptorBo();
         fileDescriptorBo2_2.setOpenFileDescriptorCount(350);
         FileDescriptorBo fileDescriptorBo2_3 = new FileDescriptorBo();
         fileDescriptorBo2_3.setOpenFileDescriptorCount(450);
-        fileDescriptorBoList2.add(fileDescriptorBo2_1);
-        fileDescriptorBoList2.add(fileDescriptorBo2_2);
-        fileDescriptorBoList2.add(fileDescriptorBo2_3);
+        List<FileDescriptorBo> fileDescriptorBoList2 = List.of(
+                fileDescriptorBo2_1,
+                fileDescriptorBo2_2,
+                fileDescriptorBo2_3
+        );
         when(fileDescriptorDao.getAgentStatList(agentId2, range)).thenReturn(fileDescriptorBoList2);
 
-        FileDescriptorDataCollector fileDescriptorDataCollector = new FileDescriptorDataCollector(DataCollectorCategory.FILE_DESCRIPTOR, application, fileDescriptorDao, applicationIndexDao, timeStamp, DataCollectorFactory.SLOT_INTERVAL_FIVE_MIN);
+        FileDescriptorDataCollector fileDescriptorDataCollector = new FileDescriptorDataCollector(
+                DataCollectorCategory.FILE_DESCRIPTOR,
+                fileDescriptorDao,
+                agentList,
+                timeStamp,
+                DataCollectorFactory.SLOT_INTERVAL_FIVE_MIN
+        );
+
         fileDescriptorDataCollector.collect();
         Map<String, Long> fileDescriptorCount = fileDescriptorDataCollector.getFileDescriptorCount();
-        assertEquals(fileDescriptorCount.size(),2);
-        assertEquals(fileDescriptorCount.get(agentId1), new Long(300L));
-        assertEquals(fileDescriptorCount.get(agentId2), new Long(350L));
+        Assertions.assertThat(fileDescriptorCount)
+                .hasSize(2)
+                .containsEntry(agentId1, 300L)
+                .containsEntry(agentId2, 350L);
     }
 }

@@ -18,15 +18,11 @@ package com.navercorp.pinpoint.bootstrap.java9.module;
 
 
 import com.navercorp.pinpoint.bootstrap.module.JavaModule;
-import com.navercorp.pinpoint.bootstrap.module.Providers;
 import com.navercorp.pinpoint.common.util.JvmUtils;
 import com.navercorp.pinpoint.common.util.JvmVersion;
-import jdk.internal.module.Modules;
 
 import java.lang.instrument.Instrumentation;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -41,15 +37,14 @@ public class ModuleSupport {
 
     private final JavaModule javaBaseModule;
     private final JavaModule bootstrapModule;
-    private final List<String> allowedProviders;
 
-    ModuleSupport(Instrumentation instrumentation, List<String> allowedProviders) {
+    ModuleSupport(Instrumentation instrumentation) {
         this.instrumentation = Objects.requireNonNull(instrumentation, "instrumentation");
-        this.allowedProviders = Objects.requireNonNull(allowedProviders, "allowedProviders");
         this.javaBaseModule = wrapJavaModule(Object.class);
         this.bootstrapModule = wrapJavaModule(this.getClass());
     }
 
+    @SuppressWarnings("unused") // Used implicitly
     public void setup() {
         // pinpoint module name : unnamed
         JavaModule bootstrapModule = getBootstrapModule();
@@ -66,8 +61,8 @@ public class ModuleSupport {
 
     }
 
+    @SuppressWarnings("unused") // Used implicitly
     public void defineAgentModule(ClassLoader classLoader, URL[] jarFileList) {
-
         final JavaModule agentModule = newAgentModule(classLoader, jarFileList);
 
         prepareAgentModule(classLoader, agentModule);
@@ -86,14 +81,13 @@ public class ModuleSupport {
         agentModule.addOpens("com.navercorp.pinpoint.profiler.plugin.config", bootstrapModule);
         agentModule.addOpens("com.navercorp.pinpoint.profiler.context.monitor.config", bootstrapModule);
 
-        agentModule.addOpens("com.navercorp.pinpoint.profiler.context.thrift.config", bootstrapModule);
         agentModule.addOpens("com.navercorp.pinpoint.profiler.context.grpc.config", bootstrapModule);
         agentModule.addOpens("com.navercorp.pinpoint.grpc.client.config", bootstrapModule);
     }
 
     private JavaModule newAgentModule(ClassLoader classLoader, URL[] jarFileList) {
         ModuleBuilder moduleBuilder = new ModuleBuilder();
-        final Module agentModule = moduleBuilder.defineModule("pinpoint.agent", classLoader, jarFileList);
+        final Module agentModule = moduleBuilder.defineModule(classLoader.getName(), classLoader, jarFileList);
         return wrapJavaModule(agentModule);
     }
 
@@ -143,9 +137,9 @@ public class ModuleSupport {
         // because module pinpoint.agent does not export com.navercorp.pinpoint.profiler to unnamed module @7bfcd12c
         agentModule.addExports("com.navercorp.pinpoint.profiler", bootstrapModule);
 
-        // Error:class com.navercorp.pinpoint.bootstrap.AgentBootLoader$1 cannot access class com.navercorp.pinpoint.test.PluginTestAgent (in module pinpoint.agent)
+        // Error:class com.navercorp.pinpoint.bootstrap.AgentBootLoader$1 cannot access class com.navercorp.pinpoint.profiler.test.PluginTestAgent (in module pinpoint.agent)
         // because module pinpoint.agent does not export com.navercorp.pinpoint.test to unnamed module @4b9e13df
-        final String pinpointTestModule = "com.navercorp.pinpoint.test";
+        final String pinpointTestModule = "com.navercorp.pinpoint.profiler.test";
         if (agentModule.getPackages().contains(pinpointTestModule)) {
             agentModule.addExports(pinpointTestModule, bootstrapModule);
         } else {
@@ -195,51 +189,35 @@ public class ModuleSupport {
 //        final Module unsupportedModule = loadModule("jdk.unsupported");
 //        Set<Module> readModules = Set.of(instrumentModule, managementModule, jdkManagement, unsupportedModule);
 
+        // bootstrap ClassLoader --------------------------------
         ClassLoader bootstrapClassLoader = Object.class.getClassLoader();
-        Class<?> traceMataDataClass = forName("com.navercorp.pinpoint.common.trace.TraceMetadataProvider", bootstrapClassLoader);
-        agentModule.addUses(traceMataDataClass);
+        addUses("com.navercorp.pinpoint.common.trace.TraceMetadataProvider", bootstrapClassLoader, agentModule);
 
+        addUses("com.navercorp.pinpoint.bootstrap.plugin.ProfilerPlugin", bootstrapClassLoader, agentModule);
 
-        Class<?> pluginClazz = forName("com.navercorp.pinpoint.bootstrap.plugin.ProfilerPlugin", bootstrapClassLoader);
-        agentModule.addUses(pluginClazz);
+        // agent ClassLoader ------------------------------------------
 
-        final String serviceClassName = "com.navercorp.pinpoint.profiler.context.recorder.proxy.ProxyRequestParserProvider";
-        Class<?> serviceClazz = forName(serviceClassName, classLoader);
-        agentModule.addUses(serviceClazz);
+        addUses("com.navercorp.pinpoint.profiler.context.recorder.proxy.ProxyRequestParserProvider", classLoader, agentModule);
 
-        final String nameResolverProviderName = "io.grpc.NameResolverProvider";
-        Class<?> nameResolverProviderClazz = forName(nameResolverProviderName, classLoader);
-        agentModule.addUses(nameResolverProviderClazz);
+        addUses("io.grpc.NameResolverProvider", classLoader, agentModule);
 
-        final String loadBalancerProviderName = "io.grpc.LoadBalancerProvider";
-        Class<?> loadBalancerProviderClazz = forName(loadBalancerProviderName, classLoader);
-        agentModule.addUses(loadBalancerProviderClazz);
+        addUses("io.grpc.LoadBalancerProvider", classLoader, agentModule);
 
-        List<Providers> providersList = agentModule.getProviders();
-        for (Providers providers : providersList) {
-            final String service = providers.getService();
-            if (isAllowedProvider(service)) {
-                logger.info("load provider:" + providers);
-                Class<?> serviceClass = forName(providers.getService(), classLoader);
-                List<Class<?>> providerClassList = loadProviderClassList(providers.getProviders(), classLoader);
-                agentModule.addProvides(serviceClass, providerClassList);
-            } else {
-                logger.info("discard provider:" + providers);
-            }
-        }
+        addUses("org.apache.logging.log4j.spi.Provider", classLoader, agentModule);
+
+        addUses("org.apache.logging.log4j.core.impl.Log4jProvider", classLoader, agentModule);
+
+        addUses("org.apache.logging.log4j.core.util.ContextDataProvider", classLoader, agentModule);
+
+        addUses("org.apache.logging.log4j.core.util.WatchEventService", classLoader, agentModule);
+
+        addUses("org.slf4j.spi.SLF4JServiceProvider", classLoader, agentModule);
+
     }
 
-    public boolean isAllowedProvider(String serviceName) {
-        return allowedProviders.contains(serviceName);
-    }
-
-    private List<Class<?>> loadProviderClassList(List<String> classNameList, ClassLoader classLoader) {
-        List<Class<?>> providerClassList = new ArrayList<>();
-        for (String providerClassName : classNameList) {
-            Class<?> providerClass = forName(providerClassName, classLoader);
-            providerClassList.add(providerClass);
-        }
-        return providerClassList;
+    private void addUses(String className, ClassLoader classLoader, JavaModule agentModule) {
+        Class<?> clazz = forName(className, classLoader);
+        agentModule.addUses(clazz);
     }
 
     private Class<?> forName(String className, ClassLoader classLoader) {
@@ -254,7 +232,7 @@ public class ModuleSupport {
     private JavaModule loadModule(String moduleName) {
         // force base-module loading
         logger.info("loadModule:" + moduleName);
-        final Module module = Modules.loadModule(moduleName);
+        final Module module = InternalModules.loadModule(moduleName);
         return wrapJavaModule(module);
 
 //        final ModuleLayer boot = ModuleLayer.boot();
@@ -266,7 +244,7 @@ public class ModuleSupport {
 //        throw new ModuleException(moduleName + " not found");
     }
 
-    private JavaModule wrapJavaModule(Class clazz) {
+    private JavaModule wrapJavaModule(Class<?> clazz) {
         return new Java9Module(instrumentation, clazz.getModule());
     }
 

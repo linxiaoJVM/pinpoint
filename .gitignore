@@ -15,6 +15,7 @@ target/
 *.iws
 /.idea/
 out/
+.run
 
 # vscode
 .vscode
@@ -32,3 +33,4 @@ dist/
 
 # logs
 logs/
+manager-logs/

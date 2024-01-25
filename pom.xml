@@ -24,7 +24,7 @@
     </organization>
     <groupId>com.navercorp.pinpoint</groupId>
     <artifactId>pinpoint</artifactId>
-    <version>2.3.1-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
     <name>pinpoint</name>
     <packaging>pom</packaging>
 
@@ -76,6 +76,11 @@
             <url>http://repo.spring.io/libs-release</url>
         </repository>
         -->
+        <!-- curator patch -->
+        <repository>
+            <id>curator-patch-repo</id>
+            <url>file://${maven.multiModuleProjectDirectory}/libs</url>
+        </repository>
     </repositories>
 
     <modules>
@@ -88,13 +93,19 @@
         <module>collector</module>
         <module>commons</module>
         <module>commons-buffer</module>
+        <module>commons-config</module>
         <module>commons-profiler</module>
         <module>commons-hbase</module>
         <module>commons-server</module>
+        <module>commons-server-cluster</module>
+        <module>commons-mybatis</module>
+        <module>datasource</module>
+        <module>basic-login</module>
         <module>tools</module>
         <module>plugins</module>
         <module>plugins-loader</module>
         <module>profiler</module>
+        <module>thrift-datasender</module>
         <module>profiler-logging</module>
         <module>profiler-optional</module>
         <module>profiler-test</module>
@@ -103,12 +114,25 @@
         <module>grpc</module>
         <module>test</module>
         <module>web</module>
+        <module>webhook</module>
+        <module>web-frontend</module>
         <module>hbase</module>
         <module>flink</module>
         <module>testcase</module>
         <module>batch</module>
 
-        <module>hbase2-module</module>
+        <module>pinot</module>
+        <module>metric-module</module>
+        <module>uristat</module>
+        <module>realtime</module>
+        <module>redis</module>
+        <module>inspector-module</module>
+        <module>log</module>
+        <module>user</module>
+        <module>batch-alarmsender</module>
+        <module>channel</module>
+        <module>exceptiontrace</module>
+        <module>web-angular</module>
 
         <!-- <module>agent-testweb</module> -->
         <!-- <module>plugins-it</module> -->
@@ -116,108 +140,155 @@
 
     <properties>
         <encoding>UTF-8</encoding>
-        <jdk.version>1.7</jdk.version>
-        <jdk.home>${env.JAVA_7_HOME}</jdk.home>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <jdk.version>1.8</jdk.version>
+        <jdk.home>${env.JAVA_8_HOME}</jdk.home>
         <test.jdk.home>${jdk.home}</test.jdk.home>
+        <javadoc.source>${jdk.version}</javadoc.source>
+
+        <docker.repository.name>pinpointdocker</docker.repository.name>
+
+        <!-- java back-end development option -->
+        <build.frontend.skip>false</build.frontend.skip>
 
         <!-- hbase -->
-        <hbase.shaded.client.version>1.4.13</hbase.shaded.client.version>
-        <hbase2.client.version>2.4.2</hbase2.client.version>
+        <hbase.shaded.client.version>2.5.5-hadoop3</hbase.shaded.client.version>
+        <!-- for shaded hbase client 1.5.0+ version -->
+        <codehaus.jackson.version>1.9.13</codehaus.jackson.version>
+        <hbase2.client.version>2.5.5-hadoop3</hbase2.client.version>
+
+        <pinot.client.version>1.0.0</pinot.client.version>
 
         <plugin.jacoco.skip>true</plugin.jacoco.skip>
-        <plugin.animal-sniffer.skip>false</plugin.animal-sniffer.skip>
 
         <!-- library -->
         <metrics.version>3.2.6</metrics.version>
 
-        <fastxml.jackson.version>2.12.1</fastxml.jackson.version>
-        <snakeyaml.version>1.27</snakeyaml.version>
+        <mysql-connector-java.verison>8.0.28</mysql-connector-java.verison>
 
-        <httpcomponents.version>4.5.6</httpcomponents.version>
-        <httpcomponents-core.version>4.4.10</httpcomponents-core.version>
+        <fastxml.jackson.version>2.15.2</fastxml.jackson.version>
+        <snakeyaml.version>2.2</snakeyaml.version>
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
 
+        <httpcomponents.version>4.5.13</httpcomponents.version>
+        <httpcomponents-core.version>4.4.14</httpcomponents-core.version>
 
-        <spring4.version>4.3.27.RELEASE</spring4.version>
-        <spring5.version>5.3.6</spring5.version>
-        <spring.version>${spring4.version}</spring.version>
-        <spring.batch.version>4.2.4.RELEASE</spring.batch.version>
+        <reactor-core.version>3.4.27</reactor-core.version>
 
-        <spring.security4.version>4.2.8.RELEASE</spring.security4.version>
-        <spring.security5.version>5.4.6</spring.security5.version>
-        <spring.security.version>${spring.security4.version}</spring.security.version>
+        <spring4.version>4.3.30.RELEASE</spring4.version>
+        <spring5.version>5.3.28</spring5.version>
+        <spring.batch.version>4.3.7</spring.batch.version>
 
-        <spring.boot.version>2.4.5</spring.boot.version>
+<!--        <spring.security.version>5.8.1</spring.security.version>-->
+        <spring.security.version>6.1.4</spring.security.version>
+        <spring.boot2.version>2.7.13</spring.boot2.version>
+        <spring.kafka.version>3.0.13</spring.kafka.version>
 
-        <slf4j.version>1.7.30</slf4j.version>
-        <log4j2-jdk7.version>2.12.1</log4j2-jdk7.version>
-        <log4j2-jdk8.version>2.13.3</log4j2-jdk8.version>
-        <log4j2.version>${log4j2-jdk7.version}</log4j2.version>
+        <spring.version>${spring6.version}</spring.version>
+        <spring.boot.version>${spring.boot3.version}</spring.boot.version>
+
+        <!-- spring boot3 dependency -->
+        <spring6.version>6.0.13</spring6.version>
+        <spring.boot3.version>3.1.5</spring.boot3.version>
+        <jakarta.servlet5.version>5.0.0</jakarta.servlet5.version>
+        <jakarta.servlet6.version>6.0.0</jakarta.servlet6.version>
+        <jakarta.annotation-api2.version>2.1.1</jakarta.annotation-api2.version>
+        <jaxb4.version>4.0.0</jaxb4.version>
+        <jakarta.validation-api3.version>3.0.2</jakarta.validation-api3.version>
+
+<!--        <slf4j.version>1.7.30</slf4j.version>-->
+        <slf4j.version>2.0.9</slf4j.version>
+        <log4j2.version>2.20.0</log4j2.version>
         <!-- for plugin & hbase client -->
         <log4j1.version>1.2.17</log4j1.version>
 
+        <flink.version>1.18.0</flink.version>
 
         <javax.servlet4.version>4.0.1</javax.servlet4.version>
         <javax.servlet.version>3.0.1</javax.servlet.version>
+        <jakarta.servlet.version>${jakarta.servlet6.version}</jakarta.servlet.version>
+        <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
+        <jakarta.annotation-api1.version>1.3.5</jakarta.annotation-api1.version>
+        <jakarta.annotation-api2.version>2.1.1</jakarta.annotation-api2.version>
+        <jakarta.annotation-api.version>${jakarta.annotation-api2.version}</jakarta.annotation-api.version>
+
+        <jakarta.validation-api.version>${jakarta.validation-api3.version}</jakarta.validation-api.version>
 
 
-        <asm.version>9.1</asm.version>
-        <!-- 0.13.0 required Java 1.8 https://github.com/apache/thrift/pull/1657 -->
-        <thrift.version>0.12.0</thrift.version>
+        <asm.version>9.6</asm.version>
+        <thrift.version>0.16.0</thrift.version>
         <caffeine.version>2.9.2</caffeine.version>
 
         <netty3.version>3.10.6.Final</netty3.version>
-        <netty4.version>4.1.58.Final</netty4.version>
+        <netty4.version>4.1.97.Final</netty4.version>
 
+        <grpc.version>1.59.0</grpc.version>
+        <protobuf-java.version>3.24.0</protobuf-java.version>
+        <protoc.version>3.24.0</protoc.version>
 
-        <guava-jdk7.version>30.1-android</guava-jdk7.version>
-        <guava-jdk8.version>30.1-jre</guava-jdk8.version>
-        <guava.version>${guava-jdk7.version}</guava.version>
+        <guava.version>32.1.2-jre</guava.version>
+        <guice.version>7.0.0</guice.version>
+        <gson.version>2.10.1</gson.version>
 
-        <mybatis.spring.version>2.0.6</mybatis.spring.version>
-        <mybatis.version>3.5.7</mybatis.version>
+        <mybatis.spring.version>3.0.2</mybatis.spring.version>
+        <mybatis.version>3.5.13</mybatis.version>
 
-        <jjwt.version>0.9.1</jjwt.version>
-        <jaxb.version>2.3.1</jaxb.version>
+        <jjwt.version>0.12.3</jjwt.version>
+        <javax.jaxb.version>2.3.1</javax.jaxb.version>
+        <jakarta.jaxb.version>4.0.1</jakarta.jaxb.version>
 
-        <zookeeper.version>3.4.14</zookeeper.version>
+        <zookeeper.version>3.8.1</zookeeper.version>
         <curator.version>4.2.0</curator.version>
-        <curator.test.version>2.13.0</curator.test.version>
+        <curator.framework.version>4.2.1</curator.framework.version>
+        <curator.test.version>5.5.0</curator.test.version>
+
+        <mockito.version>4.11.0</mockito.version>
+        <bytebuddy.version>1.12.23</bytebuddy.version>
+
+        <testcontainers.version>1.17.6</testcontainers.version>
 
         <!-- maven-plugin -->
-        <plugin.compiler.version>3.8.1</plugin.compiler.version>
-        <plugin.resources.version>3.2.0</plugin.resources.version>
-        <plugin.surefire.version>2.22.2</plugin.surefire.version>
-        <plugin.failsafe.version>2.22.2</plugin.failsafe.version>
-        <plugin.shade.version>3.1.1</plugin.shade.version>
-        <plugin.assembly.version>3.3.0</plugin.assembly.version>
-        <plugin.jar.version>3.2.0</plugin.jar.version>
+        <plugin.compiler.version>3.11.0</plugin.compiler.version>
+        <plugin.resources.version>3.3.1</plugin.resources.version>
+        <plugin.surefire.version>3.1.2</plugin.surefire.version>
+        <plugin.failsafe.version>3.1.2</plugin.failsafe.version>
+        <plugin.shade.version>3.4.1</plugin.shade.version>
+        <plugin.assembly.version>3.6.0</plugin.assembly.version>
+        <plugin.jar.version>3.3.0</plugin.jar.version>
         <plugin.antrun.version>3.0.0</plugin.antrun.version>
+        <plugin.build-helper.version>3.4.0</plugin.build-helper.version>
 
-        <plugin.spotbugs.version>4.1.4</plugin.spotbugs.version>
-        <plugin.pmd.version>3.14.0</plugin.pmd.version>
+        <plugin.spotbugs.version>4.7.3.6</plugin.spotbugs.version>
+        <plugin.pmd.version>3.21.2</plugin.pmd.version>
 
-        <plugin.enforcer.version>3.0.0</plugin.enforcer.version>
-        <plugin.animal-sniffer.version>1.19</plugin.animal-sniffer.version>
-
-        <sniffer.artifactid>java17</sniffer.artifactid>
+        <plugin.enforcer.version>3.3.0</plugin.enforcer.version>
 
         <!-- frontend-plugin -->
-        <plugin.frontend.version>1.9.0</plugin.frontend.version>
+        <plugin.frontend.version>1.13.4</plugin.frontend.version>
         <!-- https://nodejs.org/ko/download/releases/ -->
-        <plugin.frontend.node.version>v10.18.0</plugin.frontend.node.version>
-        <plugin.frontend.npm.version>6.13.4</plugin.frontend.npm.version>
+        <plugin.frontend.node.version>v16.17.1</plugin.frontend.node.version>
+        <plugin.frontend.yarn.version>v1.22.19</plugin.frontend.yarn.version>
         <plugin.frontend.node.install.dir>/node_install/node-${plugin.frontend.node.version}</plugin.frontend.node.install.dir>
+
+        <spring-boot-maven-plugin.attatch>false</spring-boot-maven-plugin.attatch>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest</artifactId>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.23.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -226,8 +297,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.navercorp.pinpoint</groupId>
-            <artifactId>pinpoint-testcase</artifactId>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -246,7 +317,22 @@
             </dependency>
             <dependency>
                 <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-commons-config</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-commons-buffer</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-commons-mybatis</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-datasource</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -261,7 +347,37 @@
             </dependency>
             <dependency>
                 <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-commons-server-cluster</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-basic-login</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-commons-hbase</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-pinot-datasource</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-pinot-kafka</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-pinot-config</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-pinot-batch</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -272,17 +388,17 @@
             </dependency>
             <dependency>
                 <groupId>com.navercorp.pinpoint</groupId>
-                <artifactId>pinpoint-hbase-schema</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.navercorp.pinpoint</groupId>
-                <artifactId>pinpoint-hbase-schema-manager</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-rpc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-redis</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-channel</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -313,17 +429,32 @@
             </dependency>
             <dependency>
                 <groupId>com.navercorp.pinpoint</groupId>
-                <artifactId>pinpoint-bootstrap-java8</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-bootstrap-java9</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-bootstrap-java9-internal</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-bootstrap-java15</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-bootstrap-java16</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-profiler</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-thrift-datasender</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -361,12 +492,122 @@
             </dependency>
             <dependency>
                 <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-batch-alarmsender</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-collector</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-webhook</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-user</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-uristat-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-uristat-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-uristat-collector</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-uristat-batch</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-web-angular</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-web-frontend</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-realtime-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-realtime-collector</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-realtime-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-exceptiontrace-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-exceptiontrace-collector</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-exceptiontrace-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-metric</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-metric-commons</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-inspector-collector</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-inspector-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-log-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-log-collector</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.navercorp.pinpoint</groupId>
+                <artifactId>pinpoint-log-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -405,12 +646,19 @@
                 <groupId>com.navercorp.pinpoint</groupId>
                 <artifactId>pinpoint-testcase</artifactId>
                 <version>${project.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-core</artifactId>
                 <version>${spring.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
@@ -429,18 +677,12 @@
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
-                <artifactId>spring-test</artifactId>
+                <artifactId>spring-web</artifactId>
                 <version>${spring.version}</version>
-            </dependency>
-            <!-- for spring test -->
-            <dependency>
-                <groupId>com.jayway.jsonpath</groupId>
-                <artifactId>json-path</artifactId>
-                <version>1.2.0</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
-                <artifactId>spring-web</artifactId>
+                <artifactId>spring-webflux</artifactId>
                 <version>${spring.version}</version>
             </dependency>
             <dependency>
@@ -488,6 +730,172 @@
                 <artifactId>spring-aspects</artifactId>
                 <version>${spring.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-messaging</artifactId>
+                <version>${spring.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-expression</artifactId>
+                <version>${spring.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springframework.batch</groupId>
+                <artifactId>spring-batch-core</artifactId>
+                <version>${spring.batch.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>javax.annotation</groupId>
+                        <artifactId>javax.annotation-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.batch</groupId>
+                <artifactId>spring-batch-test</artifactId>
+                <version>${spring.batch.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+
+
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-test</artifactId>
+                <version>${spring.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <!-- for spring test -->
+            <dependency>
+                <groupId>com.jayway.jsonpath</groupId>
+                <artifactId>json-path</artifactId>
+                <version>2.8.0</version>
+            </dependency>
+
+
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-web</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-webflux</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-autoconfigure</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-logging</artifactId>
+                <version>${spring.boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>ch.qos.logback</groupId>
+                        <artifactId>logback-classic</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.logging.log4j</groupId>
+                        <artifactId>log4j-jul</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-log4j2</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-tomcat</artifactId>
+                <version>${spring.boot.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-validation</artifactId>
+                <version>${spring.boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-logging</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-jdbc</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-websocket</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-actuator</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-test</artifactId>
+                <version>${spring.boot.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-test</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-core</artifactId>
+                <version>${spring.security.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-config</artifactId>
+                <version>${spring.security.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-crypto</artifactId>
+                <version>${spring.security.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-web</artifactId>
+                <version>${spring.security.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-messaging</artifactId>
+                <version>${spring.security.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-rsa</artifactId>
+                <version>1.0.11.RELEASE</version>
+            </dependency>
+
 
             <!-- serving performance metrics -->
             <dependency>
@@ -533,24 +941,30 @@
                 <version>${fastxml.jackson.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.fasterxml.jackson.module</groupId>
+                <artifactId>jackson-module-parameter-names</artifactId>
+                <version>${fastxml.jackson.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.yaml</groupId>
                 <artifactId>snakeyaml</artifactId>
                 <version>${snakeyaml.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+
 
             <dependency>
                 <groupId>org.apache.hbase</groupId>
                 <artifactId>hbase-shaded-client</artifactId>
                 <version>${hbase.shaded.client.version}</version>
                 <exclusions>
-                    <!-- Do not remove the log4j  -->
-<!--                    <exclusion>-->
-<!--                        <groupId>log4j</groupId>-->
-<!--                        <artifactId>log4j</artifactId>-->
-<!--                    </exclusion>-->
                     <exclusion>
-                        <groupId>org.slf4j</groupId>
-                        <artifactId>slf4j-log4j12</artifactId>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
@@ -568,10 +982,12 @@
             </dependency>
 
             <!-- Logging dependencies -->
+
             <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>${slf4j.version}</version>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j2.version}</version>
+                <scope>compile</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
@@ -580,18 +996,31 @@
                 <scope>runtime</scope>
                 <optional>true</optional>
             </dependency>
+
+
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-api</artifactId>
+                <artifactId>log4j-spring-boot</artifactId>
+                <version>${log4j2.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
                 <version>${log4j2.version}</version>
                 <scope>runtime</scope>
                 <optional>true</optional>
             </dependency>
-
-
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
+                <artifactId>log4j-slf4j2-impl</artifactId>
                 <version>${log4j2.version}</version>
                 <scope>runtime</scope>
                 <optional>true</optional>
@@ -628,7 +1057,7 @@
             <dependency>
                 <groupId>com.zaxxer</groupId>
                 <artifactId>HikariCP</artifactId>
-                <version>4.0.3</version>
+                <version>5.0.1</version>
             </dependency>
             <dependency>
                 <groupId>org.mybatis</groupId>
@@ -644,7 +1073,13 @@
             <dependency>
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
-                <version>5.1.49</version>
+                <version>8.0.28</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.protobuf</groupId>
+                        <artifactId>protobuf-java</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
 
@@ -657,11 +1092,35 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty4.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
                 <version>${netty4.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty-codec-haproxy</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty-codec-smtp</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty-codec-stomp</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty-codec-xml</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty-codec-socks</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
@@ -690,11 +1149,6 @@
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
-                <artifactId>netty-codec-socks</artifactId>
-                <version>${netty4.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
                 <artifactId>netty-common</artifactId>
                 <version>${netty4.version}</version>
             </dependency>
@@ -707,6 +1161,12 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-handler-proxy</artifactId>
                 <version>${netty4.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty-codec-socks</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
@@ -721,6 +1181,12 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-transport</artifactId>
+                <version>${netty4.version}</version>
+            </dependency>
+            <dependency>
+                <!-- https://netty.io/wiki/native-transports.html -->
+                <groupId>io.netty</groupId>
+                <artifactId>netty-transport-native-epoll</artifactId>
                 <version>${netty4.version}</version>
             </dependency>
             <dependency>
@@ -752,16 +1218,12 @@
             <dependency>
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
-                <!-- 2.7 (requires Java 8 -->
-                <!-- 2.6 (requires Java 7 -->
-                <version>2.6</version>
+                <version>2.11.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <!-- https://commons.apache.org/proper/commons-lang/changes-report.html -->
-                <!-- Lang 3.9 and onwards now targets Java 8, making use of features that arrived with Java 8.-->
-                <version>3.8.1</version>
+                <version>3.12.0</version>
             </dependency>
             <dependency>
                 <groupId>commons-lang</groupId>
@@ -782,13 +1244,12 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
-                <version>1.20</version>
+                <version>1.21</version>
             </dependency>
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <!-- Codec 1.14 (mirrors) requires Java 7-->
-                <version>1.14</version>
+                <version>1.15</version>
             </dependency>
             <dependency>
                 <groupId>commons-beanutils</groupId>
@@ -807,14 +1268,81 @@
             </dependency>
 
             <dependency>
-                <groupId>javax.transaction</groupId>
-                <artifactId>jta</artifactId>
-                <version>1.1</version>
+                <groupId>jakarta.transaction</groupId>
+                <artifactId>jakarta.transaction-api</artifactId>
+                <version>1.3.3</version>
             </dependency>
             <dependency>
-                <groupId>javax.mail</groupId>
-                <artifactId>mail</artifactId>
-                <version>1.4.7</version>
+                <groupId>jakarta.mail</groupId>
+                <artifactId>jakarta.mail-api</artifactId>
+                <version>2.1.2</version>
+                <exclusions>
+                    <exclusion>
+                        <!-- use com.sun.activation:jakarta.activation -->
+                        <groupId>jakarta.activation</groupId>
+                        <artifactId>jakarta.activation-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.activation</groupId>
+                <artifactId>jakarta.activation-api</artifactId>
+                <version>2.1.2</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.sun.activation</groupId>
+                <artifactId>jakarta.activation</artifactId>
+                <version>1.2.2</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>javax.xml.bind</groupId>
+                <artifactId>jaxb-api</artifactId>
+                <version>${javax.jaxb.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <!-- use com.sun.activation:jakarta.activation -->
+                        <groupId>javax.activation</groupId>
+                        <artifactId>javax.activation-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.xml.bind</groupId>
+                <artifactId>jakarta.xml.bind-api</artifactId>
+                <version>${jakarta.jaxb.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <!-- use com.sun.activation:jakarta.activation -->
+                        <groupId>jakarta.activation</groupId>
+                        <artifactId>jakarta.activation-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-impl</artifactId>
+                <version>4.0.4</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.annotation</groupId>
+                <artifactId>jakarta.annotation-api</artifactId>
+                <version>${jakarta.annotation-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>javax.annotation-api</artifactId>
+                <version>${javax.annotation-api.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>${jakarta.validation-api.version}</version>
             </dependency>
 
 
@@ -867,33 +1395,64 @@
                 <version>${javax.servlet.version}</version>
                 <scope>provided</scope>
             </dependency>
-
-
             <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.13.2</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.hamcrest</groupId>
-                        <artifactId>hamcrest-core</artifactId>
-                    </exclusion>
-                </exclusions>
+                <groupId>jakarta.servlet</groupId>
+                <artifactId>jakarta.servlet-api</artifactId>
+                <version>${jakarta.servlet.version}</version>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest</artifactId>
                 <version>2.2</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>5.9.3</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>3.23.1</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
-                <version>2.28.2</version>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>4.8.1</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${bytebuddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${bytebuddy.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.dbunit</groupId>
                 <artifactId>dbunit</artifactId>
                 <version>2.4.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>4.2.0</version>
+                <scope>test</scope>
             </dependency>
 
 
@@ -903,24 +1462,40 @@
                 <version>${zookeeper.version}</version>
                 <exclusions>
                     <exclusion>
-                        <groupId>org.jboss.netty</groupId>
-                        <artifactId>netty</artifactId>
+                        <groupId>ch.qos.logback</groupId>
+                        <artifactId>logback-core</artifactId>
                     </exclusion>
                     <exclusion>
-                        <groupId>org.slf4j</groupId>
-                        <artifactId>slf4j-log4j12</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>log4j</groupId>
-                        <artifactId>log4j</artifactId>
+                        <groupId>ch.qos.logback</groupId>
+                        <artifactId>logback-classic</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>1.1.10.2</version>
             </dependency>
 
             <dependency>
                 <groupId>org.apache.curator</groupId>
-                <artifactId>curator-framework</artifactId>
+                <artifactId>curator-client</artifactId>
                 <version>${curator.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <artifactId>zookeeper</artifactId>
+                        <groupId>org.apache.zookeeper</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.curator</groupId>
+                        <artifactId>curator-test</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.curator</groupId>
+                <artifactId>curator-framework</artifactId>
+                <version>${curator.framework.version}</version>
                 <exclusions>
                     <exclusion>
                         <artifactId>zookeeper</artifactId>
@@ -964,6 +1539,10 @@
                         <groupId>org.slf4j</groupId>
                         <artifactId>slf4j-api</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>javax.annotation</groupId>
+                        <artifactId>javax.annotation-api</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
 
@@ -981,9 +1560,23 @@
             <dependency>
                 <groupId>com.google.inject</groupId>
                 <artifactId>guice</artifactId>
-                <version>4.2.2</version>
+                <version>${guice.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>${gson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>2.11.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf-java.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>joda-time</groupId>
@@ -999,7 +1592,7 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>${spring.boot.version}</version>
+                    <version>${spring.boot2.version}</version>
                     <executions>
                         <execution>
                             <goals>
@@ -1033,7 +1626,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.3.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -1048,7 +1641,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.1.2</version>
+                    <version>3.6.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -1056,22 +1649,9 @@
                     <version>3.0.0-M1</version>
                 </plugin>
                 <plugin>
-                    <groupId>com.cj.jshintmojo</groupId>
-                    <artifactId>jshint-maven-plugin</artifactId>
-                    <version>1.6.0</version>
-                    <configuration>
-                        <options>sub, boss, newcap, loopfunc</options>
-                        <globals></globals>
-                        <directories>
-                            <directory>src/main/webapp</directory>
-                        </directories>
-                        <excludes>
-                            <exclude>src/main/webapp/components</exclude>
-                        </excludes>
-                        <reporter>checkstyle</reporter>
-                        <reportFile>${project.build.directory}/jshint.xml</reportFile>
-                        <failOnError>false</failOnError>
-                    </configuration>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>${plugin.build-helper.version}</version>
                 </plugin>
 
                 <!-- reporting -->
@@ -1098,7 +1678,6 @@
                             <exclude>com/navercorp/pinpoint/common/util/apache/**/*.java</exclude>
                             <exclude>com/navercorp/pinpoint/bootstrap/util/spring/**/*.java</exclude>
                             <exclude>com/navercorp/pinpoint/common/profiler/concurrent/jsr166/**/*.java</exclude>
-                            <exclude>com/navercorp/pinpoint/profiler/util/jdk/**/*.java</exclude>
                             <exclude>com/navercorp/pinpoint/grpc/trace/**/*.java</exclude>
                         </excludes>
                     </configuration>
@@ -1106,7 +1685,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.6</version>
+                    <version>0.8.10</version>
                     <executions>
                         <execution>
                             <id>prepare-agent</id>
@@ -1128,9 +1707,15 @@
                             <exclude>com/navercorp/pinpoint/common/util/apache/**/*.class</exclude>
                             <exclude>com/navercorp/pinpoint/bootstrap/util/spring/**/*.java</exclude>
                             <exclude>com/navercorp/pinpoint/common/profiler/concurrent/jsr166/**/*.class</exclude>
-                            <exclude>com/navercorp/pinpoint/profiler/util/jdk/**/*.class</exclude>
                             <exclude>com/navercorp/pinpoint/grpc/trace/**/*.java</exclude>
                         </excludes>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>${plugin.shade.version}</version>
+                    <configuration>
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
                     </configuration>
                 </plugin>
             </plugins>
@@ -1178,9 +1763,11 @@
                     <target>${jdk.version}</target>
                     <fork>true</fork>
                     <debug>true</debug>
-                    <optimize>true</optimize>
+                    <verbose>true</verbose>
                     <encoding>${encoding}</encoding>
+                    <parameters>true</parameters>
                     <showDeprecation>true</showDeprecation>
+                    <detail>true</detail>
                     <compilerVersion>${jdk.version}</compilerVersion>
                     <executable>${jdk.home}/bin/javac</executable>
                 </configuration>
@@ -1197,9 +1784,11 @@
                         <exclude>**/*$*</exclude>
                     </excludes>
                     <!-- Add  @{argLine} for jacoco -->
-                    <argLine>@{argLine} -Dfile.encoding=${encoding}</argLine>
+                    <argLine>@{argLine}</argLine>
+                    <encoding>${encoding}</encoding>
                     <jvm>${test.jdk.home}/bin/java</jvm>
-                    <forkMode>once</forkMode>
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>
             <plugin>
@@ -1208,6 +1797,7 @@
                 <version>${plugin.failsafe.version}</version>
                 <configuration>
                     <jvm>${test.jdk.home}/bin/java</jvm>
+                    <testFailureIgnore>true</testFailureIgnore>
                 </configuration>
                 <executions>
                     <execution>
@@ -1252,13 +1842,13 @@
                                     <variableName>JAVA_HOME</variableName>
                                 </requireEnvironmentVariable>
                                 <requireEnvironmentVariable>
-                                    <variableName>JAVA_7_HOME</variableName>
-                                </requireEnvironmentVariable>
-                                <requireEnvironmentVariable>
                                     <variableName>JAVA_8_HOME</variableName>
                                 </requireEnvironmentVariable>
                                 <requireEnvironmentVariable>
-                                    <variableName>JAVA_9_HOME</variableName>
+                                    <variableName>JAVA_11_HOME</variableName>
+                                </requireEnvironmentVariable>
+                                <requireEnvironmentVariable>
+                                    <variableName>JAVA_17_HOME</variableName>
                                 </requireEnvironmentVariable>
                             </rules>
                             <fail>true</fail>
@@ -1267,42 +1857,12 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <version>${plugin.animal-sniffer.version}</version>
-                <configuration>
-                    <signature>
-                        <groupId>org.codehaus.mojo.signature</groupId>
-                        <artifactId>${sniffer.artifactid}</artifactId>
-                        <version>1.0</version>
-                    </signature>
-                    <ignores>
-                        <ignore>sun.*</ignore>
-                    </ignores>
-                    <skip>${plugin.animal-sniffer.skip}</skip>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>ensure-java-${jdk.version}-class-library</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>com.cj.jshintmojo</groupId>
-                <artifactId>jshint-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -1349,8 +1909,7 @@
             <properties>
                 <env>local</env>
                 <spring.profiles.active>local</spring.profiles.active>
-                <!-- skip development environment-->
-                <plugin.animal-sniffer.skip>true</plugin.animal-sniffer.skip>
+                <spring-boot-maven-plugin.attatch>false</spring-boot-maven-plugin.attatch>
             </properties>
         </profile>
         <!-- for Release -->
@@ -1362,6 +1921,7 @@
             <properties>
                 <env>release</env>
                 <spring.profiles.active>release</spring.profiles.active>
+                <spring-boot-maven-plugin.attatch>true</spring-boot-maven-plugin.attatch>
             </properties>
         </profile>
 
@@ -1390,9 +1950,13 @@
                     </plugin>
                     <plugin>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.4.0</version>
                         <configuration>
-                            <additionalJOption>-Xdoclint:none</additionalJOption>
+                            <doclint>none</doclint>
+                            <source>${javadoc.source}</source>
+<!--                            <detectOfflineLinks>false</detectOfflineLinks>-->
+<!--                            <detectJavaApiLink>false</detectJavaApiLink>-->
+                            <javadocExecutable>${jdk.home}/bin/javadoc</javadocExecutable>
                         </configuration>
                         <executions>
                             <execution>
@@ -1406,7 +1970,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
+                        <version>3.0.1</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -1416,6 +1980,13 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <!-- This is necessary for gpg to not try to use the pinentry programs -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
@@ -1441,7 +2012,17 @@
         </profile>
 
         <profile>
+            <id>build.frontend.skip</id>
+            <properties>
+                <build.frontend.skip>true</build.frontend.skip>
+            </properties>
+        </profile>
+
+        <profile>
             <id>it-module</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <modules>
                 <module>agent-testweb</module>
                 <module>plugins-it</module>

@@ -17,58 +17,55 @@
 package com.navercorp.pinpoint.profiler.metadata;
 
 import com.navercorp.pinpoint.bootstrap.context.ParsingResult;
+import com.navercorp.pinpoint.common.trace.AnnotationKey;
+import com.navercorp.pinpoint.common.util.IntStringStringValue;
+import com.navercorp.pinpoint.common.util.StringUtils;
+import com.navercorp.pinpoint.profiler.context.Annotation;
+import com.navercorp.pinpoint.profiler.context.annotation.Annotations;
+
 import java.util.Objects;
-import com.navercorp.pinpoint.profiler.sender.EnhancedDataSender;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class DefaultSqlMetaDataService implements SqlMetaDataService {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final boolean isDebug = logger.isDebugEnabled();
+    private static final DefaultParsingResult EMPTY_RESULT = new DefaultParsingResult("");
 
-    private final CachingSqlNormalizer cachingSqlNormalizer;
+    private final SqlCacheService<Integer> sqlCacheService;
 
-    private final EnhancedDataSender<MetaDataType> enhancedDataSender;
-
-    public DefaultSqlMetaDataService(EnhancedDataSender<MetaDataType> enhancedDataSender, SimpleCache<String> sqlCache) {
-        this.enhancedDataSender = Objects.requireNonNull(enhancedDataSender, "enhancedDataSender");
-
-        Objects.requireNonNull(sqlCache, "sqlCache");
-        this.cachingSqlNormalizer = new DefaultCachingSqlNormalizer(sqlCache);
+    public DefaultSqlMetaDataService(SqlCacheService<Integer> sqlCacheService) {
+        this.sqlCacheService = Objects.requireNonNull(sqlCacheService, "sqlCacheService");
     }
 
     @Override
-    public ParsingResult parseSql(final String sql) {
-        // lazy sql normalization
-        return this.cachingSqlNormalizer.wrapSql(sql);
+    public ParsingResult wrapSqlResult(String sql) {
+        if (sql == null) {
+            return EMPTY_RESULT;
+        }
+        return new DefaultParsingResult(sql);
     }
-
 
     @Override
-    public boolean cacheSql(ParsingResult parsingResult) {
-
-        if (parsingResult == null) {
-            return false;
+    public Annotation<?> newSqlAnnotation(ParsingResult parsingResult, String bindValue) {
+        if (!(parsingResult instanceof DefaultParsingResult)) {
+            throw new IllegalStateException("Unexpected DefaultParsingResult :" + parsingResult);
         }
-        // lazy sql parsing
-        boolean isNewValue = this.cachingSqlNormalizer.normalizedSql(parsingResult);
-        if (isNewValue) {
-            if (isDebug) {
-                // TODO logging hit ratio could help debugging
-                logger.debug("NewSQLParsingResult:{}", parsingResult);
-            }
 
-            // isNewValue means that the value is newly cached.
-            // So the sql could be new one. We have to send sql metadata to collector.
-            final SqlMetaData sqlMetaData = new SqlMetaData(parsingResult.getId(), parsingResult.getSql());
 
-            this.enhancedDataSender.request(sqlMetaData);
+        final ParsingResultInternal<Integer> result = (DefaultParsingResult) parsingResult;
+        if (result != EMPTY_RESULT) {
+            this.sqlCacheService.cacheSql(result, DefaultSqlMetaDataService::newSqlMetaData);
         }
-        return isNewValue;
+
+        String output = StringUtils.defaultIfEmpty(parsingResult.getOutput(), null);
+        bindValue = StringUtils.defaultIfEmpty(bindValue, null);
+
+        final IntStringStringValue sqlValue = new IntStringStringValue(result.getId(), output, bindValue);
+        return Annotations.of(AnnotationKey.SQL_ID.getCode(), sqlValue);
     }
 
+    static MetaDataType newSqlMetaData(ParsingResultInternal<Integer> parsingResult) {
+        return new SqlMetaData(parsingResult.getId(), parsingResult.getSql());
+    }
 }

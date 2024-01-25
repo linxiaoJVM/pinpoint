@@ -16,16 +16,15 @@
 
 package com.navercorp.pinpoint.plugin.tomcat.aspect;
 
-import java.util.ArrayList;
+import com.navercorp.pinpoint.bootstrap.context.Header;
+import org.junit.jupiter.api.Test;
+
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
-
-import com.navercorp.pinpoint.bootstrap.context.Header;
-import com.navercorp.pinpoint.plugin.tomcat.aspect.RequestFacadeAspect;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author jaehong.kim
@@ -47,8 +46,8 @@ public class RequestFacadeAspectTest {
         RequestFacadeAspect mock = new RequestFacadeAspectMock();
         Enumeration isNull = mock.getHeaderNames();
 
-        ArrayList list = Collections.list(isNull);
-        Assert.assertEquals(list.size(), 2);
+        List<?> list = Collections.list(isNull);
+        assertThat(list).hasSize(2);
     }
 
 }

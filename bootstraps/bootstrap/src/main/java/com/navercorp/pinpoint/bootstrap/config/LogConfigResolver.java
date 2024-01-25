@@ -16,9 +16,11 @@
 
 package com.navercorp.pinpoint.bootstrap.config;
 
+import java.nio.file.Path;
+
 /**
  * @author Woonduk Kang(emeroad)
  */
 public interface LogConfigResolver {
-    String getLogPath();
+    Path getLogPath();
 }

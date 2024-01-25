@@ -1,5 +1,6 @@
 package com.navercorp.pinpoint.plugin.kafka.interceptor;
 
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
@@ -7,23 +8,25 @@ import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.plugin.kafka.KafkaConstants;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class ConsumerMultiRecordEntryPointInterceptorTest {
 
     @Mock
     private TraceContext traceContext;
+
+    @Mock
+    private ProfilerConfig profilerConfig;
 
     @Mock
     private MethodDescriptor descriptor;
@@ -43,6 +46,7 @@ public class ConsumerMultiRecordEntryPointInterceptorTest {
         consumerRecordList.add(new ConsumerRecord("Test", 1, 1, "hello", "hello too"));
 
         doReturn(trace).when(traceContext).newTraceObject();
+        doReturn(profilerConfig).when(traceContext).getProfilerConfig();
         doReturn(true).when(trace).canSampled();
         doReturn(recorder).when(trace).getSpanRecorder();
         doReturn(consumerRecordList.iterator()).when(consumerRecords).iterator();
@@ -63,6 +67,7 @@ public class ConsumerMultiRecordEntryPointInterceptorTest {
         consumerRecordList.add(new ConsumerRecord("Test2", 2, 1, "hello2", "hello too2"));
 
         doReturn(trace).when(traceContext).newTraceObject();
+        doReturn(profilerConfig).when(traceContext).getProfilerConfig();
         doReturn(true).when(trace).canSampled();
         doReturn(recorder).when(trace).getSpanRecorder();
         doReturn(consumerRecordList.iterator()).when(consumerRecords).iterator();

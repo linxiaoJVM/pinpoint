@@ -18,18 +18,17 @@ package com.navercorp.pinpoint.grpc.security;
 
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.common.util.StringUtils;
-import com.navercorp.pinpoint.grpc.util.Resource;
-
 import io.grpc.netty.GrpcSslContexts;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.SupportedCipherSuiteFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
+import java.io.InputStream;
 import java.security.KeyStore;
 import java.util.List;
 import java.util.Objects;
@@ -39,19 +38,21 @@ import java.util.Objects;
  */
 public final class SslContextFactory {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SslContextFactory.class);
+    private final Logger LOGGER = LogManager.getLogger(SslContextFactory.class);
 
-    public static SslContext create(SslServerConfig serverConfig) throws SSLException {
-        Objects.requireNonNull(serverConfig, "serverConfig");
+    private final SslProvider sslProvider;
 
-        SslProvider sslProvider = getSslProvider(serverConfig.getSslProviderType());
+    public SslContextFactory(String providerType) throws SSLException {
+        Objects.requireNonNull(providerType, "providerType");
+        this.sslProvider = getSslProvider(providerType);
+    }
 
-        SslContextBuilder sslContextBuilder;
+    public SslContext forServer(InputStream keyCertChainInputStream, InputStream keyInputStream) throws SSLException {
+        Objects.requireNonNull(keyCertChainInputStream, "keyCertChainInputStream");
+        Objects.requireNonNull(keyInputStream, "keyInputStream");
+
         try {
-            Resource keyCertChainFileResource = serverConfig.getKeyCertChainResource();
-            Resource keyResource = serverConfig.getKeyResource();
-
-            sslContextBuilder = SslContextBuilder.forServer(keyCertChainFileResource.getInputStream(), keyResource.getInputStream());
+            SslContextBuilder sslContextBuilder = SslContextBuilder.forServer(keyCertChainInputStream, keyInputStream);
             SslContext sslContext = createSslContext(sslContextBuilder, sslProvider);
 
             assertValidCipherSuite(sslContext);
@@ -64,34 +65,14 @@ public final class SslContextFactory {
         }
     }
 
-    public static SslContext create(SslClientConfig clientConfig) throws SSLException {
-        Objects.requireNonNull(clientConfig, "clientConfig");
+    public SslContext forClient(InputStream trustCertCollectionInputStream) throws SSLException {
+        Objects.requireNonNull(trustCertCollectionInputStream, "trustCertCollectionInputStream");
 
-        if (!clientConfig.isEnable()) {
-            throw new IllegalArgumentException("sslConfig is disabled.");
-        }
-
-        SslProvider sslProvider = getSslProvider(clientConfig.getSslProviderType());
-
-        SslContextBuilder sslContextBuilder = null;
         try {
-            sslContextBuilder = SslContextBuilder.forClient();
+            SslContextBuilder sslContextBuilder = SslContextBuilder.forClient();
 
-            Resource trustCertResource = clientConfig.getTrustCertResource();
-            if (trustCertResource != null) {
-                sslContextBuilder.trustManager(trustCertResource.getInputStream());
-            } else {
-                // Loads default Root CA certificates (generally, from JAVA_HOME/lib/cacerts)
-                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                trustManagerFactory.init((KeyStore)null);
-                sslContextBuilder.trustManager(trustManagerFactory);
-            }
-
-            SslContext sslContext = createSslContext(sslContextBuilder, sslProvider);
-
-            assertValidCipherSuite(sslContext);
-
-            return sslContext;
+            sslContextBuilder.trustManager(trustCertCollectionInputStream);
+            return createSslContext(sslContextBuilder, sslProvider);
         } catch (SSLException e) {
             throw e;
         } catch (Exception e) {
@@ -99,7 +80,25 @@ public final class SslContextFactory {
         }
     }
 
-    private static SslContext createSslContext(SslContextBuilder sslContextBuilder, SslProvider sslProvider) throws SSLException {
+    public SslContext forClient() throws SSLException {
+        try {
+            SslContextBuilder sslContextBuilder = SslContextBuilder.forClient();
+
+            // Loads default Root CA certificates (generally, from JAVA_HOME/lib/cacerts)
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            trustManagerFactory.init((KeyStore)null);
+            sslContextBuilder.trustManager(trustManagerFactory);
+
+            return createSslContext(sslContextBuilder, sslProvider);
+        } catch (SSLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SSLException(e);
+        }
+    }
+
+
+    private SslContext createSslContext(SslContextBuilder sslContextBuilder, SslProvider sslProvider) throws SSLException {
         sslContextBuilder.sslProvider(sslProvider);
 
         sslContextBuilder.protocols(SecurityConstants.DEFAULT_SUPPORT_PROTOCOLS.toArray(new String[0]));
@@ -109,7 +108,7 @@ public final class SslContextFactory {
         return configure.build();
     }
 
-    private static void assertValidCipherSuite(SslContext sslContext) throws SSLException {
+    private void assertValidCipherSuite(SslContext sslContext) throws SSLException {
         Objects.requireNonNull(sslContext, "sslContext must not be null");
 
         List<String> supportedCipherSuiteList = sslContext.cipherSuites();
@@ -126,7 +125,7 @@ public final class SslContextFactory {
         LOGGER.info("Support cipher list : {} {}", sslContext, supportedCipherSuiteList);
     }
 
-    static SslProvider getSslProvider(String providerType) throws SSLException {
+    SslProvider getSslProvider(String providerType) throws SSLException {
         if (StringUtils.isEmpty(providerType)) {
             return SslProvider.OPENSSL;
         }

@@ -16,10 +16,9 @@
 
 package com.navercorp.pinpoint.profiler.instrument.classloading;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
@@ -27,28 +26,26 @@ import java.lang.reflect.Method;
  */
 final class ReflectionDefineClass implements DefineClass {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private static final Method DEFINE_CLASS;
     static {
         try {
             DEFINE_CLASS = ClassLoader.class.getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class);
             DEFINE_CLASS.setAccessible(true);
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Cannot access ClassLoader.defineClass(String, byte[], int, int)", e);
         }
     }
 
     @Override
-    public final Class<?> defineClass(ClassLoader classLoader, String name, byte[] bytes) {
+    public Class<?> defineClass(ClassLoader classLoader, String name, byte[] bytes) {
         if (logger.isDebugEnabled()) {
             logger.debug("define class:{} cl:{}", name, classLoader);
         }
         try {
             return (Class<?>) DEFINE_CLASS.invoke(classLoader, name, bytes, 0, bytes.length);
-        } catch (IllegalAccessException e) {
-            throw handleDefineClassFail(classLoader, name, e);
-        } catch (InvocationTargetException e) {
+        } catch (ReflectiveOperationException e) {
             throw handleDefineClassFail(classLoader, name, e);
         }
     }

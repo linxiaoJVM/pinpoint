@@ -17,6 +17,8 @@
 package com.navercorp.pinpoint.common.server.bo;
 
 import com.navercorp.pinpoint.common.server.util.AgentLifeCycleState;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 /**
  * @author HyunGil Jeong
@@ -26,9 +28,9 @@ public class AgentLifeCycleBo {
     public static final int CURRENT_VERSION = 0;
 
     private final byte version;
-    private final String agentId;
-    private final long startTimestamp;
-    private final long eventTimestamp;
+    @NotBlank private final String agentId;
+    @PositiveOrZero private final long startTimestamp;
+    @PositiveOrZero private final long eventTimestamp;
     private final long eventIdentifier;
     private final AgentLifeCycleState agentLifeCycleState;
     
@@ -92,14 +94,13 @@ public class AgentLifeCycleBo {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("AgentLifeCycleBo{");
-        sb.append("version=").append(this.getVersion());
-        sb.append(", agentId='").append(this.getAgentId()).append('\'');
-        sb.append(", startTimestamp=").append(this.getStartTimestamp());
-        sb.append(", eventTimestamp=").append(this.getEventTimestamp());
-        sb.append(", eventIdentifier=").append(this.eventIdentifier);
-        sb.append(", state=").append(this.agentLifeCycleState.toString());
-        return sb.toString();
+        return "AgentLifeCycleBo{" +
+                "version=" + version +
+                ", agentId='" + agentId + '\'' +
+                ", startTimestamp=" + startTimestamp +
+                ", eventTimestamp=" + eventTimestamp +
+                ", eventIdentifier=" + eventIdentifier +
+                ", agentLifeCycleState=" + agentLifeCycleState +
+                '}';
     }
-
 }

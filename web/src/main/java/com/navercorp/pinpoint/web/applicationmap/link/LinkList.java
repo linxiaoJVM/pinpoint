@@ -18,9 +18,14 @@ package com.navercorp.pinpoint.web.applicationmap.link;
 
 import com.navercorp.pinpoint.web.applicationmap.nodes.Node;
 import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.LinkKey;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * @author emeroad
@@ -42,37 +47,31 @@ public class LinkList {
     }
 
     /**
-     * find all callers of toApplication
+     * find all in links of toApplication
      * @param toApplication
      * @return
      */
     public List<Link> findToLink(Application toApplication) {
         Objects.requireNonNull(toApplication, "toApplication");
-
-        List<Link> findList = new ArrayList<>();
-        for (Link link : linkMap.values()) {
-            Node toNode = link.getTo();
-            // find all the callers of toApplication/destination
-            if (toNode.getApplication().equals(toApplication) && toNode.getServiceType().equals(toApplication.getServiceType())) {
-                findList.add(link);
-            }
-        }
-        return findList;
+        return findLink(toApplication, Link::getTo);
     }
 
     /**
-     * find all callees of fromApplication
+     * find all out links of fromApplication
      * @param fromApplication
      * @return
      */
     public List<Link> findFromLink(Application fromApplication) {
         Objects.requireNonNull(fromApplication, "fromApplication");
+        return findLink(fromApplication, Link::getFrom);
+    }
 
+    private List<Link> findLink(Application application, Function<Link, Node> linkToNode) {
         List<Link> findList = new ArrayList<>();
-        for (Link link : linkMap.values()) {
-            Node fromNode = link.getFrom();
-
-            if (fromNode.getApplication().equals(fromApplication) && fromNode.getServiceType().equals(fromApplication.getServiceType())) {
+        for (Map.Entry<LinkKey, Link> entry : linkMap.entrySet()) {
+            final Link link = entry.getValue();
+            final Node node = linkToNode.apply(link);
+            if (node.getApplication().equals(application)) {
                 findList.add(link);
             }
         }

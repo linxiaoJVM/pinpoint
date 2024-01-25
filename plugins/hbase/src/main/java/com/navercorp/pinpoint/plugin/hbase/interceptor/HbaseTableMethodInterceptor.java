@@ -19,10 +19,12 @@ import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.SpanEventSimpleAroundInterceptorForPlugin;
 import com.navercorp.pinpoint.common.util.ArrayUtils;
-import com.navercorp.pinpoint.common.util.BytesUtils;
 import com.navercorp.pinpoint.plugin.hbase.HbasePluginConstants;
+import com.navercorp.pinpoint.plugin.hbase.interceptor.data.DataOperationType;
+import com.navercorp.pinpoint.plugin.hbase.interceptor.data.DataSizeHelper;
+import com.navercorp.pinpoint.plugin.hbase.interceptor.util.HbaseTableNameProvider;
+import com.navercorp.pinpoint.plugin.hbase.interceptor.util.HbaseTableNameProviderFactory;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -40,18 +42,23 @@ public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundIntercepto
 
     private final boolean paramsProfile;
     private final boolean tableNameProfile;
+    private final int dataOpType;
+    private final HbaseTableNameProvider nameProvider;
 
     /**
      * Instantiates a new Hbase table method interceptor.
      *
      * @param traceContext  the trace context
      * @param descriptor    the descriptor
-     * @param paramsProfile
+     * @param paramsProfile params
      */
-    public HbaseTableMethodInterceptor(TraceContext traceContext, MethodDescriptor descriptor, boolean paramsProfile, boolean tableNameProfile) {
+    public HbaseTableMethodInterceptor(TraceContext traceContext, MethodDescriptor descriptor,
+                                       boolean paramsProfile, boolean tableNameProfile, int hbaseVersion, int dataOpType) {
         super(traceContext, descriptor);
         this.paramsProfile = paramsProfile;
         this.tableNameProfile = tableNameProfile;
+        this.nameProvider = HbaseTableNameProviderFactory.getTableNameProvider(hbaseVersion);
+        this.dataOpType = dataOpType;
     }
 
     @Override
@@ -67,31 +74,34 @@ public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundIntercepto
                 recorder.recordAttribute(HbasePluginConstants.HBASE_CLIENT_PARAMS, attributes);
             }
         }
-        if (tableNameProfile){
+        if (tableNameProfile) {
             String tableName = getTableName(target);
             recorder.recordAttribute(HbasePluginConstants.HBASE_TABLE_NAME, tableName);
+        }
+
+        if (DataOperationType.DISABLE == dataOpType) {
+            // skip
+        } else if (DataOperationType.isWriteOp(dataOpType)) {
+            int dataWriteSize = DataSizeHelper.getDataSizeFromArgument(args, dataOpType);
+            recorder.recordAttribute(HbasePluginConstants.HBASE_OP_WRITE_SIZE, dataWriteSize);
+        } else if (DataOperationType.isReadOp(dataOpType)) {
+            int dataReadSize = DataSizeHelper.getDataSizeFromResult(result, dataOpType);
+            recorder.recordAttribute(HbasePluginConstants.HBASE_OP_READ_SIZE, dataReadSize);
         }
 
         recorder.recordApi(getMethodDescriptor());
         recorder.recordException(throwable);
     }
 
-    protected String getTableName(Object target) {
+    private String getTableName(Object target) {
         try {
-            if (target instanceof org.apache.hadoop.hbase.client.HTable) {
-                byte[] tableName = ((HTable) target).getTableName();
-                return BytesUtils.toString(tableName);
-            } else {
-                if (isDebug) {
-                    logger.debug("invalid instanceof HTable:{}", target);
-                }
-            }
+            return nameProvider.getName(target);
         } catch (Exception e) {
             if (isDebug) {
                 logger.debug("failed to getTableName method. caused:{}", e.getMessage(), e);
             }
         }
-        return "Unknown";
+        return HbasePluginConstants.UNKNOWN_TABLE;
     }
 
     /**
@@ -104,9 +114,7 @@ public class HbaseTableMethodInterceptor extends SpanEventSimpleAroundIntercepto
 
         Object param;
         final int argsLength = ArrayUtils.getLength(args);
-        if (argsLength == 1) { // only one
-            param = args[0];
-        } else if (argsLength > 1) { // last param
+        if (argsLength >= 1) {
             param = args[argsLength - 1];
         } else {
             return null;

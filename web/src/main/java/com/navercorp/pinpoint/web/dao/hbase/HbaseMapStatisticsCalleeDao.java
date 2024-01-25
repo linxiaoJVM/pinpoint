@@ -17,26 +17,27 @@
 package com.navercorp.pinpoint.web.dao.hbase;
 
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
-import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
+import com.navercorp.pinpoint.common.hbase.HbaseOperations;
 import com.navercorp.pinpoint.common.hbase.ResultsExtractor;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
-import com.navercorp.pinpoint.common.hbase.TableDescriptor;
+import com.navercorp.pinpoint.common.hbase.TableNameProvider;
 import com.navercorp.pinpoint.common.server.util.ApplicationMapStatisticsUtils;
+import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.web.applicationmap.link.LinkDirection;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMap;
+import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMapUtils;
 import com.navercorp.pinpoint.web.dao.MapStatisticsCalleeDao;
 import com.navercorp.pinpoint.web.mapper.MapStatisticsTimeWindowReducer;
 import com.navercorp.pinpoint.web.mapper.RowMapReduceResultExtractor;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.util.TimeWindowDownSampler;
 import com.navercorp.pinpoint.web.vo.Application;
-import com.navercorp.pinpoint.web.vo.Range;
 import com.navercorp.pinpoint.web.vo.RangeFactory;
-
 import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Scan;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
@@ -52,48 +53,58 @@ public class HbaseMapStatisticsCalleeDao implements MapStatisticsCalleeDao {
     private static final int MAP_STATISTICS_CALLER_VER2_NUM_PARTITIONS = 32;
     private static final int SCAN_CACHE_SIZE = 40;
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
-    private final HbaseOperations2 hbaseTemplate;
+    private static final HbaseColumnFamily.CallerStatMap DESCRIPTOR = HbaseColumnFamily.MAP_STATISTICS_CALLER_VER2_COUNTER;
+
+    private final HbaseOperations hbaseTemplate;
+    private final TableNameProvider tableNameProvider;
 
     private final RowMapper<LinkDataMap> mapStatisticsCalleeMapper;
+    private final RowMapper<LinkDataMap> mapStatisticsCalleeTimeAggregatedMapper;
 
     private final RangeFactory rangeFactory;
 
     private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
 
-    private final TableDescriptor<HbaseColumnFamily.CallerStatMap> descriptor;
 
     public HbaseMapStatisticsCalleeDao(
-            HbaseOperations2 hbaseTemplate,
-            TableDescriptor<HbaseColumnFamily.CallerStatMap> descriptor,
+            HbaseOperations hbaseTemplate,
+            TableNameProvider tableNameProvider,
             @Qualifier("mapStatisticsCalleeMapper") RowMapper<LinkDataMap> mapStatisticsCalleeMapper,
+            @Qualifier("mapStatisticsCalleeTimeAggregatedMapper") RowMapper<LinkDataMap> mapStatisticsCalleeTimeAggregatedMapper,
             RangeFactory rangeFactory,
             @Qualifier("statisticsCalleeRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix)  {
         this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
-        this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
+        this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
         this.mapStatisticsCalleeMapper = Objects.requireNonNull(mapStatisticsCalleeMapper, "mapStatisticsCalleeMapper");
+        this.mapStatisticsCalleeTimeAggregatedMapper = Objects.requireNonNull(mapStatisticsCalleeTimeAggregatedMapper, "mapStatisticsCalleeTimeAggregatedMapper");
         this.rangeFactory = Objects.requireNonNull(rangeFactory, "rangeFactory");
         this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
     }
 
     @Override
-    public LinkDataMap selectCallee(Application calleeApplication, Range range) {
+    public LinkDataMap selectCallee(Application calleeApplication, Range range, boolean timeAggregated) {
         Objects.requireNonNull(calleeApplication, "calleeApplication");
         Objects.requireNonNull(range, "range");
 
         final TimeWindow timeWindow = new TimeWindow(range, TimeWindowDownSampler.SAMPLER);
         // find distributed key - ver2.
-        final Scan scan = createScan(calleeApplication, range, descriptor.getColumnFamilyName());
-        ResultsExtractor<LinkDataMap> resultExtractor = new RowMapReduceResultExtractor<>(mapStatisticsCalleeMapper, new MapStatisticsTimeWindowReducer(timeWindow));
+        final Scan scan = createScan(calleeApplication, range, DESCRIPTOR.getName());
 
-        TableName mapStatisticsCallerTableName = descriptor.getTableName();
-        LinkDataMap linkDataMap = hbaseTemplate.findParallel(mapStatisticsCallerTableName, scan, rowKeyDistributorByHashPrefix, resultExtractor, MAP_STATISTICS_CALLER_VER2_NUM_PARTITIONS);
-        logger.debug("Callee data. {}, {}", linkDataMap, range);
-        if (linkDataMap != null && linkDataMap.size() > 0) {
-            return linkDataMap;
+        ResultsExtractor<LinkDataMap> resultExtractor;
+        if (timeAggregated) {
+            resultExtractor = new RowMapReduceResultExtractor<>(mapStatisticsCalleeTimeAggregatedMapper, new MapStatisticsTimeWindowReducer(timeWindow));
+        } else {
+            resultExtractor = new RowMapReduceResultExtractor<>(mapStatisticsCalleeMapper, new MapStatisticsTimeWindowReducer(timeWindow));
         }
 
+        TableName mapStatisticsCallerTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
+        LinkDataMap linkDataMap = hbaseTemplate.findParallel(mapStatisticsCallerTableName, scan, rowKeyDistributorByHashPrefix, resultExtractor, MAP_STATISTICS_CALLER_VER2_NUM_PARTITIONS);
+        logger.debug("{} data. {}, {}", LinkDirection.IN_LINK, linkDataMap, range);
+        if (LinkDataMapUtils.hasLength(linkDataMap)) {
+            return linkDataMap;
+        }
         return new LinkDataMap();
     }
 

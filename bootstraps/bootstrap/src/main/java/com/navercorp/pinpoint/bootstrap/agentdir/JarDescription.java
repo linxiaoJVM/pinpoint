@@ -24,8 +24,8 @@ import java.util.regex.Pattern;
  */
 public class JarDescription {
 
-    static final String VERSION_PATTERN = "(-[0-9]+\\.[0-9]+\\.[0-9]+((\\-SNAPSHOT)|(-RC[0-9]+))?)?";
-    static final String SIMPLE_PATTERN = "-x.x.x(-SNAPSHOT)(-RCx)";
+    static final String VERSION_PATTERN = "(-[0-9]+\\.[0-9]+\\.[0-9]+((-SNAPSHOT)|(-RC[0-9]+)|(-p[0-9]+)|(-alpha[0-9]+))?)?";
+    static final String SIMPLE_PATTERN = "-x.x.x(-SNAPSHOT)(-RCx)(-px)(-alphax)";
 
     private final String prefix;
     private final boolean required;
@@ -39,11 +39,15 @@ public class JarDescription {
         return prefix.concat(".jar");
     }
 
+    public String getJarName(String version) {
+        return String.format("%s-%s.jar", prefix, version);
+    }
+
     public Pattern getVersionPattern() {
         return Pattern.compile(prefix + VERSION_PATTERN + "\\.jar");
     }
 
-    public String getSimplePattern() {
+     public String getSimplePattern() {
         return prefix + SIMPLE_PATTERN + ".jar";
     }
 

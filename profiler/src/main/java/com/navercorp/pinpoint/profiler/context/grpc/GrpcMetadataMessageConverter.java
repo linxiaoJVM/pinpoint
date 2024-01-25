@@ -16,61 +16,42 @@
 
 package com.navercorp.pinpoint.profiler.context.grpc;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.GeneratedMessageV3;
+import com.navercorp.pinpoint.common.annotations.VisibleForTesting;
+import com.navercorp.pinpoint.common.profiler.message.MessageConverter;
 import com.navercorp.pinpoint.grpc.trace.PApiMetaData;
 import com.navercorp.pinpoint.grpc.trace.PSqlMetaData;
+import com.navercorp.pinpoint.grpc.trace.PSqlUidMetaData;
 import com.navercorp.pinpoint.grpc.trace.PStringMetaData;
-import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
+import com.navercorp.pinpoint.profiler.context.grpc.mapper.MetaDataMapper;
 import com.navercorp.pinpoint.profiler.metadata.ApiMetaData;
 import com.navercorp.pinpoint.profiler.metadata.MetaDataType;
 import com.navercorp.pinpoint.profiler.metadata.SqlMetaData;
+import com.navercorp.pinpoint.profiler.metadata.SqlUidMetaData;
 import com.navercorp.pinpoint.profiler.metadata.StringMetaData;
+
+import java.util.Objects;
 
 /**
  * @author jaehong.kim
  */
 public class GrpcMetadataMessageConverter implements MessageConverter<MetaDataType, GeneratedMessageV3> {
 
+    private final MetaDataMapper mapper;
 
-    public GrpcMetadataMessageConverter() {
-
+    public GrpcMetadataMessageConverter(
+            MetaDataMapper metaDataMapper
+    ) {
+        this.mapper = Objects.requireNonNull(metaDataMapper, "metaDataMapper");
     }
 
     @Override
     public GeneratedMessageV3 toMessage(MetaDataType message) {
-        if (message instanceof SqlMetaData) {
-            final SqlMetaData sqlMetaData = (SqlMetaData) message;
-            return convertSqlMetaData(sqlMetaData);
-        } else if (message instanceof ApiMetaData) {
-            final ApiMetaData apiMetaData = (ApiMetaData) message;
-            return convertApiMetaData(apiMetaData);
-        } else if (message instanceof StringMetaData) {
-            final StringMetaData stringMetaData = (StringMetaData) message;
-            return convertStringMetaData(stringMetaData);
+        try {
+            return mapper.map(message);
+        } catch (Exception e) {
+            return null;
         }
-        return null;
-    }
-
-    private PSqlMetaData convertSqlMetaData(final SqlMetaData sqlMetaData) {
-        final PSqlMetaData.Builder builder = PSqlMetaData.newBuilder();
-        builder.setSqlId(sqlMetaData.getSqlId());
-        builder.setSql(sqlMetaData.getSql());
-        return builder.build();
-    }
-
-    private PApiMetaData convertApiMetaData(final ApiMetaData apiMetaData) {
-        final PApiMetaData.Builder builder = PApiMetaData.newBuilder();
-        builder.setApiId(apiMetaData.getApiId());
-        builder.setApiInfo(apiMetaData.getApiInfo());
-        builder.setLine(apiMetaData.getLine());
-        builder.setType(apiMetaData.getType());
-        return builder.build();
-    }
-
-    private PStringMetaData convertStringMetaData(final StringMetaData stringMetaData) {
-        final PStringMetaData.Builder builder = PStringMetaData.newBuilder();
-        builder.setStringId(stringMetaData.getStringId());
-        builder.setStringValue(stringMetaData.getStringValue());
-        return builder.build();
     }
 }

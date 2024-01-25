@@ -23,9 +23,9 @@ import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.grpc.AgentHeaderFactory;
 import com.navercorp.pinpoint.grpc.client.ChannelFactory;
 import com.navercorp.pinpoint.grpc.client.ChannelFactoryBuilder;
-import com.navercorp.pinpoint.grpc.client.config.ClientOption;
 import com.navercorp.pinpoint.grpc.client.DefaultChannelFactoryBuilder;
 import com.navercorp.pinpoint.grpc.client.HeaderFactory;
+import com.navercorp.pinpoint.grpc.client.config.ClientOption;
 import com.navercorp.pinpoint.grpc.trace.MetadataGrpc;
 import com.navercorp.pinpoint.grpc.trace.PApiMetaData;
 import com.navercorp.pinpoint.grpc.trace.PResult;
@@ -39,8 +39,8 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,14 +58,14 @@ public class MetadataClientMock {
     private static final ScheduledExecutorService RECONNECT_SCHEDULER
             = Executors.newScheduledThreadPool(1, new PinpointThreadFactory("Pinpoint-reconnect-thread"));
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final ChannelFactory channelFactory;
     private final ManagedChannel channel;
     private final Timer retryTimer;
     private final RetryScheduler<GeneratedMessageV3, PResult> retryScheduler;
 
-    private volatile MetadataGrpc.MetadataStub metadataStub;
+    private final MetadataGrpc.MetadataStub metadataStub;
     private final AtomicInteger requestCounter = new AtomicInteger(0);
     private final AtomicInteger responseCounter = new AtomicInteger(0);
     private final List<String> responseList = new ArrayList<>();
@@ -157,16 +157,13 @@ public class MetadataClientMock {
             return;
         }
 
-        if (message instanceof PSqlMetaData) {
-            PSqlMetaData sqlMetaData = (PSqlMetaData) message;
+        if (message instanceof PSqlMetaData sqlMetaData) {
             StreamObserver<PResult> responseObserver = newResponseObserver(message, retryCount);
             this.metadataStub.requestSqlMetaData(sqlMetaData, responseObserver);
-        } else if (message instanceof PApiMetaData) {
-            final PApiMetaData apiMetaData = (PApiMetaData) message;
+        } else if (message instanceof PApiMetaData apiMetaData) {
             StreamObserver<PResult> responseObserver = newResponseObserver(message, retryCount);
             this.metadataStub.requestApiMetaData(apiMetaData, responseObserver);
-        } else if (message instanceof PStringMetaData) {
-            final PStringMetaData stringMetaData = (PStringMetaData) message;
+        } else if (message instanceof PStringMetaData stringMetaData) {
             StreamObserver<PResult> responseObserver = newResponseObserver(message, retryCount);
             this.metadataStub.requestStringMetaData(stringMetaData, responseObserver);
         } else {
@@ -180,7 +177,7 @@ public class MetadataClientMock {
     private void scheduleNextRetry(GeneratedMessageV3 request, int remainingRetryCount) {
         final TimerTask timerTask = new TimerTask() {
             @Override
-            public void run(Timeout timeout) throws Exception {
+            public void run(Timeout timeout) {
                 if (timeout.cancel()) {
                     return;
                 }

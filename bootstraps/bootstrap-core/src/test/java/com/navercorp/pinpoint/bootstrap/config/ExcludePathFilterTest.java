@@ -16,12 +16,12 @@
 
 package com.navercorp.pinpoint.bootstrap.config;
 
-import org.hamcrest.MatcherAssert;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import static com.navercorp.pinpoint.bootstrap.config.Filter.*;
-import static org.hamcrest.core.Is.is;
+import static com.navercorp.pinpoint.bootstrap.config.Filter.FILTERED;
+import static com.navercorp.pinpoint.bootstrap.config.Filter.NOT_FILTERED;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author HyunGil Jeong
@@ -92,73 +92,73 @@ public class ExcludePathFilterTest {
     }
 
     private void assertFiltered(Filter<String> filter, String testValue) {
-        MatcherAssert.assertThat(filter.filter(testValue), is(FILTERED));
+        assertThat(filter.filter(testValue)).isEqualTo(FILTERED);
     }
 
     private void assertNotFiltered(Filter<String> filter, String testValue) {
-        MatcherAssert.assertThat(filter.filter(testValue), is(NOT_FILTERED));
+        assertThat(filter.filter(testValue)).isEqualTo(NOT_FILTERED);
     }
 
     // Tests for urls
     @Test
-    public void testFilter() throws Exception {
+    public void testFilter() {
         Filter<String> filter = new ExcludePathFilter("/monitor/l7check.html, test/l4check.html");
 
         assertFilter(filter);
     }
 
     @Test
-    public void testFilter_InvalidExcludeURL() throws Exception {
+    public void testFilter_InvalidExcludeURL() {
         Filter<String> filter = new ExcludePathFilter("/monitor/l7check.html, test/l4check.html, ,,");
 
         assertFilter(filter);
     }
 
     @Test
-    public void testFilter_emptyExcludeURL() throws Exception {
+    public void testFilter_emptyExcludeURL() {
         Filter<String> filter = new ExcludePathFilter("");
 
-        Assert.assertFalse(filter.filter("/monitor/l7check.html"));
-        Assert.assertFalse(filter.filter("test/l4check.html"));
+        Assertions.assertFalse(filter.filter("/monitor/l7check.html"));
+        Assertions.assertFalse(filter.filter("test/l4check.html"));
 
-        Assert.assertFalse(filter.filter("test/"));
-        Assert.assertFalse(filter.filter("test/l4check.htm"));
+        Assertions.assertFalse(filter.filter("test/"));
+        Assertions.assertFalse(filter.filter("test/l4check.htm"));
     }
 
     private void assertFilter(Filter<String> filter) {
-        Assert.assertTrue(filter.filter("/monitor/l7check.html"));
-        Assert.assertTrue(filter.filter("test/l4check.html"));
+        Assertions.assertTrue(filter.filter("/monitor/l7check.html"));
+        Assertions.assertTrue(filter.filter("test/l4check.html"));
 
-        Assert.assertFalse(filter.filter("test/"));
-        Assert.assertFalse(filter.filter("test/l4check.htm"));
+        Assertions.assertFalse(filter.filter("test/"));
+        Assertions.assertFalse(filter.filter("test/l4check.htm"));
 
-        Assert.assertFalse(filter.filter(null));
-        Assert.assertFalse(filter.filter(""));
+        Assertions.assertFalse(filter.filter(null));
+        Assertions.assertFalse(filter.filter(""));
     }
 
     @Test
-    public void antStylePath() throws Exception {
+    public void antStylePath() {
         Filter<String> filter = new ExcludePathFilter("/monitor/l7check.*,/*/l7check.*");
 
-        Assert.assertTrue(filter.filter("/monitor/l7check.jsp"));
-        Assert.assertTrue(filter.filter("/monitor/l7check.html"));
+        Assertions.assertTrue(filter.filter("/monitor/l7check.jsp"));
+        Assertions.assertTrue(filter.filter("/monitor/l7check.html"));
 
-        Assert.assertFalse(filter.filter("/monitor/test.jsp"));
+        Assertions.assertFalse(filter.filter("/monitor/test.jsp"));
 
-        Assert.assertTrue(filter.filter("/*/l7check.html"));
+        Assertions.assertTrue(filter.filter("/*/l7check.html"));
 
-        Assert.assertFalse(filter.filter(null));
-        Assert.assertFalse(filter.filter(""));
+        Assertions.assertFalse(filter.filter(null));
+        Assertions.assertFalse(filter.filter(""));
     }
 
     @Test
-    public void antstyle_equals_match() throws Exception {
+    public void antstyle_equals_match() {
         Filter<String> filter = new ExcludePathFilter("/monitor/stringEquals,/monitor/antstyle.*");
 
-        Assert.assertTrue(filter.filter("/monitor/stringEquals"));
-        Assert.assertTrue(filter.filter("/monitor/antstyle.html"));
+        Assertions.assertTrue(filter.filter("/monitor/stringEquals"));
+        Assertions.assertTrue(filter.filter("/monitor/antstyle.html"));
 
-        Assert.assertFalse(filter.filter("/monitor/stringEquals.test"));
-        Assert.assertFalse(filter.filter("/monitor/antstyleXXX.html"));
+        Assertions.assertFalse(filter.filter("/monitor/stringEquals.test"));
+        Assertions.assertFalse(filter.filter("/monitor/antstyleXXX.html"));
     }
 }

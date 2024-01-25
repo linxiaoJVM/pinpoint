@@ -19,25 +19,32 @@ package com.navercorp.pinpoint.bootstrap.agentdir;
 import com.navercorp.pinpoint.bootstrap.agentdir.JavaAgentPathResolver.ClassAgentPathFinder;
 import com.navercorp.pinpoint.bootstrap.agentdir.JavaAgentPathResolver.InputArgumentAgentPathFinder;
 import com.navercorp.pinpoint.common.Version;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class JavaAgentPathResolverTest {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    
+    private final Logger logger = LogManager.getLogger(this.getClass());
+
     @Test
+    @SuppressWarnings("deprecation")
     public void testInputArgument() {
-        String agentPath = "/pinpoint/agent/target/pinpoint-agent-" + Version.VERSION + "/pinpoint-bootstrap-" + Version.VERSION + ".jar";
+        Path agentPath = Paths.get("/pinpoint/agent/target/pinpoint-agent-" + Version.VERSION + "/pinpoint-bootstrap-" + Version.VERSION + ".jar");
         final List<String> inputArguments = Collections.singletonList(JavaAgentPathResolver.InputArgumentAgentPathFinder.JAVA_AGENT_OPTION + agentPath);
 
         JavaAgentPathResolver.AgentPathFinder javaAgentPathResolver = new InputArgumentAgentPathFinder() {
@@ -46,8 +53,24 @@ public class JavaAgentPathResolverTest {
                 return inputArguments;
             }
         };
-        String resolveJavaAgentPath = javaAgentPathResolver.getPath();
-        org.junit.Assert.assertEquals(resolveJavaAgentPath, agentPath);
+        Path resolveJavaAgentPath = javaAgentPathResolver.getPath();
+        assertEquals(agentPath, resolveJavaAgentPath);
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    public void testInputArgument2() {
+        Path agentPath = Paths.get("C:/pinpoint/agent/target/pinpoint-agent-" + Version.VERSION + "/pinpoint-bootstrap-" + Version.VERSION + ".jar");
+        final List<String> inputArguments = Collections.singletonList(JavaAgentPathResolver.InputArgumentAgentPathFinder.JAVA_AGENT_OPTION + agentPath);
+
+        JavaAgentPathResolver.AgentPathFinder javaAgentPathResolver = new InputArgumentAgentPathFinder() {
+            @Override
+            List<String> getInputArguments() {
+                return inputArguments;
+            }
+        };
+        Path resolveJavaAgentPath = javaAgentPathResolver.getPath();
+        assertEquals(agentPath, resolveJavaAgentPath);
     }
 
     @Test
@@ -55,12 +78,20 @@ public class JavaAgentPathResolverTest {
         Class<Logger> clazz = Logger.class;
 
         ClassAgentPathFinder classAgentPath = new ClassAgentPathFinder();
-        String resolveTargetPath = classAgentPath.getJarLocation(clazz.getName());
+        String jarLocation = classAgentPath.getJarLocation(clazz.getName());
+        Path resolveTargetPath = Paths.get(URI.create(jarLocation));
         logger.debug("{}", resolveTargetPath);
-        org.junit.Assert.assertTrue(resolveTargetPath.endsWith(".jar"));
 
-        URL location = clazz.getProtectionDomain().getCodeSource().getLocation();
-        org.junit.Assert.assertEquals(resolveTargetPath, location.getPath());
+        assertTrue(resolveTargetPath.getFileName().toString().endsWith(".jar"));
+
+        URL classLocation = clazz.getProtectionDomain().getCodeSource().getLocation();
+        Path classFile = getPath(classLocation);
+        assertEquals(classFile, resolveTargetPath);
+    }
+
+    private Path getPath(URL classLocation) {
+        File classFile = new File(classLocation.getFile());
+        return Paths.get(classFile.getPath());
     }
 
 }

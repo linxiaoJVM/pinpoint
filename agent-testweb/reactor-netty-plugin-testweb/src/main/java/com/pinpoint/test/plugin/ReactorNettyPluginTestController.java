@@ -16,8 +16,12 @@
 
 package com.pinpoint.test.plugin;
 
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
@@ -35,7 +39,8 @@ public class ReactorNettyPluginTestController {
 
     @RequestMapping(value = "/client/echo", method = RequestMethod.GET)
     @ResponseBody
-    public String clientEcho() {
+    public String clientEcho(HttpServletRequest request) {
+        request.setAttribute("pinpoint.metric.uri-template", "/test");
         return "Welcome";
     }
 
@@ -44,7 +49,10 @@ public class ReactorNettyPluginTestController {
     public String clientGet() {
         HttpClient client = HttpClient.create().port(80);
         String response = client.get().uri("https://www.google.com?foo=bar").responseContent().aggregate().asString().block();
-        return response;
+        if (response != null) {
+            return response;
+        }
+        return "OK";
     }
 
     @RequestMapping(value = "/client/local", method = RequestMethod.GET)
@@ -52,7 +60,10 @@ public class ReactorNettyPluginTestController {
     public String clientError(HttpServletRequest request) {
         HttpClient client = HttpClient.create().port(request.getLocalPort());
         String response = client.get().uri("/client/echo").responseContent().aggregate().asString().block();
-        return response;
+        if (response != null) {
+            return response;
+        }
+        return "OK";
     }
 
     @RequestMapping(value = "/client/post", method = RequestMethod.GET)
@@ -60,7 +71,10 @@ public class ReactorNettyPluginTestController {
     public String clientPost() {
         HttpClient client = HttpClient.create().port(80);
         HttpClientResponse response = client.post().uri("https://www.google.com/").send(ByteBufFlux.fromString(Mono.just("hello"))).response().block();
-        return response.toString();
+        if (response != null) {
+            return response.toString();
+        }
+        return "OK";
     }
 
     @RequestMapping(value = "/client/unknown", method = RequestMethod.GET)
@@ -68,6 +82,27 @@ public class ReactorNettyPluginTestController {
     public String clientError() {
         HttpClient client = HttpClient.create().port(80);
         String response = client.get().uri("http://fjalkjdlfaj.com").responseContent().aggregate().asString().block();
-        return response;
+        if (response != null) {
+            return response;
+        }
+        return "OK";
+    }
+
+    @GetMapping("/client/get/param")
+    @ResponseBody
+    public String clientGetParam(@RequestParam String id, @RequestParam(name = "password") String pwd) {
+        return "OK";
+    }
+
+    @PostMapping("/client/post/param")
+    @ResponseBody
+    public String clientPostParam(@RequestParam String id, @RequestParam(name = "password") String pwd) {
+        return "OK";
+    }
+
+    @PostMapping("/client/post/body")
+    @ResponseBody
+    public String clientPostParam(@RequestBody String body) {
+        return "OK";
     }
 }

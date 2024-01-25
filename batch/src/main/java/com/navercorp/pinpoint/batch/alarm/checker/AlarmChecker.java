@@ -20,10 +20,10 @@ import com.navercorp.pinpoint.batch.alarm.collector.DataCollector;
 import com.navercorp.pinpoint.batch.alarm.vo.sender.payload.AlarmCheckerDetectedValue;
 import com.navercorp.pinpoint.batch.alarm.vo.sender.payload.CheckerDetectedValue;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -32,9 +32,9 @@ import java.util.Objects;
  * @author minwoo.jung
  * @author Jongjin.Bae
  */
-public abstract class AlarmChecker<T> {
+public abstract class AlarmChecker<T> implements AlarmCheckerInterface {
 
-    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
+    protected final Logger logger = LogManager.getLogger(this.getClass());
 
     protected final Rule rule;
     protected final String unit;
@@ -71,6 +71,10 @@ public abstract class AlarmChecker<T> {
     public String getUserGroupId() {
         return rule.getUserGroupId();
     }
+
+    public String getRuleId() {
+        return rule.getRuleId();
+    }
     
     public String getUnit() {
         return unit;
@@ -85,12 +89,13 @@ public abstract class AlarmChecker<T> {
     }
     
     public List<String> getSmsMessage() {
-        List<String> messages = new LinkedList<>();
+        List<String> messages = new ArrayList<>();
         messages.add(String.format("[PINPOINT Alarm - %s] %s is %s%s (Threshold : %s%s)", rule.getApplicationId(), rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit));
         return messages;
     }
-    
-    public String getEmailMessage() {
+
+    @Override
+    public String getEmailMessage(String pinpointUrl, String applicationId, String serviceType, String currentTime) {
         return String.format("%s value is %s%s during the past 5 mins.(Threshold : %s%s)<br>", rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit);
     }
     
@@ -101,5 +106,12 @@ public abstract class AlarmChecker<T> {
     }
     
     public abstract String getCheckerType();
+
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("AlarmChecker {");
+        sb.append("rule=").append(rule);
+        sb.append('}');
+        return sb.toString();
+    }
     
 }

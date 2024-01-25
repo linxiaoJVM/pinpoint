@@ -19,22 +19,18 @@ package com.navercorp.pinpoint.profiler.instrument.classreading;
 
 import com.navercorp.pinpoint.common.util.ClassLoaderUtils;
 import com.navercorp.pinpoint.profiler.util.BytecodeUtils;
-import org.hamcrest.MatcherAssert;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class SimpleClassMetadataReaderTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Test
     public void testSimpleClassMetadata() {
@@ -43,15 +39,15 @@ public class SimpleClassMetadataReaderTest {
 
         SimpleClassMetadata simpleClassMetadata = SimpleClassMetadataReader.readSimpleClassMetadata(classFile);
         // name.
-        Assert.assertEquals(simpleClassMetadata.getClassName(), clazz.getName());
+        Assertions.assertEquals(simpleClassMetadata.getClassName(), clazz.getName());
 
         // interfaces
         List<String> interfaceList = getInterfaceList(clazz.getInterfaces());
         List<String> interfaceNames = simpleClassMetadata.getInterfaceNames();
-        MatcherAssert.assertThat(interfaceNames, containsInAnyOrder(interfaceList.toArray()));
+        assertThat(interfaceNames).containsAll(interfaceList);
 
         // super
-        Assert.assertEquals(simpleClassMetadata.getSuperClassName(), "java.lang.Object");
+        Assertions.assertEquals(simpleClassMetadata.getSuperClassName(), "java.lang.Object");
 
         // access
         simpleClassMetadata.getAccessFlag();

@@ -19,33 +19,37 @@ package com.navercorp.pinpoint.profiler.context;
 import com.navercorp.pinpoint.bootstrap.context.SpanRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceId;
-import com.navercorp.pinpoint.profiler.context.active.ActiveTraceHandle;
 import com.navercorp.pinpoint.profiler.context.errorhandler.BypassErrorHandler;
 import com.navercorp.pinpoint.profiler.context.errorhandler.IgnoreErrorHandler;
+import com.navercorp.pinpoint.profiler.context.exception.ExceptionRecordingService;
+import com.navercorp.pinpoint.profiler.context.exception.disabled.DisabledExceptionContext;
+import com.navercorp.pinpoint.profiler.context.exception.model.ExceptionContext;
 import com.navercorp.pinpoint.profiler.context.id.DefaultTraceId;
-import com.navercorp.pinpoint.profiler.context.id.DefaultTraceRoot;
 import com.navercorp.pinpoint.profiler.context.id.TraceRoot;
 import com.navercorp.pinpoint.profiler.context.recorder.DefaultSpanRecorder;
 import com.navercorp.pinpoint.profiler.context.recorder.WrappedSpanEventRecorder;
 import com.navercorp.pinpoint.profiler.context.storage.Storage;
 import com.navercorp.pinpoint.profiler.metadata.SqlMetaDataService;
 import com.navercorp.pinpoint.profiler.metadata.StringMetaDataService;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * @author emeroad
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class TraceTest {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final String agentId = "agent";
     private final long agentStartTime = System.currentTimeMillis();
@@ -58,6 +62,10 @@ public class TraceTest {
     private StringMetaDataService stringMetaDataService;
     @Mock
     private SqlMetaDataService sqlMetaDataService;
+    @Mock
+    private ExceptionRecordingService exceptionRecordingService;
+    @Mock
+    private SqlCountService sqlCountService;
 
     private final IgnoreErrorHandler errorHandler = new BypassErrorHandler();
 
@@ -65,20 +73,18 @@ public class TraceTest {
     public void trace() {
 
         final TraceId traceId = new DefaultTraceId(agentId, agentStartTime, 1);
-        final TraceRoot traceRoot = new DefaultTraceRoot(traceId, agentId, traceStartTime, 0);
+        final TraceRoot traceRoot = TraceRoot.remote(traceId, agentId, traceStartTime, 0);
 
         final CallStack<SpanEvent> callStack = newCallStack();
         final Span span = newSpan(traceRoot);
 
-        boolean root = span.getTraceRoot().getTraceId().isRoot();
-        SpanRecorder spanRecorder = new DefaultSpanRecorder(span, root, true, stringMetaDataService, sqlMetaDataService, errorHandler);
-        WrappedSpanEventRecorder wrappedSpanEventRecorder = new WrappedSpanEventRecorder(traceRoot, asyncContextFactory, stringMetaDataService, sqlMetaDataService, errorHandler);
-
-        AsyncContextFactory asyncContextFactory = mock(AsyncContextFactory.class);
+        SpanRecorder spanRecorder = new DefaultSpanRecorder(span, stringMetaDataService, sqlMetaDataService, errorHandler, exceptionRecordingService);
+        WrappedSpanEventRecorder wrappedSpanEventRecorder = new WrappedSpanEventRecorder(traceRoot, asyncContextFactory, stringMetaDataService, sqlMetaDataService, errorHandler, exceptionRecordingService, sqlCountService);
+        ExceptionContext exceptionContext = DisabledExceptionContext.INSTANCE;
 
         Storage storage = mock(Storage.class);
 
-        Trace trace = new DefaultTrace(span, callStack, storage, true, spanRecorder, wrappedSpanEventRecorder, ActiveTraceHandle.EMPTY_HANDLE);
+        Trace trace = new DefaultTrace(span, callStack, storage, spanRecorder, wrappedSpanEventRecorder, CloseListener.EMPTY);
         trace.traceBlockBegin();
 
         // get data form db
@@ -97,22 +103,19 @@ public class TraceTest {
     public void popEventTest() {
 
         final TraceId traceId = new DefaultTraceId(agentId, agentStartTime, 1);
-        final TraceRoot traceRoot = new DefaultTraceRoot(traceId, agentId, traceStartTime, 0);
+        final TraceRoot traceRoot = TraceRoot.remote(traceId, agentId, traceStartTime, 0);
 
         final CallStack<SpanEvent> callStack = newCallStack();
 
         final Span span = newSpan(traceRoot);
 
-        final boolean root = span.getTraceRoot().getTraceId().isRoot();
-        SpanRecorder spanRecorder = new DefaultSpanRecorder(span, root, true, stringMetaDataService, sqlMetaDataService, errorHandler);
-        WrappedSpanEventRecorder wrappedSpanEventRecorder = new WrappedSpanEventRecorder(traceRoot, asyncContextFactory, stringMetaDataService, sqlMetaDataService, errorHandler);
-
-
-        AsyncContextFactory asyncContextFactory = mock(AsyncContextFactory.class);
+        SpanRecorder spanRecorder = new DefaultSpanRecorder(span, stringMetaDataService, sqlMetaDataService, errorHandler, exceptionRecordingService);
+        WrappedSpanEventRecorder wrappedSpanEventRecorder = new WrappedSpanEventRecorder(traceRoot, asyncContextFactory, stringMetaDataService, sqlMetaDataService, errorHandler, exceptionRecordingService, sqlCountService);
+        ExceptionContext exceptionContext = DisabledExceptionContext.INSTANCE;
 
         Storage storage = mock(Storage.class);
 
-        Trace trace = new DefaultTrace(span, callStack, storage, true, spanRecorder, wrappedSpanEventRecorder, ActiveTraceHandle.EMPTY_HANDLE);
+        Trace trace = new DefaultTrace(span, callStack, storage, spanRecorder, wrappedSpanEventRecorder, CloseListener.EMPTY);
 
         trace.close();
 
@@ -130,7 +133,7 @@ public class TraceTest {
 
 
     private CallStack<SpanEvent> newCallStack() {
-        final CallStackFactory<SpanEvent> callStackFactory = new CallStackFactoryV1(64);
+        final CallStackFactory<SpanEvent> callStackFactory = new CallStackFactoryV1(64, -1, 1000);
         return callStackFactory.newCallStack();
     }
 

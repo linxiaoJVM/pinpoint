@@ -18,65 +18,64 @@ package com.navercorp.pinpoint.batch.alarm;
 
 import com.navercorp.pinpoint.batch.alarm.checker.AlarmChecker;
 import com.navercorp.pinpoint.batch.alarm.checker.SlowCountChecker;
+import com.navercorp.pinpoint.batch.alarm.vo.AppAlarmChecker;
 import com.navercorp.pinpoint.web.alarm.CheckerCategory;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import java.util.LinkedList;
 import java.util.List;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+@Disabled
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration("classpath:applicationContext-test.xml")
 public class AlarmWriterTest {
 
     @Autowired
     AlarmWriter writer;
-    
-    @Ignore
+
+    @Disabled
     @Test
-    public void smsSendTest() throws Exception {
-        Rule rule = new Rule("testService", "tomcat", CheckerCategory.SLOW_COUNT.getName(), 100, "testGroup", true, false, false,"");
+    public void smsSendTest() {
+        Rule rule = new Rule("testService", "tomcat", CheckerCategory.SLOW_COUNT.getName(), 100, "testGroup", true, false, false, "");
         SlowCountChecker checker = new SlowCountChecker(null, rule) {
             @Override
             public boolean isDetected() {
                 return true;
             }
-            
+
             @Override
             protected Long getDetectedValue() {
                 return 10000L;
             }
         };
-        
-        List<AlarmChecker<?>> checkers = new LinkedList<>();
-        checkers.add(checker);
-        writer.write(checkers);
+
+        List<AlarmChecker<?>> checkers = List.of(checker);
+        writer.write(List.of(new AppAlarmChecker(checkers)));
     }
 
-    @Ignore
+    @Disabled
     @Test
-    public void emailSendTest() throws Exception {
+    public void emailSendTest() {
         Rule rule = new Rule("testService", "tomcat", CheckerCategory.SLOW_COUNT.getName(), 100, "testGroup", false, true, false, "");
         SlowCountChecker checker = new SlowCountChecker(null, rule) {
             @Override
             public boolean isDetected() {
                 return true;
             }
-            
+
             @Override
             protected Long getDetectedValue() {
                 return 10000L;
             }
         };
-        
-        List<AlarmChecker<?>> checkers = new LinkedList<>();
-        checkers.add(checker);
-        writer.write(checkers);
+
+        List<AlarmChecker<?>> checkers = List.of(checker);
+        writer.write(List.of(new AppAlarmChecker(checkers)));
     }
-    
+
 }

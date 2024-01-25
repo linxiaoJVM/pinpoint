@@ -1,13 +1,14 @@
 package com.navercorp.pinpoint.bootstrap.config;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ExcludeMethodFilterTest {
 
     @Test
-    public void testFilter() throws Exception {
+    public void testFilter() {
         Filter<String> filter = new ExcludeMethodFilter("get,post");
 
         boolean getResult = filter.filter("GET");
@@ -18,7 +19,7 @@ public class ExcludeMethodFilterTest {
     }
 
     @Test
-    public void testUnFilter() throws Exception {
+    public void testUnFilter() {
         Filter<String> filter = new ExcludeMethodFilter("get,post");
 
         boolean putResult = filter.filter("PUT");

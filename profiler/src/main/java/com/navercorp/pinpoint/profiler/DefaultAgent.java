@@ -23,7 +23,6 @@ import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.config.Profiles;
 import com.navercorp.pinpoint.bootstrap.plugin.util.SocketAddressUtils;
 import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
-import java.util.Objects;
 import com.navercorp.pinpoint.profiler.context.module.ApplicationContext;
 import com.navercorp.pinpoint.profiler.context.module.DefaultApplicationContext;
 import com.navercorp.pinpoint.profiler.context.module.DefaultModuleFactoryResolver;
@@ -33,11 +32,13 @@ import com.navercorp.pinpoint.profiler.context.provider.ShutdownHookRegisterProv
 import com.navercorp.pinpoint.profiler.logging.Log4j2LoggingSystem;
 import com.navercorp.pinpoint.profiler.logging.LoggingSystem;
 import com.navercorp.pinpoint.profiler.util.SystemPropertyDumper;
-import com.navercorp.pinpoint.rpc.ClassPreLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
 
@@ -66,11 +67,11 @@ public class DefaultAgent implements Agent {
 
         this.profilerConfig = agentOption.getProfilerConfig();
 
-        final String logConfigPath = getLogConfigPath(profilerConfig);
+        final Path logConfigPath = getLogConfigPath(profilerConfig);
         this.loggingSystem = newLoggingSystem(logConfigPath);
         this.loggingSystem.start();
 
-        logger = LoggerFactory.getLogger(this.getClass());
+        logger = LogManager.getLogger(this.getClass());
         dumpAgentOption(agentOption);
 
         dumpSystemProperties();
@@ -78,10 +79,6 @@ public class DefaultAgent implements Agent {
 
         changeStatus(AgentStatus.INITIALIZING);
 
-        if (Boolean.valueOf(System.getProperty("pinpoint.profiler.ClassPreLoader", "false"))) {
-            // Preload classes related to pinpoint-rpc module.
-            ClassPreLoader.preload();
-        }
         preloadOnStartup();
 
         this.applicationContext = newApplicationContext(agentOption);
@@ -97,8 +94,7 @@ public class DefaultAgent implements Agent {
         logger.info("- instrumentation:{}", agentOption.getInstrumentation());
     }
 
-    private LoggingSystem newLoggingSystem(String profilePath) {
-//        return new Log4jLoggingSystem(logConfigPath);
+    private LoggingSystem newLoggingSystem(Path profilePath) {
         return new Log4j2LoggingSystem(profilePath);
     }
 
@@ -137,12 +133,12 @@ public class DefaultAgent implements Agent {
         }
     }
 
-    private String getLogConfigPath(ProfilerConfig config) {
+    private Path getLogConfigPath(ProfilerConfig config) {
         final String location = config.readString(Profiles.LOG_CONFIG_LOCATION_KEY, null);
         if (location == null) {
             throw new IllegalStateException("logPath($PINPOINT_DIR/profiles/${profile}/) not found");
         }
-        return location;
+        return Paths.get(location);
     }
 
 

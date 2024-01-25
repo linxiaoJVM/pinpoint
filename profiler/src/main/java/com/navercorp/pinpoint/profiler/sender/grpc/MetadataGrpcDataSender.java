@@ -18,19 +18,18 @@ package com.navercorp.pinpoint.profiler.sender.grpc;
 
 import com.google.protobuf.GeneratedMessageV3;
 import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
+import com.navercorp.pinpoint.common.profiler.message.EnhancedDataSender;
+import com.navercorp.pinpoint.common.profiler.message.MessageConverter;
 import com.navercorp.pinpoint.grpc.MessageFormatUtils;
 import com.navercorp.pinpoint.grpc.client.ChannelFactory;
 import com.navercorp.pinpoint.grpc.trace.MetadataGrpc;
 import com.navercorp.pinpoint.grpc.trace.PApiMetaData;
+import com.navercorp.pinpoint.grpc.trace.PExceptionMetaData;
 import com.navercorp.pinpoint.grpc.trace.PResult;
 import com.navercorp.pinpoint.grpc.trace.PSqlMetaData;
+import com.navercorp.pinpoint.grpc.trace.PSqlUidMetaData;
 import com.navercorp.pinpoint.grpc.trace.PStringMetaData;
-import com.navercorp.pinpoint.profiler.context.thrift.MessageConverter;
-import com.navercorp.pinpoint.profiler.sender.EnhancedDataSender;
-import com.navercorp.pinpoint.rpc.FutureListener;
-import com.navercorp.pinpoint.rpc.ResponseMessage;
-import com.navercorp.pinpoint.rpc.client.PinpointClientReconnectEventListener;
-
+import com.navercorp.pinpoint.io.ResponseMessage;
 import io.grpc.stub.StreamObserver;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
@@ -40,11 +39,12 @@ import io.netty.util.TimerTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 /**
  * @author jaehong.kim
  */
-public class MetadataGrpcDataSender<T> extends GrpcDataSender<T> implements EnhancedDataSender<T> {
+public class MetadataGrpcDataSender<T> extends GrpcDataSender<T> implements EnhancedDataSender<T, ResponseMessage> {
     private final MetadataGrpc.MetadataStub metadataStub;
     private final int maxAttempts;
     private final int retryDelayMillis;
@@ -97,23 +97,13 @@ public class MetadataGrpcDataSender<T> extends GrpcDataSender<T> implements Enha
     }
 
     @Override
-    public boolean request(T data, FutureListener<ResponseMessage> listener) {
+    public boolean request(T data, BiConsumer<ResponseMessage, Throwable> listener) {
         throw new UnsupportedOperationException("unsupported operation request(data, listener)");
     }
 
     @Override
     public boolean send(T data) {
         throw new UnsupportedOperationException("unsupported operation send(data)");
-    }
-
-    @Override
-    public boolean addReconnectEventListener(PinpointClientReconnectEventListener eventListener) {
-        throw new UnsupportedOperationException("unsupported operation addReconnectEventListener(eventListener)");
-    }
-
-    @Override
-    public boolean removeReconnectEventListener(PinpointClientReconnectEventListener eventListener) {
-        throw new UnsupportedOperationException("unsupported operation removeReconnectEventListener(eventListener)");
     }
 
     @Override
@@ -148,6 +138,10 @@ public class MetadataGrpcDataSender<T> extends GrpcDataSender<T> implements Enha
             final PSqlMetaData sqlMetaData = (PSqlMetaData) message;
             final StreamObserver<PResult> responseObserver = newResponseStream(message, remainingRetryCount);
             this.metadataStub.requestSqlMetaData(sqlMetaData, responseObserver);
+        } else if (message instanceof PSqlUidMetaData) {
+            final PSqlUidMetaData sqlUidMetaData = (PSqlUidMetaData) message;
+            final StreamObserver<PResult> responseObserver = newResponseStream(message, remainingRetryCount);
+            this.metadataStub.requestSqlUidMetaData(sqlUidMetaData, responseObserver);
         } else if (message instanceof PApiMetaData) {
             final PApiMetaData apiMetaData = (PApiMetaData) message;
             final StreamObserver<PResult> responseObserver = newResponseStream(message, remainingRetryCount);
@@ -156,6 +150,10 @@ public class MetadataGrpcDataSender<T> extends GrpcDataSender<T> implements Enha
             final PStringMetaData stringMetaData = (PStringMetaData) message;
             final StreamObserver<PResult> responseObserver = newResponseStream(message, remainingRetryCount);
             this.metadataStub.requestStringMetaData(stringMetaData, responseObserver);
+        } else if (message instanceof PExceptionMetaData) {
+            final PExceptionMetaData exceptionMetaData = (PExceptionMetaData) message;
+            final StreamObserver<PResult> responseObserver = newResponseStream(message, remainingRetryCount);
+            this.metadataStub.requestExceptionMetaData(exceptionMetaData, responseObserver);
         } else {
             logger.warn("Unsupported message {}", MessageFormatUtils.debugLog(message));
         }

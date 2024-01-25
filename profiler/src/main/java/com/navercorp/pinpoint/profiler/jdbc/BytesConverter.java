@@ -44,6 +44,14 @@ public class BytesConverter implements Converter {
         return "error";
     }
 
+    public String convert(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        final byte[] bytes = (byte[]) value;
+        return convert(bytes);
+    }
+
     protected String convert(byte[] bytes) {
         return ArrayUtils.abbreviate(bytes, maxWidth);
     }

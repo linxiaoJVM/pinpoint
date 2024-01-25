@@ -18,8 +18,8 @@ package com.navercorp.pinpoint.common.profiler.sql;
 
 import com.navercorp.pinpoint.common.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -27,7 +27,7 @@ import java.util.List;
  */
 public class OutputParameterParser {
 
-    public static final char SEPARATOR = DefaultSqlParser.SEPARATOR;
+    public static final char SEPARATOR = DefaultSqlNormalizer.SEPARATOR;
 
     public List<String> parseOutputParameter(String outputParams) {
         // may also need to know about the parsing result 
@@ -35,7 +35,7 @@ public class OutputParameterParser {
             return Collections.emptyList();
         }
 
-        final List<String> result = new LinkedList<>();
+        final List<String> result = new ArrayList<>();
         StringBuilder params = new StringBuilder();
         for (int index = 0; index < outputParams.length(); index++) {
             final char ch = outputParams.charAt(index);

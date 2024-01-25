@@ -16,10 +16,8 @@
 
 package com.navercorp.pinpoint.common.trace;
 
-import com.navercorp.pinpoint.common.trace.UriStatHistogramBucket;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
@@ -50,10 +48,10 @@ public class UriStatHistogramTest {
             value += prev.getTo();
         }
 
-        UriStatHistogramBucket result = UriStatHistogramBucket.getValue(value);
+        UriStatHistogramBucket result = UriStatHistogramBucket.getLayout().getBucket(value);
 
-        Assert.assertEquals(current, result);
-        Assert.assertEquals(expectedIndex, result.getIndex());
+        Assertions.assertEquals(current, result);
+        Assertions.assertEquals(expectedIndex, result.getIndex());
     }
 
 }

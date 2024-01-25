@@ -24,16 +24,18 @@ import com.navercorp.pinpoint.rpc.packet.SendPacket;
 import com.navercorp.pinpoint.rpc.server.PinpointServer;
 import com.navercorp.pinpoint.rpc.server.ServerMessageListener;
 import com.navercorp.pinpoint.rpc.server.ServerMessageListenerFactory;
-import com.navercorp.pinpoint.test.utils.TestAwaitTaskUtils;
-import com.navercorp.pinpoint.test.utils.TestAwaitUtils;
-import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.awaitility.Awaitility;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Taejin Koo
@@ -94,7 +96,7 @@ public class TestServerMessageListenerFactory implements ServerMessageListenerFa
 
     public static class TestServerMessageListener implements ServerMessageListener {
 
-        private final Logger logger = LoggerFactory.getLogger(this.getClass());
+        private final Logger logger = LogManager.getLogger(this.getClass());
 
         private final AtomicInteger handleSendCount = new AtomicInteger(0);
         private final AtomicInteger handleRequestCount = new AtomicInteger(0);
@@ -126,7 +128,7 @@ public class TestServerMessageListenerFactory implements ServerMessageListenerFa
         }
 
         @Override
-        public HandshakeResponseCode handleHandshake(Map properties) {
+        public HandshakeResponseCode handleHandshake(Map<?, ?> properties) {
             logger.info("handleHandshake properties:{}", properties);
 
             if (handshakeType == HandshakeType.DUPLEX) {
@@ -144,44 +146,24 @@ public class TestServerMessageListenerFactory implements ServerMessageListenerFa
         }
 
         public void awaitAssertExpectedSendCount(final int expectedCount, long maxWaitTime) {
-            if (maxWaitTime > 100) {
-                TestAwaitUtils awaitUtils = new TestAwaitUtils(100, maxWaitTime);
-                Assert.assertTrue(awaitUtils.await(new TestAwaitTaskUtils() {
-                    @Override
-                    public boolean checkCompleted() {
-                        return expectedCount == handleSendCount.get();
-                    }
-                }));
-            } else {
-                Assert.assertTrue(expectedCount == handleSendCount.get());
-            }
+            awaitAssertExpectedCount(expectedCount, handleSendCount, maxWaitTime);
         }
 
         public void awaitAssertExpectedRequestCount(final int expectedCount, long maxWaitTime) {
-            if (maxWaitTime > 100) {
-                TestAwaitUtils awaitUtils = new TestAwaitUtils(100, maxWaitTime);
-                Assert.assertTrue(awaitUtils.await(new TestAwaitTaskUtils() {
-                    @Override
-                    public boolean checkCompleted() {
-                        return expectedCount == handleRequestCount.get();
-                    }
-                }));
-            } else {
-                Assert.assertTrue(expectedCount == handleRequestCount.get());
-            }
+            awaitAssertExpectedCount(expectedCount, handleRequestCount, maxWaitTime);
         }
 
         public void awaitAssertExpectedPingCount(final int expectedCount, long maxWaitTime) {
+            awaitAssertExpectedCount(expectedCount, handlePingCount, maxWaitTime);
+        }
+
+        private void awaitAssertExpectedCount(int expectedCount, AtomicInteger handlePingCount, long maxWaitTime) {
             if (maxWaitTime > 100) {
-                TestAwaitUtils awaitUtils = new TestAwaitUtils(100, maxWaitTime);
-                Assert.assertTrue(awaitUtils.await(new TestAwaitTaskUtils() {
-                    @Override
-                    public boolean checkCompleted() {
-                        return expectedCount == handlePingCount.get();
-                    }
-                }));
+                Awaitility
+                        .waitAtMost(maxWaitTime, TimeUnit.MILLISECONDS)
+                        .untilAsserted(() -> assertThat(handlePingCount.get()).isEqualTo(expectedCount));
             } else {
-                Assert.assertTrue(expectedCount == handlePingCount.get());
+                Assertions.assertEquals(expectedCount, handlePingCount.get());
             }
         }
 

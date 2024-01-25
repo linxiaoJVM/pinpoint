@@ -34,6 +34,8 @@ public interface InstrumentConfig {
     String getApplicationServerType();
 
     int getCallStackMaxDepth();
+    int getCallStackMaxSequence();
+    int getCallStackOverflowLogRation();
     boolean isPropagateInterceptorException();
     String getProfileInstrumentEngine();
     boolean isSupportLambdaExpressions();

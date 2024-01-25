@@ -17,18 +17,17 @@
 package com.navercorp.pinpoint.web.dao.hbase;
 
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
-import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
+import com.navercorp.pinpoint.common.hbase.HbaseOperations;
 import com.navercorp.pinpoint.common.hbase.ResultsExtractor;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
-import com.navercorp.pinpoint.common.hbase.TableDescriptor;
+import com.navercorp.pinpoint.common.hbase.TableNameProvider;
 import com.navercorp.pinpoint.common.server.bo.AgentLifeCycleBo;
 import com.navercorp.pinpoint.common.server.bo.SimpleAgentKey;
 import com.navercorp.pinpoint.common.server.bo.serializer.agent.AgentIdRowKeyEncoder;
 import com.navercorp.pinpoint.common.server.util.AgentLifeCycleState;
 import com.navercorp.pinpoint.web.dao.AgentLifeCycleDao;
-import com.navercorp.pinpoint.web.vo.AgentStatus;
-
-import com.navercorp.pinpoint.web.vo.AgentStatusQuery;
+import com.navercorp.pinpoint.web.vo.agent.AgentStatus;
+import com.navercorp.pinpoint.web.vo.agent.AgentStatusQuery;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -36,6 +35,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.Assert;
+import org.springframework.util.unit.DataSize;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,20 +49,23 @@ import java.util.Optional;
 @Repository
 public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
 
-    private static final int SCANNER_CACHING = 20;
+    private static final int SCANNER_CACHING = 32;
+    private static final long MAX_RESULT_SIZE = DataSize.ofKilobytes(4).toBytes();
 
-    private final HbaseOperations2 hbaseOperations2;
+    private static final HbaseColumnFamily.AgentLifeCycleStatus DESCRIPTOR = HbaseColumnFamily.AGENT_LIFECYCLE_STATUS;
+
+    private final HbaseOperations hbaseOperations;
+    private final TableNameProvider tableNameProvider;
 
     private final RowMapper<AgentLifeCycleBo> agentLifeCycleMapper;
 
-    private final TableDescriptor<HbaseColumnFamily.AgentLifeCycleStatus> descriptor;
-
     private final AgentIdRowKeyEncoder agentIdEncoder = new AgentIdRowKeyEncoder();
 
-    public HbaseAgentLifeCycleDao(TableDescriptor<HbaseColumnFamily.AgentLifeCycleStatus> descriptor, HbaseOperations2 hbaseOperations2,
+    public HbaseAgentLifeCycleDao(HbaseOperations hbaseOperations,
+                                  TableNameProvider tableNameProvider,
                                   @Qualifier("agentLifeCycleMapper")RowMapper<AgentLifeCycleBo> agentLifeCycleMapper) {
-        this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
-        this.hbaseOperations2 = Objects.requireNonNull(hbaseOperations2, "hbaseOperations2");
+        this.hbaseOperations = Objects.requireNonNull(hbaseOperations, "hbaseOperations");
+        this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
         this.agentLifeCycleMapper = Objects.requireNonNull(agentLifeCycleMapper, "agentLifeCycleMapper");
 
     }
@@ -74,8 +77,8 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
 
         Scan scan = createScan(agentId, 0, timestamp);
 
-        TableName agentLifeCycleTableName = descriptor.getTableName();
-        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations2.find(agentLifeCycleTableName, scan, new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, timestamp));
+        TableName agentLifeCycleTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
+        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations.find(agentLifeCycleTableName, scan, new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, timestamp));
         return createAgentStatus(agentId, agentLifeCycleBo);
     }
 
@@ -90,8 +93,8 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         final long fromTimestamp = toTimestamp - 1;
         Scan scan = createScan(agentId, fromTimestamp, toTimestamp);
 
-        TableName agentLifeCycleTableName = descriptor.getTableName();
-        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations2.find(agentLifeCycleTableName, scan, new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, timestamp));
+        TableName agentLifeCycleTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
+        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations.find(agentLifeCycleTableName, scan, new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, timestamp));
         AgentStatus agentStatus = createAgentStatus(agentId, agentLifeCycleBo);
         return Optional.of(agentStatus);
     }
@@ -119,8 +122,8 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         }
 
         ResultsExtractor<AgentLifeCycleBo> action = new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, agentStatusQuery.getQueryTimestamp());
-        TableName agentLifeCycleTableName = descriptor.getTableName();
-        List<AgentLifeCycleBo> agentLifeCycles = this.hbaseOperations2.findParallel(agentLifeCycleTableName, scans, action);
+        TableName agentLifeCycleTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
+        List<AgentLifeCycleBo> agentLifeCycles = this.hbaseOperations.findParallel(agentLifeCycleTableName, scans, action);
 
         int idx = 0;
         List<Optional<AgentStatus>> agentStatusResult = new ArrayList<>(agentKeyList.size());
@@ -139,10 +142,14 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         byte[] startKeyBytes = agentIdEncoder.encodeRowKey(agentId, toTimestamp);
         byte[] endKeyBytes = agentIdEncoder.encodeRowKey(agentId, fromTimestamp);
 
-        Scan scan = new Scan(startKeyBytes, endKeyBytes);
-        scan.addColumn(descriptor.getColumnFamilyName(), descriptor.getColumnFamily().QUALIFIER_STATES);
-        scan.setMaxVersions(1);
+        Scan scan = new Scan();
+        scan.withStartRow(startKeyBytes);
+        scan.withStopRow(endKeyBytes);
+
+        scan.addColumn(DESCRIPTOR.getName(), DESCRIPTOR.QUALIFIER_STATES);
+        scan.readVersions(1);
         scan.setCaching(SCANNER_CACHING);
+        scan.setMaxResultSize(MAX_RESULT_SIZE);
 
         return scan;
     }

@@ -35,7 +35,6 @@ public final class IOUtils {
     private static final int MAX_BUFFER_SIZE = 1024 * 1024;
 
     public static final int EOF = -1;
-    private static final byte[] EMPTY_BUFFER = new byte[0];
 
     private IOUtils() {
     }
@@ -121,7 +120,7 @@ public final class IOUtils {
         if (closeable != null) {
             try {
                 closeable.close();
-            } catch (IOException ignore) {
+            } catch (IOException ignored) {
                 // skip
             }
         }
@@ -137,7 +136,7 @@ public final class IOUtils {
         if (socket != null) {
             try {
                 socket.close();
-            } catch (IOException ignore) {
+            } catch (IOException ignored) {
                 // skip
             }
         }

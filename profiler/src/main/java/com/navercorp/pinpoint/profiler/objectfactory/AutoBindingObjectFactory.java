@@ -14,6 +14,16 @@
  */
 package com.navercorp.pinpoint.profiler.objectfactory;
 
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
+import com.navercorp.pinpoint.bootstrap.context.TraceContext;
+import com.navercorp.pinpoint.bootstrap.instrument.InstrumentContext;
+import com.navercorp.pinpoint.bootstrap.plugin.ObjectFactory;
+import com.navercorp.pinpoint.bootstrap.plugin.ObjectFactory.ByConstructor;
+import com.navercorp.pinpoint.bootstrap.plugin.ObjectFactory.ByStaticFactoryMethod;
+import com.navercorp.pinpoint.exception.PinpointException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -21,23 +31,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
-import com.navercorp.pinpoint.bootstrap.context.TraceContext;
-import com.navercorp.pinpoint.bootstrap.instrument.InstrumentContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.navercorp.pinpoint.bootstrap.plugin.ObjectFactory;
-import com.navercorp.pinpoint.bootstrap.plugin.ObjectFactory.ByConstructor;
-import com.navercorp.pinpoint.bootstrap.plugin.ObjectFactory.ByStaticFactoryMethod;
-import com.navercorp.pinpoint.exception.PinpointException;
-
 /**
  * @author Jongho Moon
  *
  */
 public class AutoBindingObjectFactory {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
 
     private final InstrumentContext pluginContext;
@@ -55,9 +54,7 @@ public class AutoBindingObjectFactory {
 
     private List<ArgumentProvider> newArgumentProvider(ProfilerConfig profilerConfig, TraceContext traceContext, InstrumentContext pluginContext, ArgumentProvider[] argumentProviders) {
         final List<ArgumentProvider> commonProviders = new ArrayList<>();
-        for (ArgumentProvider argumentProvider : argumentProviders) {
-            commonProviders.add(argumentProvider);
-        }
+        commonProviders.addAll(Arrays.asList(argumentProviders));
         ProfilerPluginArgumentProvider profilerPluginArgumentProvider = new ProfilerPluginArgumentProvider(profilerConfig, traceContext, pluginContext);
         commonProviders.add(profilerPluginArgumentProvider);
         return commonProviders;
@@ -98,7 +95,7 @@ public class AutoBindingObjectFactory {
         
         try {
             return constructor.newInstance(resolvedArguments);
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException e) {
             throw new PinpointException("Fail to invoke constructor: " + constructor + ", arguments: " + Arrays.toString(resolvedArguments), e);
         }
     }
@@ -119,7 +116,7 @@ public class AutoBindingObjectFactory {
 
         try {
             return method.invoke(null, resolvedArguments);
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException e) {
             throw new PinpointException("Fail to invoke factory method: " + type.getName() + "." + staticFactoryMethod.getFactoryMethodName() + ", arguments: " + Arrays.toString(resolvedArguments), e);
         }
 

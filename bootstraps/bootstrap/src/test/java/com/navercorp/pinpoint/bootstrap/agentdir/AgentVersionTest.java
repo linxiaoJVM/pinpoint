@@ -16,12 +16,11 @@
 
 package com.navercorp.pinpoint.bootstrap.agentdir;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 
 /**
  * @author Woonduk Kang(emeroad)
@@ -43,7 +42,9 @@ public class AgentVersionTest {
         assertVersion("-1.6.0-RC0");
         assertVersion("-1.6.0-RC11");
 
+        assertVersion("-2.5.1-p1");
 
+        assertVersion("-3.0.0-alpha1");
     }
 
     @Test
@@ -55,12 +56,12 @@ public class AgentVersionTest {
 
     private void assertVersion(String versionString) {
         Matcher matcher = this.versionPattern.matcher(versionString);
-        Assert.assertTrue(matcher.matches());
+        Assertions.assertTrue(matcher.matches());
     }
 
     private void assertFalseVersion(String versionString) {
         Matcher matcher = this.versionPattern.matcher(versionString);
-        Assert.assertFalse(matcher.matches());
+        Assertions.assertFalse(matcher.matches());
     }
 
 }

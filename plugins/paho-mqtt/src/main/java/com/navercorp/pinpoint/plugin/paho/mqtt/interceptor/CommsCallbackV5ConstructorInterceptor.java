@@ -16,11 +16,10 @@
 
 package com.navercorp.pinpoint.plugin.paho.mqtt.interceptor;
 
-import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
-import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.plugin.paho.mqtt.accessor.BrokerUriFieldAccessor;
 import org.eclipse.paho.mqttv5.client.MqttClientInterface;
 
@@ -34,12 +33,7 @@ public class CommsCallbackV5ConstructorInterceptor implements AroundInterceptor 
     private final PLogger logger = PLoggerFactory.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
 
-    private final TraceContext traceContext;
-    protected final MethodDescriptor descriptor;
-
-    public CommsCallbackV5ConstructorInterceptor(TraceContext traceContext, MethodDescriptor descriptor) {
-        this.traceContext = traceContext;
-        this.descriptor = descriptor;
+    public CommsCallbackV5ConstructorInterceptor() {
     }
 
     @Override
@@ -66,13 +60,13 @@ public class CommsCallbackV5ConstructorInterceptor implements AroundInterceptor 
         String brokerUri = extractBrokerUri(args);
         if (brokerUri != null) {
             ((BrokerUriFieldAccessor) target)._$PINPOINT$_setBrokerUri(brokerUri);
-            return;
         }
     }
 
     private String extractBrokerUri(Object[] args) {
-        if(args[0] instanceof org.eclipse.paho.mqttv5.client.internal.ClientComms){
-            org.eclipse.paho.mqttv5.client.internal.ClientComms clientComms = (org.eclipse.paho.mqttv5.client.internal.ClientComms)args[0];
+        org.eclipse.paho.mqttv5.client.internal.ClientComms clientComms = ArrayArgumentUtils.getArgument(args, 0,
+                org.eclipse.paho.mqttv5.client.internal.ClientComms.class);
+        if (clientComms != null) {
             MqttClientInterface mqttClientInterface = clientComms.getClient();
             return mqttClientInterface.getServerURI();
         }

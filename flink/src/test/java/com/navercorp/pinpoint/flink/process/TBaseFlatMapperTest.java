@@ -36,22 +36,20 @@ import com.navercorp.pinpoint.thrift.dto.flink.TFDirectBuffer;
 import com.navercorp.pinpoint.thrift.dto.flink.TFFileDescriptor;
 import com.navercorp.pinpoint.thrift.dto.flink.TFJvmGc;
 import com.navercorp.pinpoint.thrift.dto.flink.TFTransaction;
-
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.junit.Test;
+import org.apache.flink.util.Collector;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 
 /**
  * @author minwoo.jung
@@ -68,12 +66,12 @@ public class TBaseFlatMapperTest {
 
 
         TFAgentStatBatch tfAgentStatBatch = createTFAgentStatBatch();
-        ArrayList<Tuple3<String, JoinStatBo, Long>> dataList = new ArrayList<>();
-        ListCollector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
+        List<Tuple3<String, JoinStatBo, Long>> dataList = new ArrayList<>();
+        Collector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
         RawData rawData = newRawData(tfAgentStatBatch);
         mapper.flatMap(rawData, collector);
 
-        assertEquals(dataList.size(), 2);
+        assertThat(dataList).hasSize(2);
 
         Tuple3<String, JoinStatBo, Long> data1 = dataList.get(0);
         assertEquals(data1.f0, AGENT_ID);
@@ -97,12 +95,12 @@ public class TBaseFlatMapperTest {
     private ApplicationCache newMockApplicationCache() {
         ApplicationCache applicationCache = mock(ApplicationCache.class);
         when(applicationCache.findApplicationId(any(ApplicationCache.ApplicationKey.class)))
-            .thenReturn(APPLICATION_ID);
+                .thenReturn(APPLICATION_ID);
         return applicationCache;
     }
 
     private void assertJoinCpuLoadBo(List<JoinCpuLoadBo> joincpulaodBoList) {
-        assertEquals(2, joincpulaodBoList.size());
+        assertThat(joincpulaodBoList).hasSize(2);
         JoinCpuLoadBo joinCpuLoadBo = joincpulaodBoList.get(0);
         assertEquals(joinCpuLoadBo.getId(), AGENT_ID);
         assertEquals(joinCpuLoadBo.getTimestamp(), 1491274143454L);
@@ -150,14 +148,13 @@ public class TBaseFlatMapperTest {
         tFCpuLoad2.setSystemCpuLoad(50);
         tFAgentStat2.setCpuLoad(tFCpuLoad2);
 
-        final List<TFAgentStat> tFAgentStatList = new ArrayList<>(2);
-        tFAgentStatList.add(tFAgentStat);
-        tFAgentStatList.add(tFAgentStat2);
+        final List<TFAgentStat> tFAgentStatList = List.of(
+                tFAgentStat, tFAgentStat2
+        );
         tFAgentStatBatch.setAgentStats(tFAgentStatList);
 
         return tFAgentStatBatch;
     }
-
 
 
     @Test
@@ -167,11 +164,11 @@ public class TBaseFlatMapperTest {
 
         TFAgentStatBatch tfAgentStatBatch = createTFAgentStatBatch2();
         ArrayList<Tuple3<String, JoinStatBo, Long>> dataList = new ArrayList<>();
-        ListCollector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
+        Collector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
         RawData rawdata = newRawData(tfAgentStatBatch);
         mapper.flatMap(rawdata, collector);
 
-        assertEquals(dataList.size(), 2);
+        assertThat(dataList).hasSize(2);
 
         Tuple3<String, JoinStatBo, Long> data1 = dataList.get(0);
         assertEquals(data1.f0, AGENT_ID);
@@ -193,7 +190,7 @@ public class TBaseFlatMapperTest {
     }
 
     private void assertJoinMemoryBo(List<JoinMemoryBo> joinMemoryBoList) {
-        assertEquals(2, joinMemoryBoList.size());
+        assertThat(joinMemoryBoList).hasSize(2);
 
         JoinMemoryBo joinMemoryBo = joinMemoryBoList.get(0);
         assertEquals(joinMemoryBo.getId(), AGENT_ID);
@@ -231,9 +228,9 @@ public class TBaseFlatMapperTest {
         tFJvmGc2.setJvmMemoryNonHeapUsed(850);
         tFAgentStat2.setGc(tFJvmGc2);
 
-        final List<TFAgentStat> tFAgentStatList = new ArrayList<>(2);
-        tFAgentStatList.add(tFAgentStat);
-        tFAgentStatList.add(tFAgentStat2);
+        final List<TFAgentStat> tFAgentStatList = List.of(
+                tFAgentStat, tFAgentStat2
+        );
         tFAgentStatBatch.setAgentStats(tFAgentStatList);
 
         return tFAgentStatBatch;
@@ -246,11 +243,11 @@ public class TBaseFlatMapperTest {
 
         TFAgentStatBatch tfAgentStatBatch = createTFAgentStatBatch3();
         ArrayList<Tuple3<String, JoinStatBo, Long>> dataList = new ArrayList<>();
-        ListCollector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
+        Collector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
         RawData rawData = newRawData(tfAgentStatBatch);
         mapper.flatMap(rawData, collector);
 
-        assertEquals(dataList.size(), 2);
+        assertThat(dataList).hasSize(2);
 
         Tuple3<String, JoinStatBo, Long> data1 = dataList.get(0);
         assertEquals(data1.f0, AGENT_ID);
@@ -276,19 +273,19 @@ public class TBaseFlatMapperTest {
     }
 
     private void assertJoinTransactionBo(List<JoinTransactionBo> joinTransactionBoList) {
-        assertEquals(2, joinTransactionBoList.size());
+        assertThat(joinTransactionBoList).hasSize(2);
 
         JoinTransactionBo joinTransactionBo = joinTransactionBoList.get(0);
         assertEquals(joinTransactionBo.getId(), AGENT_ID);
         assertEquals(joinTransactionBo.getTimestamp(), 1491274143454L);
         assertEquals(joinTransactionBo.getCollectInterval(), 5000);
-        assertEquals(joinTransactionBo.getTotalCountJoinValue(), new JoinLongFieldBo(120L, 120L, AGENT_ID, 120L, AGENT_ID));
+        assertEquals(joinTransactionBo.getTotalCountJoinValue(), new JoinLongFieldBo(24L, 24L, AGENT_ID, 24L, AGENT_ID));
 
         JoinTransactionBo joinTransactionBo2 = joinTransactionBoList.get(1);
         assertEquals(joinTransactionBo2.getId(), AGENT_ID);
         assertEquals(joinTransactionBo2.getTimestamp(), 1491274148454L);
         assertEquals(joinTransactionBo2.getCollectInterval(), 5000);
-        assertEquals(joinTransactionBo2.getTotalCountJoinValue(), new JoinLongFieldBo(124L, 124L, AGENT_ID, 124L, AGENT_ID));
+        assertEquals(joinTransactionBo2.getTotalCountJoinValue(), new JoinLongFieldBo(24L, 24L, AGENT_ID, 24L, AGENT_ID));
     }
 
     private TFAgentStatBatch createTFAgentStatBatch3() {
@@ -320,9 +317,9 @@ public class TBaseFlatMapperTest {
         tFTransaction2.setUnsampledContinuationCount(51);
         tFAgentStat2.setTransaction(tFTransaction2);
 
-        final List<TFAgentStat> tFAgentStatList = new ArrayList<>(2);
-        tFAgentStatList.add(tFAgentStat);
-        tFAgentStatList.add(tFAgentStat2);
+        final List<TFAgentStat> tFAgentStatList = List.of(
+                tFAgentStat, tFAgentStat2
+        );
         tFAgentStatBatch.setAgentStats(tFAgentStatList);
 
         return tFAgentStatBatch;
@@ -337,11 +334,11 @@ public class TBaseFlatMapperTest {
 
         TFAgentStatBatch tfAgentStatBatch = createTFAgentStatBatch4();
         ArrayList<Tuple3<String, JoinStatBo, Long>> dataList = new ArrayList<>();
-        ListCollector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
+        Collector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
         RawData rawData = newRawData(tfAgentStatBatch);
         mapper.flatMap(rawData, collector);
 
-        assertEquals(dataList.size(), 2);
+        assertThat(dataList).hasSize(2);
 
         Tuple3<String, JoinStatBo, Long> data1 = dataList.get(0);
         assertEquals(data1.f0, AGENT_ID);
@@ -363,7 +360,7 @@ public class TBaseFlatMapperTest {
     }
 
     private void assertJoinFileDescriptorBo(List<JoinFileDescriptorBo> joinFileDescriptorBoList) {
-        assertEquals(2, joinFileDescriptorBoList.size());
+        assertThat(joinFileDescriptorBoList).hasSize(2);
         JoinFileDescriptorBo joinFileDescriptorBo = joinFileDescriptorBoList.get(0);
         assertEquals(joinFileDescriptorBo.getId(), AGENT_ID);
         assertEquals(joinFileDescriptorBo.getTimestamp(), 1491274143454L);
@@ -399,9 +396,9 @@ public class TBaseFlatMapperTest {
         tFFileDescriptor2.setOpenFileDescriptorCount(20);
         tFAgentStat2.setFileDescriptor(tFFileDescriptor2);
 
-        final List<TFAgentStat> tFAgentStatList = new ArrayList<>(2);
-        tFAgentStatList.add(tFAgentStat);
-        tFAgentStatList.add(tFAgentStat2);
+        final List<TFAgentStat> tFAgentStatList = List.of(
+                tFAgentStat, tFAgentStat2
+        );
         tFAgentStatBatch.setAgentStats(tFAgentStatList);
 
         return tFAgentStatBatch;
@@ -417,11 +414,11 @@ public class TBaseFlatMapperTest {
 
         TFAgentStatBatch tfAgentStatBatch = createTFAgentStatBatch5();
         ArrayList<Tuple3<String, JoinStatBo, Long>> dataList = new ArrayList<>();
-        ListCollector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
+        Collector<Tuple3<String, JoinStatBo, Long>> collector = new ListCollector<>(dataList);
         RawData rawData = newRawData(tfAgentStatBatch);
         mapper.flatMap(rawData, collector);
 
-        assertEquals(dataList.size(), 2);
+        assertThat(dataList).hasSize(2);
 
         Tuple3<String, JoinStatBo, Long> data1 = dataList.get(0);
         assertEquals(data1.f0, AGENT_ID);
@@ -443,7 +440,7 @@ public class TBaseFlatMapperTest {
     }
 
     private void assertJoinDirectBufferBo(List<JoinDirectBufferBo> joinDirectBufferBoList) {
-        assertEquals(2, joinDirectBufferBoList.size());
+        assertThat(joinDirectBufferBoList).hasSize(2);
         JoinDirectBufferBo joinDirectBufferBo = joinDirectBufferBoList.get(0);
         assertEquals(joinDirectBufferBo.getId(), AGENT_ID);
         assertEquals(joinDirectBufferBo.getTimestamp(), 1491274143454L);
@@ -511,19 +508,12 @@ public class TBaseFlatMapperTest {
         tFDirectBuffer2.setMappedMemoryUsed(80);
         tFAgentStat2.setDirectBuffer(tFDirectBuffer2);
 
-        final List<TFAgentStat> tFAgentStatList = new ArrayList<>(2);
-        tFAgentStatList.add(tFAgentStat);
-        tFAgentStatList.add(tFAgentStat2);
+        final List<TFAgentStat> tFAgentStatList = List.of(
+                tFAgentStat, tFAgentStat2
+        );
         tFAgentStatBatch.setAgentStats(tFAgentStatList);
 
         return tFAgentStatBatch;
     }
 
-    @Test
-    public void test() {
-        Map<String, String> data = new HashMap<String, String>();
-        data.put("key1", "value1");
-        data.put("key2", "value2");
-        System.out.println(data);
-    }
 }

@@ -16,14 +16,13 @@
 
 package com.navercorp.pinpoint.collector.receiver;
 
+import com.navercorp.pinpoint.collector.manage.HandlerManager;
 import com.navercorp.pinpoint.collector.receiver.thrift.DelegateDispatchHandler;
 import com.navercorp.pinpoint.common.server.util.AcceptedTimeService;
-
-import com.navercorp.pinpoint.collector.manage.HandlerManager;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import javax.annotation.PostConstruct;
 import java.util.Objects;
 
 /**
@@ -61,11 +60,6 @@ public class DispatchHandlerFactoryBean<REQ, RES> implements FactoryBean<Dispatc
     @Override
     public Class<DispatchHandler> getObjectType() {
         return DispatchHandler.class;
-    }
-
-    @Override
-    public boolean isSingleton() {
-        return true;
     }
 
     @PostConstruct

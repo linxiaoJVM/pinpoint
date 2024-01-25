@@ -20,6 +20,8 @@ import com.navercorp.pinpoint.bootstrap.util.PlatformClassLoaderUtils;
 import com.navercorp.pinpoint.common.util.JvmUtils;
 import com.navercorp.pinpoint.common.util.JvmVersion;
 
+import java.util.function.Consumer;
+
 /**
  * @author Woonduk Kang(emeroad)
  */
@@ -35,15 +37,7 @@ public final class SqlModule {
     private static final Class<?> SQL_PREPARED_STATEMENT;
 
     static {
-        if (JvmUtils.getVersion().onOrAfter(JvmVersion.JAVA_9)) {
-            if (PlatformClassLoaderUtils.findClassFromPlatformClassLoader("java.sql.Date") != null) {
-                SQL_MODULE = true;
-            } else {
-                SQL_MODULE = false;
-            }
-        } else {
-            SQL_MODULE = true;
-        }
+        SQL_MODULE = existSqlModule();
         if (SQL_MODULE) {
             SQL_DATE = getSqlClass("java.sql.Date");
             SQL_TIME = getSqlClass("java.sql.Time");
@@ -62,6 +56,18 @@ public final class SqlModule {
 
             SQL_CONNECTION = null;
             SQL_PREPARED_STATEMENT = null;
+        }
+    }
+
+    private static boolean existSqlModule() {
+        if (JvmUtils.getVersion().onOrAfter(JvmVersion.JAVA_9)) {
+            if (PlatformClassLoaderUtils.findClassFromPlatformClassLoader("java.sql.Date") != null) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return true;
         }
     }
 
@@ -108,4 +114,11 @@ public final class SqlModule {
         return clazz;
     }
 
+    public static void register(Consumer<Class<?>> consumer) {
+        if (SQL_MODULE) {
+            consumer.accept(SqlModule.getSqlDate());
+            consumer.accept(SqlModule.getSqlTime());
+            consumer.accept(SqlModule.getSqlTimestamp());
+        }
+    }
 }

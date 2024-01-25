@@ -16,21 +16,33 @@
 
 package com.navercorp.pinpoint.profiler.context.id;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
 public class DefaultShared implements Shared {
+    private static final Logger logger = LogManager.getLogger(DefaultShared.class);
+    private static final boolean isDebug = logger.isDebugEnabled();
 
     private static final AtomicReferenceFieldUpdater<DefaultShared, String> END_POINT_UPDATER
             = AtomicReferenceFieldUpdater.newUpdater(DefaultShared.class, String.class, "endPoint");
 
     private static final AtomicReferenceFieldUpdater<DefaultShared, String> RPC_UPDATER
             = AtomicReferenceFieldUpdater.newUpdater(DefaultShared.class, String.class, "rpc");
+
+    private static final AtomicReferenceFieldUpdater<DefaultShared, String> URL_TEMPLATE_UPDATER
+            = AtomicReferenceFieldUpdater.newUpdater(DefaultShared.class, String.class, "uriTemplate");
+
+    private static final AtomicReferenceFieldUpdater<DefaultShared, String> HTTP_METHODS_UPDATER
+            = AtomicReferenceFieldUpdater.newUpdater(DefaultShared.class, String.class, "httpMethods");
+
+    private static final AtomicIntegerFieldUpdater<DefaultShared> SQL_COUNT_UPDATER
+            = AtomicIntegerFieldUpdater.newUpdater(DefaultShared.class, "sqlExecutionCount");
 
     private volatile int errorCode;
     private volatile byte loggingInfo;
@@ -44,6 +56,12 @@ public class DefaultShared implements Shared {
     private volatile long threadId;
 
     private volatile int statusCode;
+
+    private volatile String uriTemplate = null;
+
+    private volatile String httpMethods = null;
+
+    private volatile int sqlExecutionCount = 0;
 
     @Override
     public void maskErrorCode(int errorCode) {
@@ -77,7 +95,6 @@ public class DefaultShared implements Shared {
     public void setEndPoint(String endPoint) {
         final boolean updated = END_POINT_UPDATER.compareAndSet(this, null, endPoint);
         if (!updated) {
-            final Logger logger = LoggerFactory.getLogger(this.getClass());
             // for debug
             logger.debug("already set EndPoint {}", endPoint);
         }
@@ -92,7 +109,6 @@ public class DefaultShared implements Shared {
     public void setRpcName(String rpc) {
         final boolean updated = RPC_UPDATER.compareAndSet(this, null, rpc);
         if (!updated) {
-            final Logger logger = LoggerFactory.getLogger(this.getClass());
             // for debug
             logger.debug("already set Rpc {}", rpc);
         }
@@ -121,5 +137,56 @@ public class DefaultShared implements Shared {
     @Override
     public int getStatusCode() {
         return this.statusCode;
+    }
+
+    @Override
+    public boolean setUriTemplate(String uriTemplate) {
+        final boolean successful = URL_TEMPLATE_UPDATER.compareAndSet(this, null, uriTemplate);
+        if (successful) {
+            if (isDebug) {
+                logger.debug("Record uriTemplate={}", uriTemplate);
+            }
+        }
+        return successful;
+    }
+
+    @Override
+    public boolean setUriTemplate(String uriTemplate, boolean force) {
+        if (force) {
+            URL_TEMPLATE_UPDATER.set(this, uriTemplate);
+            if (isDebug) {
+                logger.debug("Record uriTemplate={}", uriTemplate);
+            }
+            return true;
+        } else {
+            return setUriTemplate(uriTemplate);
+        }
+    }
+
+
+    @Override
+    public String getUriTemplate() {
+        return uriTemplate;
+    }
+
+    @Override
+    public boolean setHttpMethods(String httpMethod) {
+        final boolean successful = HTTP_METHODS_UPDATER.compareAndSet(this, null, httpMethod);
+        if (successful) {
+            if (isDebug) {
+                logger.debug("Record httpMethod={}", httpMethod);
+            }
+        }
+        return successful;
+    }
+
+    @Override
+    public String getHttpMethod() {
+        return httpMethods;
+    }
+
+    @Override
+    public int incrementAndGetSqlCount() {
+        return SQL_COUNT_UPDATER.incrementAndGet(this);
     }
 }

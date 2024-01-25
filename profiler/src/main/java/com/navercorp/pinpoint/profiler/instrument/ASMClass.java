@@ -32,7 +32,9 @@ import com.navercorp.pinpoint.bootstrap.interceptor.annotation.TargetMethods;
 import com.navercorp.pinpoint.bootstrap.interceptor.scope.ExecutionPolicy;
 import com.navercorp.pinpoint.bootstrap.interceptor.scope.InterceptorScope;
 import com.navercorp.pinpoint.bootstrap.plugin.ObjectFactory;
+
 import java.util.Objects;
+
 import com.navercorp.pinpoint.common.util.JvmUtils;
 import com.navercorp.pinpoint.common.util.JvmVersion;
 import com.navercorp.pinpoint.exception.PinpointException;
@@ -43,8 +45,8 @@ import com.navercorp.pinpoint.profiler.util.JavaAssistUtils;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
@@ -57,7 +59,7 @@ import java.util.List;
 public class ASMClass implements InstrumentClass {
     private static final String FIELD_PREFIX = "_$PINPOINT$_";
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final EngineComponent engineComponent;
 
@@ -67,8 +69,9 @@ public class ASMClass implements InstrumentClass {
     private boolean modified = false;
     private String name;
 
-    public ASMClass(EngineComponent engineComponent, final InstrumentContext pluginContext, final ClassLoader classLoader, ProtectionDomain protectionDomain, final ClassNode classNode) {
-        this(engineComponent, pluginContext, new ASMClassNodeAdapter(pluginContext, classLoader, protectionDomain, classNode));
+    public static ASMClass load(EngineComponent engineComponent, final InstrumentContext pluginContext, final ClassLoader classLoader, ProtectionDomain protectionDomain, final ClassNode classNode) {
+        ASMClassNodeAdapter classNodeAdapter = new ASMClassNodeAdapter(pluginContext, classLoader, protectionDomain, classNode);
+        return new ASMClass(engineComponent, pluginContext, classNodeAdapter);
     }
 
     public ASMClass(EngineComponent engineComponent, final InstrumentContext pluginContext, final ASMClassNodeAdapter classNode) {
@@ -77,9 +80,6 @@ public class ASMClass implements InstrumentClass {
         this.classNode = Objects.requireNonNull(classNode, "classNode");
     }
 
-    public void test() {
-
-    }
     public ClassLoader getClassLoader() {
         return this.classNode.getClassLoader();
     }
@@ -90,7 +90,7 @@ public class ASMClass implements InstrumentClass {
             return false;
         }
         // interface static method or default method is java 1.8 or later
-        if (isInterface() && (this.classNode.getMajorVersion() < 52 || !JvmUtils.getVersion().onOrAfter(JvmVersion.JAVA_8))) {
+        if (isInterface() && (this.classNode.getMajorVersion() < JvmVersion.JAVA_8.getClassVersion() || !JvmUtils.getVersion().onOrAfter(JvmVersion.JAVA_8))) {
             return false;
         }
         return true;
@@ -135,6 +135,12 @@ public class ASMClass implements InstrumentClass {
         }
 
         return new ASMMethod(this.engineComponent, this.pluginContext, this, methodNode);
+    }
+
+    @Override
+    @Deprecated
+    public InstrumentMethod getLambdaMethod(String... parameterTypes) {
+        return getDeclaredMethod("get$Lambda", parameterTypes);
     }
 
     @Override
@@ -361,7 +367,6 @@ public class ASMClass implements InstrumentClass {
             throw new InstrumentException(interceptorClassName + " not found Caused by:" + ex.getMessage(), ex);
         }
     }
-
 
 
     private int addInterceptor0(Class<? extends Interceptor> interceptorClass, Object[] constructorArgs, InterceptorScope scope, ExecutionPolicy executionPolicy) throws InstrumentException {

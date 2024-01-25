@@ -21,8 +21,8 @@ import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.common.annotations.InterfaceAudience;
 import java.util.Objects;
 import com.navercorp.pinpoint.exception.PinpointException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 
 /**
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DefaultTraceFactory implements TraceFactory {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private final Binder<Trace> threadLocalBinder;
 
@@ -117,9 +117,17 @@ public class DefaultTraceFactory implements TraceFactory {
         return trace;
     }
 
+    @Override
+    public Trace newTraceObject(String urlPath) {
+        final Reference<Trace> reference = checkAndGet();
+        final Trace trace = this.baseTraceFactory.newTraceObject(urlPath);
+
+        bind(reference, trace);
+        return trace;
+    }
+
     private void bind(Reference<Trace> reference, Trace trace) {
         reference.set(trace);
-
     }
 
     @Override
@@ -147,9 +155,15 @@ public class DefaultTraceFactory implements TraceFactory {
     @Override
     public Trace newAsyncTraceObject() {
         final Reference<Trace> reference = checkAndGet();
-
         final Trace trace = this.baseTraceFactory.newAsyncTraceObject();
+        bind(reference, trace);
+        return trace;
+    }
 
+    @Override
+    public Trace newAsyncTraceObject(String urlPath) {
+        final Reference<Trace> reference = checkAndGet();
+        final Trace trace = this.baseTraceFactory.newAsyncTraceObject(urlPath);
         bind(reference, trace);
         return trace;
     }

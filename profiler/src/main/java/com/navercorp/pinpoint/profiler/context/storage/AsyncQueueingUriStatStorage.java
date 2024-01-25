@@ -16,53 +16,69 @@
 
 package com.navercorp.pinpoint.profiler.context.storage;
 
-import java.util.Objects;
-
+import com.navercorp.pinpoint.bootstrap.plugin.http.URITemplate;
+import com.navercorp.pinpoint.common.profiler.clock.Clock;
+import com.navercorp.pinpoint.common.profiler.clock.TickClock;
+import com.navercorp.pinpoint.common.profiler.concurrent.executor.AsyncQueueingExecutor;
+import com.navercorp.pinpoint.common.profiler.concurrent.executor.MultiConsumer;
+import com.navercorp.pinpoint.common.profiler.logging.ThrottledLogger;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
+import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.profiler.monitor.metric.uri.AgentUriStatData;
 import com.navercorp.pinpoint.profiler.monitor.metric.uri.UriStatInfo;
-import com.navercorp.pinpoint.profiler.sender.AsyncQueueingExecutor;
-import com.navercorp.pinpoint.profiler.sender.AsyncQueueingExecutorListener;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
-import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * @author Taejin Koo
  */
 public class AsyncQueueingUriStatStorage extends AsyncQueueingExecutor<UriStatInfo> implements UriStatStorage {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AsyncQueueingUriStatStorage.class);
+    private static final Logger LOGGER = LogManager.getLogger(AsyncQueueingUriStatStorage.class);
+    private static final ThrottledLogger TLogger = ThrottledLogger.getLogger(LOGGER, 100);
+    private final UriStatConsumer consumer;
 
-    private final ExecutorListener executorListener;
+    private final boolean uriStatCollectHttpMethod;
 
-    public AsyncQueueingUriStatStorage(int queueSize, int uriStatDataLimitSize, String executorName) {
-        this(queueSize, executorName, new ExecutorListener(uriStatDataLimitSize));
+    public AsyncQueueingUriStatStorage(boolean uriStatCollectHttpMethod, int queueSize, int uriStatDataLimitSize, String executorName) {
+        this(uriStatCollectHttpMethod, queueSize, executorName, new UriStatConsumer(uriStatDataLimitSize));
     }
 
-    public AsyncQueueingUriStatStorage(int queueSize, int uriStatDataLimitSize, String executorName, int collectInterval) {
-        this(queueSize, executorName, new ExecutorListener(uriStatDataLimitSize, collectInterval));
+    public AsyncQueueingUriStatStorage(boolean uriStatCollectHttpMethod, int queueSize, int uriStatDataLimitSize, String executorName, int collectInterval) {
+        this(uriStatCollectHttpMethod, queueSize, executorName, new UriStatConsumer(uriStatDataLimitSize, collectInterval));
     }
 
-    private AsyncQueueingUriStatStorage(int queueSize, String executorName, ExecutorListener executorListener) {
-        super(queueSize, executorName, executorListener);
-        this.executorListener = executorListener;
+    private AsyncQueueingUriStatStorage(boolean uriStatCollectHttpMethod, int queueSize, String executorName, UriStatConsumer consumer) {
+        super(queueSize, executorName, consumer);
+        this.consumer = consumer;
+        this.uriStatCollectHttpMethod = uriStatCollectHttpMethod;
     }
 
     @Override
-    public void store(String uri, boolean status, long elapsedTime) {
-        Objects.requireNonNull(uri, "uri");
-        UriStatInfo uriStatInfo = new UriStatInfo(uri, status, elapsedTime);
+    public void store(String uri, String httpMethod, boolean status, long startTime, long endTime) {
+        if (uri == null) {
+            uri = URITemplate.NULL_URI;
+        }
+
+        if (uriStatCollectHttpMethod && (httpMethod != null) && !httpMethod.isEmpty()) {
+            uri = httpMethod + " " + uri;
+        }
+
+        UriStatInfo uriStatInfo = new UriStatInfo(uri, status, startTime, endTime);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("UriStatInfo {}", uriStatInfo);
+        }
         execute(uriStatInfo);
     }
 
     @Override
     public AgentUriStatData poll() {
-        return executorListener.pollCompletedData();
+        return consumer.pollCompletedData();
     }
 
     @Override
@@ -72,111 +88,100 @@ public class AsyncQueueingUriStatStorage extends AsyncQueueingExecutor<UriStatIn
 
     @Override
     protected void pollTimeout(long timeout) {
-        executorListener.executePollTimeout();
+        consumer.executePollTimeout();
     }
 
-    private static class ExecutorListener implements AsyncQueueingExecutorListener<UriStatInfo> {
+    static class UriStatConsumer implements MultiConsumer<UriStatInfo> {
 
-        private static final int DEFAULT_COLLECT_INTERVAL = 60000; // 1minute
+        private static final int DEFAULT_COLLECT_INTERVAL = 30000; // 30s
 
-        private final Object lock = new Object();
+        private static final int SNAPSHOT_LIMIT = 4;
 
-        private final int uriStatDataLimitSize;
-        private final int collectInterval;
-        private final LinkedList<AgentUriStatData> completedUriStatDataList;
+        private final TickClock clock;
+        private final Queue<AgentUriStatData> snapshotQueue;
 
-        private AgentUriStatData currentAgentUriStatData;
+        private final Snapshot<AgentUriStatData> snapshotManager;
 
-        public ExecutorListener(int uriStatDataLimitSize) {
+
+        public UriStatConsumer(int uriStatDataLimitSize) {
             this(uriStatDataLimitSize, DEFAULT_COLLECT_INTERVAL);
         }
 
-        public ExecutorListener(int uriStatDataLimitSize, int collectInterval) {
+        public UriStatConsumer(int uriStatDataLimitSize, int collectInterval) {
             Assert.isTrue(uriStatDataLimitSize > 0, "uriStatDataLimitSize must be ' > 0'");
-            this.uriStatDataLimitSize = uriStatDataLimitSize;
 
             Assert.isTrue(collectInterval > 0, "collectInterval must be ' > 0'");
-            this.collectInterval = collectInterval;
+            this.clock = (TickClock) Clock.tick(collectInterval);
 
-            this.completedUriStatDataList = new LinkedList<>();
+            this.snapshotQueue = new ConcurrentLinkedQueue<>();
+            this.snapshotManager = new Snapshot<>(value -> new AgentUriStatData(value, uriStatDataLimitSize, clock), AgentUriStatData::getBaseTimestamp);
         }
 
         @Override
-        public void execute(Collection<UriStatInfo> messageList) {
-            final long currentBaseTimestamp = getBaseTimestamp();
+        public void acceptN(Collection<UriStatInfo> messageList) {
+            final long currentBaseTimestamp = clock.millis();
             checkAndFlushOldData(currentBaseTimestamp);
 
-            AgentUriStatData agentUriStatData = getCurrent(currentBaseTimestamp);
+            AgentUriStatData agentUriStatData = snapshotManager.getCurrent(currentBaseTimestamp);
 
             Object[] dataList = messageList.toArray();
             for (int i = 0; i < CollectionUtils.nullSafeSize(messageList); i++) {
-                try {
-                    agentUriStatData.add((UriStatInfo) dataList[i]);
-                } catch (Throwable th) {
-                    LOGGER.warn("Unexpected Error. Cause:{}", th.getMessage(), th);
-                }
+                addUriData(agentUriStatData, (UriStatInfo) dataList[i]);
             }
         }
 
         @Override
-        public void execute(UriStatInfo message) {
-            long currentBaseTimestamp = getBaseTimestamp();
+        public void accept(UriStatInfo message) {
+            long currentBaseTimestamp = clock.millis();
             checkAndFlushOldData(currentBaseTimestamp);
 
-            AgentUriStatData agentUriStatData = getCurrent(currentBaseTimestamp);
-            agentUriStatData.add(message);
+            AgentUriStatData agentUriStatData = snapshotManager.getCurrent(currentBaseTimestamp);
+            addUriData(agentUriStatData, message);
+        }
+
+        private void addUriData(AgentUriStatData agentUriStatData, UriStatInfo uriStatInfo) {
+            if (!agentUriStatData.add(uriStatInfo)) {
+                TLogger.info("Too many URI pattern. sample-message:{}, capacity:{}, counter:{} ", uriStatInfo, agentUriStatData.getCapacity(), TLogger.getCounter());
+            }
         }
 
         public void executePollTimeout() {
-            long currentBaseTimestamp = getBaseTimestamp();
-            checkAndFlushOldData(currentBaseTimestamp);
+            long currentBaseTimestamp = clock.millis();
+            boolean flush = checkAndFlushOldData(currentBaseTimestamp);
+            if (flush) {
+                LOGGER.debug("checkAndFlushOldData {}", flush);
+            }
         }
 
-        private long getBaseTimestamp() {
-            long currentTimeMillis = System.currentTimeMillis();
-            long timestamp = currentTimeMillis - (currentTimeMillis % collectInterval);
-            return timestamp;
-        }
 
         private boolean checkAndFlushOldData(long currentBaseTimestamp) {
-            if (currentAgentUriStatData == null) {
-                return false;
-            }
-
-            if (currentBaseTimestamp > currentAgentUriStatData.getBaseTimestamp()) {
-                addCompletedData(currentAgentUriStatData);
-
-                currentAgentUriStatData = null;
+            final AgentUriStatData snapshot = snapshotManager.takeSnapshot(currentBaseTimestamp);
+            if (snapshot != null) {
+                addCompletedData(snapshot);
                 return true;
             }
             return false;
         }
 
-        private AgentUriStatData getCurrent(long currentBaseTimestamp) {
-            if (currentAgentUriStatData == null) {
-                currentAgentUriStatData = new AgentUriStatData(currentBaseTimestamp);
-            }
-            return currentAgentUriStatData;
-        }
 
         private void addCompletedData(AgentUriStatData agentUriStatData) {
-            synchronized (lock) {
-                if (completedUriStatDataList.size() >= uriStatDataLimitSize) {
-                    completedUriStatDataList.remove();
-                }
+            // Thread safety : single consumer
+            final int size = snapshotQueue.size();
+            if (size > SNAPSHOT_LIMIT) {
+                // Prevent OOM. Discard old history
+                drainN(size - SNAPSHOT_LIMIT);
+            }
+            snapshotQueue.offer(agentUriStatData);
+        }
 
-                completedUriStatDataList.add(agentUriStatData);
+        private void drainN(int drainSize) {
+            for (int i = 0; i < drainSize; i++) {
+                snapshotQueue.poll();
             }
         }
 
         private AgentUriStatData pollCompletedData() {
-            synchronized (lock) {
-                if (completedUriStatDataList.isEmpty()) {
-                    return null;
-                }
-
-                return completedUriStatDataList.remove();
-            }
+            return snapshotQueue.poll();
         }
 
     }

@@ -28,9 +28,10 @@ import com.navercorp.pinpoint.grpc.trace.PAgentInfo;
 import com.navercorp.pinpoint.grpc.trace.PResult;
 import com.navercorp.pinpoint.io.request.ServerRequest;
 import com.navercorp.pinpoint.io.request.ServerResponse;
+import com.navercorp.pinpoint.thrift.io.DefaultTBaseLocator;
 import io.grpc.Status;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
@@ -41,7 +42,7 @@ import java.util.Objects;
  */
 @Service
 public class GrpcAgentInfoHandler implements SimpleAndRequestResponseHandler<GeneratedMessageV3, GeneratedMessageV3> {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
+    private final Logger logger = LogManager.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
 
     private final AgentInfoService agentInfoService;
@@ -54,10 +55,15 @@ public class GrpcAgentInfoHandler implements SimpleAndRequestResponseHandler<Gen
     }
 
     @Override
+    public int type() {
+        return DefaultTBaseLocator.AGENT_INFO;
+    }
+
+    @Override
     public void handleSimple(ServerRequest<GeneratedMessageV3> serverRequest) {
         final GeneratedMessageV3 data = serverRequest.getData();
-        if (data instanceof PAgentInfo) {
-            handleAgentInfo((PAgentInfo) data);
+        if (data instanceof PAgentInfo agentInfo) {
+            handleAgentInfo(agentInfo);
         } else {
             logger.warn("Invalid request type. serverRequest={}", serverRequest);
             throw Status.INTERNAL.withDescription("Bad Request(invalid request type)").asRuntimeException();
@@ -67,8 +73,8 @@ public class GrpcAgentInfoHandler implements SimpleAndRequestResponseHandler<Gen
     @Override
     public void handleRequest(ServerRequest<GeneratedMessageV3> serverRequest, ServerResponse<GeneratedMessageV3> serverResponse) {
         final GeneratedMessageV3 data = serverRequest.getData();
-        if (data instanceof PAgentInfo) {
-            final PResult result = handleAgentInfo((PAgentInfo) data);
+        if (data instanceof PAgentInfo agentInfo) {
+            final PResult result = handleAgentInfo(agentInfo);
             serverResponse.write(result);
         } else {
             logger.warn("Invalid request type. serverRequest={}", serverRequest);

@@ -58,6 +58,11 @@ public class MysqlUserGroupDao implements UserGroupDao {
     }
 
     @Override
+    public boolean isExistUserGroupMember(UserGroupMember userGroupMember) {
+        return sqlSessionTemplate.selectOne(NAMESPACE + "isExistUserGroupMember", userGroupMember);
+    }
+
+    @Override
     public List<UserPhoneInfo> selectPhoneInfoOfMember(String userGroupId) {
         return sqlSessionTemplate.selectList(NAMESPACE + "selectPhoneInfoOfMember", userGroupId);
     }
@@ -120,5 +125,10 @@ public class MysqlUserGroupDao implements UserGroupDao {
     @Override
     public void updateUserGroupIdOfMember(UserGroup userGroup) {
         sqlSessionTemplate.update(NAMESPACE + "updateUserGroupIdOfMember", userGroup);
+    }
+
+    @Override
+    public void deleteRuleByUserGroupId(String userGroupId) {
+        sqlSessionTemplate.insert(NAMESPACE + "deleteRuleByUserGroupId", userGroupId);
     }
 }

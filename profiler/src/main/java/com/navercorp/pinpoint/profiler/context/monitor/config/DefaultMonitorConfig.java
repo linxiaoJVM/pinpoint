@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.profiler.context.monitor.config;
 
-import com.navercorp.pinpoint.bootstrap.config.Value;
+import com.navercorp.pinpoint.common.config.Value;
 
 public class DefaultMonitorConfig implements MonitorConfig {
 
@@ -30,8 +30,17 @@ public class DefaultMonitorConfig implements MonitorConfig {
 
     @Value("${profiler.uri.stat.enable}")
     private boolean uriStatEnable = false;
+    @Value("${profiler.uri.stat.collect.http.method}")
+    private boolean uriStatCollectHttpMethod = false;
     @Value("${profiler.uri.stat.completed.data.limit.size}")
-    private int completedUriStatDataLimitSize = 3;
+    private int completedUriStatDataLimitSize = 1000;
+
+    @Value("${profiler.sql.stat.enable}")
+    private boolean sqlStatEnable = false;
+    @Value("${profiler.sql.error.enable}")
+    private boolean sqlErrorEnable = true;
+    @Value("${profiler.sql.error.count}")
+    private int sqlErrorCount = 100;
 
     @Value("${profiler.jvm.stat.collect.interval}")
     private int profileJvmStatCollectIntervalMs = DEFAULT_AGENT_STAT_COLLECTION_INTERVAL_MS;
@@ -71,6 +80,26 @@ public class DefaultMonitorConfig implements MonitorConfig {
     }
 
     @Override
+    public boolean getUriStatCollectHttpMethod() {
+        return uriStatCollectHttpMethod;
+    }
+
+    @Override
+    public boolean isSqlStatEnable() {
+        return sqlStatEnable;
+    }
+
+    @Override
+    public boolean isSqlErrorEnable() {
+        return sqlErrorEnable;
+    }
+
+    @Override
+    public int getSqlErrorCount() {
+        return sqlErrorCount;
+    }
+
+    @Override
     public int getCompletedUriStatDataLimitSize() {
         return completedUriStatDataLimitSize;
     }
@@ -81,7 +110,11 @@ public class DefaultMonitorConfig implements MonitorConfig {
                 "customMetricEnable=" + customMetricEnable +
                 ", customMetricLimitSize=" + customMetricLimitSize +
                 ", uriStatEnable=" + uriStatEnable +
+                ", uriStatCollectHttpMethod=" + uriStatCollectHttpMethod +
                 ", completedUriStatDataLimitSize=" + completedUriStatDataLimitSize +
+                ", sqlStatEnable=" + sqlStatEnable +
+                ", sqlErrorEnable=" + sqlErrorEnable +
+                ", sqlErrorCount=" + sqlErrorCount +
                 ", profileJvmStatCollectIntervalMs=" + profileJvmStatCollectIntervalMs +
                 ", profileJvmStatBatchSendCount=" + profileJvmStatBatchSendCount +
                 ", profilerJvmStatCollectDetailedMetrics=" + profilerJvmStatCollectDetailedMetrics +

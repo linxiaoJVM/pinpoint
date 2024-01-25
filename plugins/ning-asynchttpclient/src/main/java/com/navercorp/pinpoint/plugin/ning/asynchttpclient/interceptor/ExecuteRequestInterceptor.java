@@ -34,7 +34,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.request.util.CookieRecorderFactor
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.EntityExtractor;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.EntityRecorder;
 import com.navercorp.pinpoint.bootstrap.plugin.request.util.EntityRecorderFactory;
-import com.navercorp.pinpoint.common.util.ArrayUtils;
+import com.navercorp.pinpoint.common.util.ArrayArgumentUtils;
 import com.navercorp.pinpoint.plugin.ning.asynchttpclient.EndPointUtils;
 import com.navercorp.pinpoint.plugin.ning.asynchttpclient.NingAsyncHttpClientConstants;
 import com.navercorp.pinpoint.plugin.ning.asynchttpclient.NingAsyncHttpClientPluginConfig;
@@ -94,28 +94,25 @@ public class ExecuteRequestInterceptor implements AroundInterceptor {
             return;
         }
 
-        if (!validate(args)) {
-            return;
-        }
+        try {
+            Request httpRequest = getHttpReqeust(args);
+            if (httpRequest == null) {
+                return;
+            }
 
-        final Request httpRequest = (Request) args[0];
-        final boolean sampling = trace.canSampled();
-        if (!sampling) {
-            if (httpRequest != null) {
+            final SpanEventRecorder recorder = trace.traceBlockBegin();
+            if (trace.canSampled()) {
+                final TraceId nextId = trace.getTraceId().getNextTraceId();
+                recorder.recordNextSpanId(nextId.getSpanId());
+                recorder.recordServiceType(NingAsyncHttpClientConstants.ASYNC_HTTP_CLIENT);
+
+                String host = getHost(httpRequest);
+                requestTraceWriter.write(httpRequest, nextId, host);
+            } else {
                 this.requestTraceWriter.write(httpRequest);
             }
-            return;
-        }
-
-        trace.traceBlockBegin();
-        final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
-        final TraceId nextId = trace.getTraceId().getNextTraceId();
-        recorder.recordNextSpanId(nextId.getSpanId());
-        recorder.recordServiceType(NingAsyncHttpClientConstants.ASYNC_HTTP_CLIENT);
-
-        if (httpRequest != null) {
-            String host = getHost(httpRequest);
-            requestTraceWriter.write(httpRequest, nextId, host);
+        } catch (Throwable t) {
+            logger.warn("Failed to BEFORE process. {}", t.getMessage(), t);
         }
     }
 
@@ -130,40 +127,41 @@ public class ExecuteRequestInterceptor implements AroundInterceptor {
             logger.afterInterceptor(target, args);
         }
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = traceContext.currentRawTraceObject();
         if (trace == null) {
             return;
         }
 
-        if (!validate(args)) {
-            return;
-        }
-
         try {
+            Request httpReqeust = getHttpReqeust(args);
+            if (httpReqeust == null) {
+                return;
+            }
+
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
-            final Request httpRequest = (Request) args[0];
-            if (httpRequest != null) {
+            if (trace.canSampled()) {
+                final Request httpRequest = (Request) args[0];
                 // Accessing httpRequest here not BEFORE() because it can cause side effect.
                 this.clientRequestRecorder.record(recorder, httpRequest, throwable);
                 this.cookieRecorder.record(recorder, httpRequest, throwable);
                 this.entityRecorder.record(recorder, httpRequest, throwable);
+
+                recorder.recordApi(descriptor);
+                recorder.recordException(throwable);
             }
-            recorder.recordApi(descriptor);
-            recorder.recordException(throwable);
         } finally {
             trace.traceBlockEnd();
         }
     }
 
-    private boolean validate(final Object[] args) {
-        final Object request = ArrayUtils.get(args, 0);
-        if (!(request instanceof Request)) {
+    private Request getHttpReqeust(final Object[] args) {
+        final Request request = ArrayArgumentUtils.getArgument(args, 0, Request.class);
+        if (request == null) {
             if (isDebug) {
                 logger.debug("Invalid args[0] object. args={}.", args);
             }
-            return false;
         }
 
-        return true;
+        return request;
     }
 }

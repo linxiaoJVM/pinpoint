@@ -49,13 +49,14 @@ public abstract class SpanEventSimpleAroundInterceptorForPlugin implements Aroun
 
         prepareBeforeTrace(target, args);
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = currentTrace();
         if (trace == null) {
             return;
         }
         
         try {
             final SpanEventRecorder recorder = trace.traceBlockBegin();
+            beforeTrace(trace, recorder, target, args);
             doInBeforeTrace(recorder, target, args);
         } catch (Throwable th) {
             if (logger.isWarnEnabled()) {
@@ -64,12 +65,18 @@ public abstract class SpanEventSimpleAroundInterceptorForPlugin implements Aroun
         }
     }
 
+    protected Trace currentTrace() {
+        return traceContext.currentTraceObject();
+    }
+
     protected void logBeforeInterceptor(Object target, Object[] args) {
         logger.beforeInterceptor(target, args);
     }
 
     protected void prepareBeforeTrace(Object target, Object[] args) {
+    }
 
+    protected void beforeTrace(Trace trace, SpanEventRecorder recorder, Object target, Object[] args) {
     }
 
     protected abstract void doInBeforeTrace(final SpanEventRecorder recorder, final Object target, final Object[] args) throws Exception;
@@ -82,12 +89,13 @@ public abstract class SpanEventSimpleAroundInterceptorForPlugin implements Aroun
 
         prepareAfterTrace(target, args, result, throwable);
 
-        final Trace trace = traceContext.currentTraceObject();
+        final Trace trace = currentTrace();
         if (trace == null) {
             return;
         }
         try {
             final SpanEventRecorder recorder = trace.currentSpanEventRecorder();
+            afterTrace(trace, recorder, target, args, result, throwable);
             doInAfterTrace(recorder, target, args, result, throwable);
         } catch (Throwable th) {
             if (logger.isWarnEnabled()) {
@@ -103,6 +111,9 @@ public abstract class SpanEventSimpleAroundInterceptorForPlugin implements Aroun
     }
 
     protected void prepareAfterTrace(Object target, Object[] args, Object result, Throwable throwable) {
+    }
+
+    protected void afterTrace(final Trace trace, final SpanEventRecorder recorder, final Object target, final Object[] args, final Object result, final Throwable throwable) {
     }
 
     protected abstract void doInAfterTrace(final SpanEventRecorder recorder, final Object target, final Object[] args, final Object result, Throwable throwable) throws Exception;

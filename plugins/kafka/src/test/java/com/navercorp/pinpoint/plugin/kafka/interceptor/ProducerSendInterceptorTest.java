@@ -16,27 +16,30 @@
 
 package com.navercorp.pinpoint.plugin.kafka.interceptor;
 
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.bootstrap.context.Trace;
 import com.navercorp.pinpoint.bootstrap.context.TraceContext;
 import com.navercorp.pinpoint.plugin.kafka.KafkaConstants;
 import com.navercorp.pinpoint.plugin.kafka.field.accessor.RemoteAddressFieldAccessor;
-
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class ProducerSendInterceptorTest {
 
     @Mock
     private TraceContext traceContext;
+
+    @Mock
+    private ProfilerConfig profilerConfig;
 
     @Mock
     private MethodDescriptor descriptor;
@@ -56,6 +59,7 @@ public class ProducerSendInterceptorTest {
     @Test
     public void before() {
         doReturn(trace).when(traceContext).currentRawTraceObject();
+        doReturn(profilerConfig).when(traceContext).getProfilerConfig();
         doReturn(true).when(trace).canSampled();
         doReturn(recorder).when(trace).traceBlockBegin();
 
@@ -71,6 +75,7 @@ public class ProducerSendInterceptorTest {
     @Test
     public void after() {
         doReturn(trace).when(traceContext).currentTraceObject();
+        doReturn(profilerConfig).when(traceContext).getProfilerConfig();
         doReturn(true).when(trace).canSampled();
         doReturn(recorder).when(trace).currentSpanEventRecorder();
         doReturn("test").when(record).topic();
