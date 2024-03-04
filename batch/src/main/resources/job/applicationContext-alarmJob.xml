@@ -41,7 +41,7 @@
     <bean id="processor" class="com.navercorp.pinpoint.batch.alarm.AlarmProcessor" scope="step"/>
     <bean id="writer" class="com.navercorp.pinpoint.batch.alarm.AlarmWriter" scope="step"/>
 
-    <task:executor id="alarmPoolTaskExecutorForPartition" pool-size="1"/>
+    <task:executor id="alarmPoolTaskExecutorForPartition" pool-size="5"/>
 
     <bean id="batchAlarmDao" class="com.navercorp.pinpoint.batch.dao.mysql.MysqlAlarmDao"/>
     <bean id="batchAlarmService" class="com.navercorp.pinpoint.batch.service.AlarmServiceImpl">

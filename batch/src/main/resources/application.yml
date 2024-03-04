@@ -5,4 +5,4 @@ spring:
     active: release
 
 server:
-  port: 8090
+  port: 8890

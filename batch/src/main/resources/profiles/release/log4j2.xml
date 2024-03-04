@@ -16,8 +16,8 @@
             <PatternLayout pattern="${file_message_pattern}"/>
         </Console>
 
-        <RollingFile name="rollingFile" filename="${logging_dir}/pinpoint-web.log"
-                     filepattern="${logging_dir}/pinpoint-web-${rolling-date-format}-%i.log"  >
+        <RollingFile name="rollingFile" filename="${logging_dir}/pinpoint-batch.log"
+                     filepattern="${logging_dir}/pinpoint-batch-${rolling-date-format}-%i.log"  >
             <PatternLayout>
                 <Pattern>${file_message_pattern}</Pattern>
             </PatternLayout>
@@ -27,7 +27,7 @@
             </Policies>
             <DefaultRolloverStrategy max="20">
                 <Delete basePath="${logging_dir}/" maxDepth="1">
-                    <IfFileName glob="pinpoint-web-*-*.log">
+                    <IfFileName glob="pinpoint-batch-*-*.log">
                         <IfAny>
                             <IfAccumulatedFileSize exceeds="2000GB" />
                             <IfAccumulatedFileCount exceeds="100" />
@@ -47,52 +47,65 @@
 
         <Logger name="com.navercorp.pinpoint.web.filter" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.controller" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.applicationmap" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.mapper" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.service" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.dao" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.mapper.ApiMetaDataMapper" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.mybatis" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.springframework" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.apache.zookeeper" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.apache.hadoop.hbase" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
         <Logger name="org.apache.hadoop.ipc" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
         <Logger name="org.apache.hadoop" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Root level="INFO">

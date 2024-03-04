@@ -47,52 +47,65 @@
 
         <Logger name="com.navercorp.pinpoint.web.filter" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.controller" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.applicationmap" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.mapper" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.service" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.dao" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="com.navercorp.pinpoint.web.mapper.ApiMetaDataMapper" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.mybatis" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.springframework" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.apache.zookeeper" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Logger name="org.apache.hadoop.hbase" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
         <Logger name="org.apache.hadoop.ipc" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
         <Logger name="org.apache.hadoop" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
+            <AppenderRef ref="rollingFile"/>
         </Logger>
 
         <Root level="INFO">
