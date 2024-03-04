@@ -2,12 +2,12 @@ package com.navercorp.pinpoint.web.service;
 
 import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.common.trace.ServiceType;
+import com.navercorp.pinpoint.web.applicationmap.dao.MapResponseDao;
 import com.navercorp.pinpoint.web.applicationmap.histogram.AgentTimeHistogram;
 import com.navercorp.pinpoint.web.applicationmap.histogram.AgentTimeHistogramBuilder;
 import com.navercorp.pinpoint.web.applicationmap.histogram.ApdexScore;
 import com.navercorp.pinpoint.web.applicationmap.histogram.Histogram;
 import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogram;
-import com.navercorp.pinpoint.web.dao.MapResponseDao;
 import com.navercorp.pinpoint.web.util.TimeWindow;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.navercorp.pinpoint.web.vo.ResponseTime;
@@ -34,12 +34,6 @@ public class ApdexScoreServiceImpl implements ApdexScoreService {
         this.mapResponseDao = Objects.requireNonNull(mapResponseDao, "mapResponseDao");
     }
 
-    private AgentTimeHistogram createAgentTimeHistogram(Application application, Range range, TimeWindow timeWindow, List<ResponseTime> responseHistogramList) {
-        AgentTimeHistogramBuilder builder = new AgentTimeHistogramBuilder(application, range, timeWindow);
-        AgentTimeHistogram timeHistogram = builder.build(responseHistogramList);
-        return timeHistogram;
-    }
-
     @Override
     public ApdexScore selectApdexScoreData(Application application, Range range) {
         ServiceType applicationServiceType = application.getServiceType();
@@ -55,6 +49,21 @@ public class ApdexScoreServiceImpl implements ApdexScoreService {
         }
     }
 
+    @Override
+    public ApdexScore selectApdexScoreData(Application application, String agentId, Range range) {
+        ServiceType applicationServiceType = application.getServiceType();
+
+        if (applicationServiceType.isWas()) {
+            List<ResponseTime> responseTimeList = mapResponseDao.selectResponseTime(application, range);
+            Histogram agentHistogram = createAgentHistogram(responseTimeList, agentId, applicationServiceType);
+
+            return ApdexScore.newApdexScore(agentHistogram);
+        } else {
+            logger.debug("application service type isWas:{}", applicationServiceType.isWas());
+            return ApdexScore.newApdexScore(new Histogram(applicationServiceType));
+        }
+    }
+
     private Histogram createApplicationHistogram(List<ResponseTime> responseHistogram, ServiceType applicationServiceType) {
         final Histogram applicationHistogram = new Histogram(applicationServiceType);
         for (ResponseTime responseTime : responseHistogram) {
@@ -62,6 +71,17 @@ public class ApdexScoreServiceImpl implements ApdexScoreService {
             applicationHistogram.addAll(histogramList);
         }
         return applicationHistogram;
+    }
+
+    private Histogram createAgentHistogram(List<ResponseTime> responseHistogram, String agentId, ServiceType applicationServiceType) {
+        final Histogram agentHistogram = new Histogram(applicationServiceType);
+        for (ResponseTime responseTime : responseHistogram) {
+            Histogram histogram = responseTime.findHistogram(agentId);
+            if (histogram != null) {
+                agentHistogram.add(histogram);
+            }
+        }
+        return agentHistogram;
     }
 
     @Override
@@ -81,5 +101,11 @@ public class ApdexScoreServiceImpl implements ApdexScoreService {
 
         List<SampledApdexScore> sampledPoints = timeHistogram.getSampledAgentApdexScoreList(agentId);
         return new AgentApdexScoreChart(timeWindow, sampledPoints);
+    }
+
+    private AgentTimeHistogram createAgentTimeHistogram(Application application, Range range, TimeWindow timeWindow, List<ResponseTime> responseHistogramList) {
+        AgentTimeHistogramBuilder builder = new AgentTimeHistogramBuilder(application, range, timeWindow);
+        AgentTimeHistogram timeHistogram = builder.build(responseHistogramList);
+        return timeHistogram;
     }
 }

@@ -168,6 +168,7 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.TERMINAL;
  * <tr><td>5052</td><td>SPRING_ASYNC</td></tr>
  * <tr><td>5053</td><td>SPRING_WEBFLUX</td></tr>
  * <tr><td>5054</td><td>SPRING_TX</td></tr>
+ * <tr><td>5055</td><td>SPRING_CLOUD_SLEUTH</td></tr>
  * <tr><td>5061</td><td><i>RESERVED</i></td></tr>
  * <tr><td>5071</td><td>SPRING_BEAN</td></tr>
  * <tr><td>5500</td><td>IBATIS</td></tr>
@@ -248,6 +249,8 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.TERMINAL;
  * <tr><td>9060</td><td><i>RESERVED</i></td></tr>
  * <tr><td>9062</td><td><i>HTTP_CLIENT_5</i></td></tr>
  * <tr><td>9063</td><td><i>HTTP_CLIENT_5_INTERNAL</i></td></tr>
+ * <tr><td>9065</td><td><i>JDK_HTTP_CLIENT</i></td></tr>
+ * <tr><td>9066</td><td><i>JDK_HTTP_CLIENT_INTERNAL</i></td></tr>
  * <tr><td>9070</td><td><i>RESERVED</i></td></tr>
  * <tr><td><s>9080</s></td><td><s>APACHE_CXF_CLIENT</s></td></tr>
  * <tr><td>9081</td><td>APACHE_CXF_SERVICE_INVOKER</td></tr>

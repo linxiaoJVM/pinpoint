@@ -24,14 +24,10 @@ import java.util.Arrays;
  * @author intr3p1d
  */
 public enum GroupByAttributes {
-    URI_TEMPLATE("path", PinotColumns.URI_TEMPLATE),
-    ERROR_MESSAGE("errorMessage", PinotColumns.ERROR_MESSAGE),
-    ERROR_CLASS_NAME("errorClassName", PinotColumns.ERROR_CLASS_NAME),
-    STACK_TRACE("stackTrace", PinotColumns.STACK_TRACE_HASH),
-    ERROR(
-            "error",
-            PinotColumns.ERROR_CLASS_NAME, PinotColumns.ERROR_MESSAGE_LOG_TYPE, PinotColumns.STACK_TRACE_HASH
-    );
+    URI_TEMPLATE("Path", PinotColumns.URI_TEMPLATE),
+    ERROR_MESSAGE_LOG_TYPE("Error Message", PinotColumns.ERROR_MESSAGE_LOG_TYPE),
+    ERROR_CLASS_NAME("Error Class Name", PinotColumns.ERROR_CLASS_NAME),
+    STACK_TRACE("Stack Trace", PinotColumns.STACK_TRACE_HASH);
 
     private static final EnumGetter<GroupByAttributes> GETTER = new EnumGetter<>(GroupByAttributes.class);
     private final String name;

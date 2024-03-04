@@ -1,0 +1,29 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  jackson:
+    mapper:
+      default-view-inclusion: true
+  profiles:
+    active: release, metric
+
+server:
+  port: 8080
+  error:
+    path: /api/error
+    include-exception: true
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
+    whitelabel:
+      enabled: true
+
+pinpoint:
+  modules:
+    web:
+      exceptiontrace:
+        enabled: true
+      inspector:
+        enabled: true
+    realtime:
+      enabled: true

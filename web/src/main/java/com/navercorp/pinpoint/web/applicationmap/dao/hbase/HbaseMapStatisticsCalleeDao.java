@@ -1,0 +1,134 @@
+/*
+ * Copyright 2019 NAVER Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.navercorp.pinpoint.web.applicationmap.dao.hbase;
+
+import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
+import com.navercorp.pinpoint.common.hbase.HbaseOperations;
+import com.navercorp.pinpoint.common.hbase.ResultsExtractor;
+import com.navercorp.pinpoint.common.hbase.RowMapper;
+import com.navercorp.pinpoint.common.hbase.TableNameProvider;
+import com.navercorp.pinpoint.common.server.util.ApplicationMapStatisticsUtils;
+import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.web.applicationmap.dao.MapStatisticsCalleeDao;
+import com.navercorp.pinpoint.web.applicationmap.dao.mapper.MapStatisticsTimeWindowReducer;
+import com.navercorp.pinpoint.web.applicationmap.link.LinkDirection;
+import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMap;
+import com.navercorp.pinpoint.web.applicationmap.rawdata.LinkDataMapUtils;
+import com.navercorp.pinpoint.web.mapper.RowMapReduceResultExtractor;
+import com.navercorp.pinpoint.web.util.TimeWindow;
+import com.navercorp.pinpoint.web.util.TimeWindowDownSampler;
+import com.navercorp.pinpoint.web.vo.Application;
+import com.navercorp.pinpoint.web.vo.RangeFactory;
+import com.sematext.hbase.wd.RowKeyDistributorByHashPrefix;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Repository;
+
+import java.util.Objects;
+
+/**
+ * @author netspider
+ * @author emeroad
+ */
+@Repository
+public class HbaseMapStatisticsCalleeDao implements MapStatisticsCalleeDao {
+
+    private static final int MAP_STATISTICS_CALLER_VER2_NUM_PARTITIONS = 32;
+    private static final int SCAN_CACHE_SIZE = 40;
+
+    private final Logger logger = LogManager.getLogger(this.getClass());
+
+    private static final HbaseColumnFamily.CallerStatMap DESCRIPTOR = HbaseColumnFamily.MAP_STATISTICS_CALLER_VER2_COUNTER;
+
+    private final HbaseOperations hbaseTemplate;
+    private final TableNameProvider tableNameProvider;
+
+    private final RowMapper<LinkDataMap> mapStatisticsCalleeMapper;
+    private final RowMapper<LinkDataMap> mapStatisticsCalleeTimeAggregatedMapper;
+
+    private final RangeFactory rangeFactory;
+
+    private final RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix;
+
+
+    public HbaseMapStatisticsCalleeDao(
+            @Qualifier("mapHbaseTemplate") HbaseOperations hbaseTemplate,
+            TableNameProvider tableNameProvider,
+            @Qualifier("mapStatisticsCalleeMapper") RowMapper<LinkDataMap> mapStatisticsCalleeMapper,
+            @Qualifier("mapStatisticsCalleeTimeAggregatedMapper") RowMapper<LinkDataMap> mapStatisticsCalleeTimeAggregatedMapper,
+            RangeFactory rangeFactory,
+            @Qualifier("statisticsCalleeRowKeyDistributor") RowKeyDistributorByHashPrefix rowKeyDistributorByHashPrefix)  {
+        this.hbaseTemplate = Objects.requireNonNull(hbaseTemplate, "hbaseTemplate");
+        this.tableNameProvider = Objects.requireNonNull(tableNameProvider, "tableNameProvider");
+        this.mapStatisticsCalleeMapper = Objects.requireNonNull(mapStatisticsCalleeMapper, "mapStatisticsCalleeMapper");
+        this.mapStatisticsCalleeTimeAggregatedMapper = Objects.requireNonNull(mapStatisticsCalleeTimeAggregatedMapper, "mapStatisticsCalleeTimeAggregatedMapper");
+        this.rangeFactory = Objects.requireNonNull(rangeFactory, "rangeFactory");
+        this.rowKeyDistributorByHashPrefix = Objects.requireNonNull(rowKeyDistributorByHashPrefix, "rowKeyDistributorByHashPrefix");
+    }
+
+    @Override
+    public LinkDataMap selectCallee(Application calleeApplication, Range range, boolean timeAggregated) {
+        Objects.requireNonNull(calleeApplication, "calleeApplication");
+        Objects.requireNonNull(range, "range");
+
+        final TimeWindow timeWindow = new TimeWindow(range, TimeWindowDownSampler.SAMPLER);
+        // find distributed key - ver2.
+        final Scan scan = createScan(calleeApplication, range, DESCRIPTOR.getName());
+
+        ResultsExtractor<LinkDataMap> resultExtractor;
+        if (timeAggregated) {
+            resultExtractor = new RowMapReduceResultExtractor<>(mapStatisticsCalleeTimeAggregatedMapper, new MapStatisticsTimeWindowReducer(timeWindow));
+        } else {
+            resultExtractor = new RowMapReduceResultExtractor<>(mapStatisticsCalleeMapper, new MapStatisticsTimeWindowReducer(timeWindow));
+        }
+
+        TableName mapStatisticsCallerTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
+        LinkDataMap linkDataMap = hbaseTemplate.findParallel(mapStatisticsCallerTableName, scan, rowKeyDistributorByHashPrefix, resultExtractor, MAP_STATISTICS_CALLER_VER2_NUM_PARTITIONS);
+        logger.debug("{} data. {}, {}", LinkDirection.IN_LINK, linkDataMap, range);
+        if (LinkDataMapUtils.hasLength(linkDataMap)) {
+            return linkDataMap;
+        }
+        return new LinkDataMap();
+    }
+
+
+    private Scan createScan(Application application, Range range, byte[] family) {
+        range = rangeFactory.createStatisticsRange(range);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("scan time:{} ", range.prettyToString());
+        }
+
+        // start key is replaced by end key because timestamp has been reversed
+        byte[] startKey = ApplicationMapStatisticsUtils.makeRowKey(application.getName(), application.getServiceTypeCode(), range.getTo());
+        byte[] endKey = ApplicationMapStatisticsUtils.makeRowKey(application.getName(), application.getServiceTypeCode(), range.getFrom());
+
+        Scan scan = new Scan();
+        scan.setCaching(SCAN_CACHE_SIZE);
+        scan.withStartRow(startKey);
+        scan.withStopRow(endKey);
+        scan.addFamily(family);
+        scan.setId("ApplicationStatisticsScan");
+
+        return scan;
+    }
+
+
+}

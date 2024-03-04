@@ -1,0 +1,21 @@
+spring:
+  main:
+    allow-bean-definition-overriding: false
+#    web-application-type: none
+  profiles:
+    active: local
+  shell:
+    history:
+      enabled: false
+
+pinpoint:
+  modules:
+    collector:
+      exceptiontrace:
+        enabled: true
+      inspector:
+        enabled: true
+        hbase:
+          enabled: true
+    realtime:
+      enabled: true

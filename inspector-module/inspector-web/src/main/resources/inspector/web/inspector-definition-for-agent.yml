@@ -16,7 +16,7 @@ mappings:
       - fieldName: "gcOldCount"
         matchingRule: EXACT_ONE
         aggregationFunction : MAX
-        chartType : "bar"
+        chartType : "tooltip"
         unit : "count"
         postProcess : "delta"
       - fieldName: "gcOldTime"
@@ -34,10 +34,15 @@ mappings:
         aggregationFunction : AVG
         chartType : "areaSpline"
         unit : "byte"
+      - fieldName: "nonHeapMax"
+        matchingRule: EXACT_ONE
+        aggregationFunction: AVG
+        chartType: "areaSpline"
+        unit: "byte"
       - fieldName: "gcOldCount"
         matchingRule: EXACT_ONE
         aggregationFunction : MAX
-        chartType : "bar"
+        chartType : "tooltip"
         unit : "count"
         postProcess : "delta"
       - fieldName: "gcOldTime"
@@ -212,7 +217,7 @@ mappings:
     metricName: "dataSource"
     title: "Data Source"
     grouping: "TAG"
-    preProcess: "usingDataSourceTag"
+    preProcess: "usingDataSourceTagForAgent"
     fields:
       - fieldName: "activeConnectionSize"
         fieldAlias: "activeAvg"
@@ -226,6 +231,16 @@ mappings:
         aggregationFunction: MAX
         unit : "count"
       - fieldName: "maxConnectionSize"
+        fieldAlias: "totalMax"
         matchingRule: ALL
         aggregationFunction: MAX
+        unit : "count"
+  - definitionId: "apdex"
+    metricName: "apdex"
+    title: "Apdex Score"
+    fields:
+      - fieldName: "Apdex Score"
+        matchingRule: EXACT_ONE
+        aggregationFunction : AVG
+        chartType : "spline"
         unit : "count"

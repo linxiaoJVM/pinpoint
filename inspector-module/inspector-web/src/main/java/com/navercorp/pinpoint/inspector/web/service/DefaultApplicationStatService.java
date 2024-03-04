@@ -6,12 +6,14 @@ import com.navercorp.pinpoint.inspector.web.definition.Mappings;
 import com.navercorp.pinpoint.inspector.web.definition.MetricDefinition;
 import com.navercorp.pinpoint.inspector.web.definition.YMLInspectorManager;
 import com.navercorp.pinpoint.inspector.web.definition.metric.MetricPostProcessor;
+import com.navercorp.pinpoint.inspector.web.definition.metric.MetricPreProcessor;
 import com.navercorp.pinpoint.inspector.web.definition.metric.MetricProcessorManager;
 import com.navercorp.pinpoint.inspector.web.definition.metric.field.Field;
-import com.navercorp.pinpoint.inspector.web.definition.metric.field.FieldPostProcessor;
 import com.navercorp.pinpoint.inspector.web.model.InspectorDataSearchKey;
 import com.navercorp.pinpoint.inspector.web.model.InspectorMetricData;
+import com.navercorp.pinpoint.inspector.web.model.InspectorMetricGroupData;
 import com.navercorp.pinpoint.inspector.web.model.InspectorMetricValue;
+import com.navercorp.pinpoint.metric.common.model.Tag;
 import com.navercorp.pinpoint.metric.common.model.TimeWindow;
 import com.navercorp.pinpoint.metric.common.model.chart.AvgMinMaxMetricPoint;
 import com.navercorp.pinpoint.metric.common.model.chart.AvgMinMetricPoint;
@@ -30,8 +32,9 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -85,6 +88,59 @@ public class DefaultApplicationStatService implements ApplicationStatService {
         return new InspectorMetricData(metricDefinition.getTitle(), timeStampList, processedMetricValueList);
     }
 
+    @Override
+    public InspectorMetricGroupData selectApplicationStatWithGrouping(InspectorDataSearchKey inspectorDataSearchKey, TimeWindow timeWindow) {
+        MetricDefinition metricDefinition = ymlInspectorManager.findElementOfBasicGroup(inspectorDataSearchKey.getMetricDefinitionId());
+        MetricDefinition newMetricDefinition = preProcess(inspectorDataSearchKey, metricDefinition);
+
+        List<QueryResult> queryResults =  selectAll(inspectorDataSearchKey, newMetricDefinition);
+
+        List<InspectorMetricValue> metricValueList = new ArrayList<>(newMetricDefinition.getFields().size());
+
+        try {
+            for (QueryResult result : queryResults) {
+                Class resultType = result.getResultType();
+                if (resultType.equals(AvgMinMaxMetricPoint.class)) {
+                    List<AvgMinMaxMetricPoint<Double>> doubleList = (List<AvgMinMaxMetricPoint<Double>>) result.getFuture().get();
+                    metricValueList.addAll(splitAvgMinMax(timeWindow, result.getField(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR));
+                } else if (resultType.equals(AvgMinMetricPoint.class)) {
+                    List<AvgMinMetricPoint<Double>> doubleList = (List<AvgMinMetricPoint<Double>>) result.getFuture().get();
+                    metricValueList.addAll(splitAvgMin(timeWindow, result.getField(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR));
+                }else if (resultType.equals(MinMaxMetricPoint.class)) {
+                    List<MinMaxMetricPoint<Double>> doubleList = (List<MinMaxMetricPoint<Double>>) result.getFuture().get();
+                    metricValueList.addAll(splitMinMax(timeWindow, result.getField(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR));
+                } else if (resultType.equals(SystemMetricPoint.class)) {
+                    List<SystemMetricPoint<Double>> doubleList = (List<SystemMetricPoint<Double>>) result.getFuture().get();
+                    metricValueList.add(createInspectorMetricValue(timeWindow, result.getField(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR));
+                } else {
+                    throw new RuntimeException("not support result type : " + result.getResultType());
+                }
+            }
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+
+        List<InspectorMetricValue> processedMetricValueList = postprocessMetricData(newMetricDefinition, metricValueList);
+        List<Long> timeStampList = TimeUtils.createTimeStampList(timeWindow);
+        Map<List<Tag>,List<InspectorMetricValue>> metricValueGroups = groupingMetricValue(processedMetricValueList, metricDefinition);
+
+        return new InspectorMetricGroupData(metricDefinition.getTitle(), timeStampList, metricValueGroups);
+    }
+
+    private Map<List<Tag>,List<InspectorMetricValue>> groupingMetricValue(List<InspectorMetricValue> processedMetricValueList, MetricDefinition metricDefinition) {
+        switch (metricDefinition.getGroupingRule()) {
+            case TAG:
+                return processedMetricValueList.stream().collect(Collectors.groupingBy(InspectorMetricValue::getTagList));
+            default:
+                throw new UnsupportedOperationException("not supported grouping rule : " + metricDefinition.getGroupingRule());
+        }
+    }
+
+    private MetricDefinition preProcess(InspectorDataSearchKey inspectorDataSearchKey, MetricDefinition metricDefinition) {
+        MetricPreProcessor metricPreProcessor = metricProcessorManager.getPreProcessor(metricDefinition.getPreProcess());
+        return metricPreProcessor.preProcess(inspectorDataSearchKey, metricDefinition);
+    }
+
     private List<InspectorMetricValue> postprocessMetricData(MetricDefinition metricDefinition, List<InspectorMetricValue> metricValueList) {
         MetricPostProcessor postProcessor = metricProcessorManager.getPostProcessor(metricDefinition.getPostProcess());
         return postProcessor.postProcess(metricValueList);
@@ -100,7 +156,7 @@ public class DefaultApplicationStatService implements ApplicationStatService {
                 .map(SystemMetricPoint::getYVal)
                 .collect(Collectors.toList());
 
-        return new InspectorMetricValue(field.getFieldName(), field.getTags(), field.getChartType(), field.getUnit(), valueList);
+        return new InspectorMetricValue(field.getFieldAlias(), field.getTags(), field.getChartType(), field.getUnit(), valueList);
     }
 
     private List<InspectorMetricValue> splitMinMax(TimeWindow timeWindow, Field field, List<MinMaxMetricPoint<Double>> doubleList, UncollectedDataCreator<Double> uncollectedDataCreator) {
@@ -165,7 +221,7 @@ public class DefaultApplicationStatService implements ApplicationStatService {
         List<QueryResult> invokeList = new ArrayList<>();
 
         for (Field field : metricDefinition.getFields()) {
-            Future<? extends List<? extends Point>> doubleFuture = null;
+            CompletableFuture<? extends List<? extends Point>> doubleFuture = null;
             Class resultType = null;
 
             if (AggregationFunction.AVG_MIN_MAX.equals(field.getAggregationFunction())) {
@@ -195,17 +251,17 @@ public class DefaultApplicationStatService implements ApplicationStatService {
 
     // TODO : (minwoo) It seems that this can also be integrated into one with the com.navercorp.pinpoint.inspector.web.service.DefaultAgentStatService.QueryResult.
     private static class QueryResult {
-        private final Future<? extends List<? extends Point>> future;
+        private final CompletableFuture<? extends List<? extends Point>> future;
         private final Class resultType;
         private final Field field;
 
-        public QueryResult(Future<? extends List<? extends Point>> future, Field field, Class resultType) {
+        public QueryResult(CompletableFuture<? extends List<? extends Point>> future, Field field, Class resultType) {
             this.future = Objects.requireNonNull(future, "future");
             this.resultType = Objects.requireNonNull(resultType, "resultType");
             this.field = Objects.requireNonNull(field, "field");
         }
 
-        public Future<? extends List<? extends Point>> getFuture() {
+        public CompletableFuture<? extends List<? extends Point>> getFuture() {
             return future;
         }
 
