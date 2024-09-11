@@ -32,7 +32,7 @@ import com.navercorp.pinpoint.inspector.web.model.InspectorMetricData;
 import com.navercorp.pinpoint.inspector.web.model.InspectorMetricGroupData;
 import com.navercorp.pinpoint.inspector.web.model.InspectorMetricValue;
 import com.navercorp.pinpoint.metric.common.model.Tag;
-import com.navercorp.pinpoint.metric.common.model.TimeWindow;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
 import com.navercorp.pinpoint.metric.common.model.chart.SystemMetricPoint;
 import com.navercorp.pinpoint.metric.common.util.DoubleUncollectedDataCreator;
 import com.navercorp.pinpoint.metric.common.util.TimeSeriesBuilder;
@@ -63,7 +63,7 @@ public class DefaultAgentStatService implements AgentStatService {
     private final MetricProcessorManager metricProcessorManager;
     private final FieldProcessorManager fieldProcessorManager;
 
-    public DefaultAgentStatService(AgentStatDao agentStatDao, @Qualifier("agentInspectorDefinition")Mappings agentInspectorDefinition, MetricProcessorManager metricProcessorManager, FieldProcessorManager fieldProcessorManager) {
+    public DefaultAgentStatService(@Qualifier("pinotAgentStatDao")AgentStatDao agentStatDao, @Qualifier("agentInspectorDefinition")Mappings agentInspectorDefinition, MetricProcessorManager metricProcessorManager, FieldProcessorManager fieldProcessorManager) {
         this.agentStatDao = Objects.requireNonNull(agentStatDao, "agentStatDao");
         Objects.requireNonNull(agentInspectorDefinition, "agentInspectorDefinition");
         this.ymlInspectorManager = new YMLInspectorManager(agentInspectorDefinition);
@@ -75,16 +75,16 @@ public class DefaultAgentStatService implements AgentStatService {
     public InspectorMetricData selectAgentStat(InspectorDataSearchKey inspectorDataSearchKey, TimeWindow timeWindow){
         MetricDefinition metricDefinition = ymlInspectorManager.findElementOfBasicGroup(inspectorDataSearchKey.getMetricDefinitionId());
 
-        List<QueryResult> queryResults =  selectAll(inspectorDataSearchKey, metricDefinition);
+        List<QueryResult> queryResults = selectAll(inspectorDataSearchKey, metricDefinition);
 
         List<InspectorMetricValue> metricValueList = new ArrayList<>(metricDefinition.getFields().size());
 
         try {
             for (QueryResult result : queryResults) {
-                CompletableFuture<List<SystemMetricPoint<Double>>> future = result.getFuture();
+                CompletableFuture<List<SystemMetricPoint<Double>>> future = result.future();
                 List<SystemMetricPoint<Double>> doubleList = future.get();
 
-                InspectorMetricValue doubleMetricValue = createInspectorMetricValue(timeWindow, result.getField(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR);
+                InspectorMetricValue doubleMetricValue = createInspectorMetricValue(timeWindow, result.field(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR);
                 metricValueList.add(doubleMetricValue);
             }
         } catch (Throwable e) {
@@ -99,17 +99,16 @@ public class DefaultAgentStatService implements AgentStatService {
     public InspectorMetricGroupData selectAgentStatWithGrouping(InspectorDataSearchKey inspectorDataSearchKey, TimeWindow timeWindow){
         MetricDefinition metricDefinition = ymlInspectorManager.findElementOfBasicGroup(inspectorDataSearchKey.getMetricDefinitionId());
         MetricDefinition newMetricDefinition = preProcess(inspectorDataSearchKey, metricDefinition);
-
-        List<QueryResult> queryResults =  selectAll(inspectorDataSearchKey, newMetricDefinition);
-
         List<InspectorMetricValue> metricValueList = new ArrayList<>(newMetricDefinition.getFields().size());
+
+        List<QueryResult> queryResults = selectAll(inspectorDataSearchKey, newMetricDefinition);
 
         try {
             for (QueryResult result : queryResults) {
-                CompletableFuture<List<SystemMetricPoint<Double>>> future = result.getFuture();
+                CompletableFuture<List<SystemMetricPoint<Double>>> future = result.future();
                 List<SystemMetricPoint<Double>> doubleList = future.get();
 
-                InspectorMetricValue doubleMetricValue = createInspectorMetricValue(timeWindow, result.getField(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR);
+                InspectorMetricValue doubleMetricValue = createInspectorMetricValue(timeWindow, result.field(), doubleList, DoubleUncollectedDataCreator.UNCOLLECTED_DATA_CREATOR);
                 metricValueList.add(doubleMetricValue);
             }
         } catch (Throwable e) {
@@ -181,24 +180,9 @@ public class DefaultAgentStatService implements AgentStatService {
         return invokeList;
     }
 
+
     //TODO : (minwoo) It seems that this can also be integrated into one with the metric side.
-    private static class QueryResult {
-        private final CompletableFuture<List<SystemMetricPoint<Double>>> future;
-        private final Field field;
-
-        public QueryResult(CompletableFuture<List<SystemMetricPoint<Double>>> future, Field field) {
-            this.future = Objects.requireNonNull(future, "future");
-            this.field = Objects.requireNonNull(field, "field");
-        }
-
-        public CompletableFuture<List<SystemMetricPoint<Double>>> getFuture() {
-            return future;
-        }
-
-        public Field getField() {
-            return field;
-        }
-
+    private record QueryResult(CompletableFuture<List<SystemMetricPoint<Double>>> future, Field field) {
     }
 
 }

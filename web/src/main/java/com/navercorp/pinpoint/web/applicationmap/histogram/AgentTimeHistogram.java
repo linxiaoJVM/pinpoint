@@ -16,20 +16,21 @@
 
 package com.navercorp.pinpoint.web.applicationmap.histogram;
 
-import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.google.common.collect.Ordering;
+import com.navercorp.pinpoint.common.server.util.json.JsonField;
+import com.navercorp.pinpoint.common.server.util.json.JsonFields;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.AgentHistogram;
 import com.navercorp.pinpoint.web.applicationmap.rawdata.AgentHistogramList;
-import com.navercorp.pinpoint.web.util.TimeWindow;
-import com.navercorp.pinpoint.web.view.AgentResponseTimeViewModel;
 import com.navercorp.pinpoint.web.view.TimeViewModel;
+import com.navercorp.pinpoint.web.view.id.AgentNameView;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.navercorp.pinpoint.web.vo.stat.SampledApdexScore;
 import com.navercorp.pinpoint.web.vo.stat.chart.agent.AgentStatPoint;
 import com.navercorp.pinpoint.web.vo.stat.chart.application.DoubleApplicationStatPoint;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -49,60 +50,55 @@ public class AgentTimeHistogram {
     private static final Double DEFAULT_MAX_APDEX_SCORE = -2D;
     private static final String DEFAULT_AGENT_ID = "defaultAgentId";
 
-    private static final Comparator<AgentResponseTimeViewModel> AGENT_NAME_COMPARATOR
-            = Comparator.comparing(AgentResponseTimeViewModel::getAgentName);
+    private static final Comparator<JsonField<AgentNameView, List<TimeViewModel>>> AGENT_NAME_COMPARATOR
+            = Comparator.comparing((jsonField) -> jsonField.name().agentName());
+
+    private static final Ordering<TimeHistogram> histogramOrdering = Ordering.from(TimeHistogram.TIME_STAMP_ASC_COMPARATOR);
 
     private final Application application;
-    private final Range range;
     private final AgentHistogramList agentHistogramList;
 
-    public AgentTimeHistogram(Application application, Range range) {
+    public AgentTimeHistogram(Application application) {
         this.application = Objects.requireNonNull(application, "application");
-        this.range = Objects.requireNonNull(range, "range");
         this.agentHistogramList = new AgentHistogramList();
     }
 
-    public AgentTimeHistogram(Application application, Range range, AgentHistogramList agentHistogramList) {
+    public AgentTimeHistogram(Application application, AgentHistogramList agentHistogramList) {
         this.application = Objects.requireNonNull(application, "application");
-        this.range = Objects.requireNonNull(range, "range");
         this.agentHistogramList = Objects.requireNonNull(agentHistogramList, "agentHistogramList");
     }
 
+    public JsonFields<AgentNameView, List<TimeViewModel>> createViewModel(TimeHistogramFormat timeHistogramFormat) {
 
-    public List<AgentResponseTimeViewModel> createViewModel(TimeHistogramFormat timeHistogramFormat) {
-        final List<AgentResponseTimeViewModel> result = new ArrayList<>();
+        JsonFields.Builder<AgentNameView, List<TimeViewModel>> builder = JsonFields.newBuilder();
+        builder.comparator(AGENT_NAME_COMPARATOR);
         for (AgentHistogram agentHistogram : agentHistogramList.getAgentHistogramList()) {
             Application agentId = agentHistogram.getAgentId();
-            List<TimeHistogram> timeList = sortTimeHistogram(agentHistogram.getTimeHistogram());
-            AgentResponseTimeViewModel model = createAgentResponseTimeViewModel(agentId, timeList, timeHistogramFormat);
-            result.add(model);
+            List<TimeHistogram> timeList = histogramOrdering.sortedCopy(agentHistogram.getTimeHistogram());
+            JsonField<AgentNameView, List<TimeViewModel>> model = createAgentResponseTimeViewModel(agentId, timeList, timeHistogramFormat);
+            builder.addField(model);
         }
-        result.sort(AGENT_NAME_COMPARATOR);
-        return result;
+        return builder.build();
     }
 
     public Map<String, List<TimeHistogram>> getTimeHistogramMap() {
         Map<String, List<TimeHistogram>> result = new HashMap<>();
         for (AgentHistogram agentHistogram : agentHistogramList.getAgentHistogramList()) {
-            result.put(agentHistogram.getAgentId().getName(), sortTimeHistogram(agentHistogram.getTimeHistogram()));
+            List<TimeHistogram> histogram = histogramOrdering.sortedCopy(agentHistogram.getTimeHistogram());
+            result.put(agentHistogram.getAgentId().getName(), histogram);
         }
         return result;
     }
 
-    private List<TimeHistogram> sortTimeHistogram(Collection<TimeHistogram> timeMap) {
-        List<TimeHistogram> timeList = new ArrayList<>(timeMap);
-        timeList.sort(TimeHistogram.TIME_STAMP_ASC_COMPARATOR);
-        return timeList;
-    }
 
-    private AgentResponseTimeViewModel createAgentResponseTimeViewModel(Application agentName, List<TimeHistogram> timeHistogramList, TimeHistogramFormat timeHistogramFormat) {
+    private JsonField<AgentNameView, List<TimeViewModel>> createAgentResponseTimeViewModel(Application agentName, List<TimeHistogram> timeHistogramList, TimeHistogramFormat timeHistogramFormat) {
         List<TimeViewModel> responseTimeViewModel = createResponseTimeViewModel(timeHistogramList, timeHistogramFormat);
-        AgentResponseTimeViewModel agentResponseTimeViewModel = new AgentResponseTimeViewModel(agentName, responseTimeViewModel);
-        return agentResponseTimeViewModel;
+        return JsonField.of(AgentNameView.of(agentName), responseTimeViewModel);
     }
 
     private List<TimeViewModel> createResponseTimeViewModel(List<TimeHistogram> timeHistogramList, TimeHistogramFormat timeHistogramFormat) {
-        return new TimeViewModel.TimeViewModelBuilder(application, timeHistogramList).setTimeHistogramFormat(timeHistogramFormat).build();
+        TimeViewModel.Builder format = TimeViewModel.newBuilder(timeHistogramFormat);
+        return format.build(application, timeHistogramList);
     }
 
     public List<SampledApdexScore> getSampledAgentApdexScoreList(String agentName) {

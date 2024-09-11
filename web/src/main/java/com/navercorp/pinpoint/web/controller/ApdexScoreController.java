@@ -4,21 +4,23 @@ import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.web.applicationmap.histogram.ApdexScore;
 import com.navercorp.pinpoint.web.component.ApplicationFactory;
 import com.navercorp.pinpoint.web.service.ApdexScoreService;
-import com.navercorp.pinpoint.web.util.TimeWindow;
-import com.navercorp.pinpoint.web.util.TimeWindowSampler;
-import com.navercorp.pinpoint.web.util.TimeWindowSlotCentricSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Objects;
 
 @RestController
+@RequestMapping("/api")
 @Validated
 public class ApdexScoreController {
     private static final TimeWindowSampler APDEX_SCORE_TIME_WINDOW_SAMPLER = new TimeWindowSlotCentricSampler(60 * 1000, 200);
@@ -96,7 +98,7 @@ public class ApdexScoreController {
 
         Application application = applicationFactory.createApplication(applicationId, serviceTypeCode);
 
-        return apdexScoreService.selectApplicationChart(application, range, timeWindow);
+        return apdexScoreService.selectApplicationChart(application, timeWindow);
     }
 
     @GetMapping(value = "/getApplicationStat/apdexScore/chart", params = "serviceTypeName")
@@ -110,7 +112,7 @@ public class ApdexScoreController {
 
         Application application = applicationFactory.createApplicationByTypeName(applicationId, serviceTypeName);
 
-        return apdexScoreService.selectApplicationChart(application, range, timeWindow);
+        return apdexScoreService.selectApplicationChart(application, timeWindow);
     }
 
     @GetMapping(value = "/getAgentStat/apdexScore/chart")
@@ -125,7 +127,7 @@ public class ApdexScoreController {
 
         Application application = applicationFactory.createApplication(applicationId, serviceTypeCode);
 
-        return apdexScoreService.selectAgentChart(application, range, timeWindow, agentId);
+        return apdexScoreService.selectAgentChart(application, timeWindow, agentId);
     }
 
     @GetMapping(value = "/getAgentStat/apdexScore/chart", params = "serviceTypeName")
@@ -140,6 +142,6 @@ public class ApdexScoreController {
 
         Application application = applicationFactory.createApplicationByTypeName(applicationId, serviceTypeName);
 
-        return apdexScoreService.selectAgentChart(application, range, timeWindow, agentId);
+        return apdexScoreService.selectAgentChart(application, timeWindow, agentId);
     }
 }

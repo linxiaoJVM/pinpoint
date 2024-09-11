@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.web.applicationmap.appender.histogram;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.common.trace.HistogramSlot;
 import com.navercorp.pinpoint.common.trace.ServiceType;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -78,15 +80,7 @@ public class NodeHistogramAppenderTest {
 
     @AfterEach
     public void cleanUp() {
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
+        MoreExecutors.shutdownAndAwaitTermination(executor, Duration.ofSeconds(3));
     }
 
     @Test
@@ -114,7 +108,7 @@ public class NodeHistogramAppenderTest {
         Node node = createNode("testApp", ServiceTypeFactory.of(1000, "WAS"));
         nodeList.addNode(node);
 
-        NodeHistogram nodeHistogram = new NodeHistogram(node.getApplication(), range);
+        NodeHistogram nodeHistogram = NodeHistogram.empty(node.getApplication(), range);
         when(wasNodeHistogramDataSource.createNodeHistogram(node.getApplication(), range)).thenReturn(nodeHistogram);
         // When
         nodeHistogramAppender.appendNodeHistogram(range, nodeList, linkList, buildTimeoutMillis);

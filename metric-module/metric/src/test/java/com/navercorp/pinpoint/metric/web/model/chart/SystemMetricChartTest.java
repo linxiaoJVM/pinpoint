@@ -16,13 +16,13 @@
 
 package com.navercorp.pinpoint.metric.web.model.chart;
 
-import com.navercorp.pinpoint.metric.common.model.Range;
+import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.metric.common.model.Tag;
-import com.navercorp.pinpoint.metric.common.model.TimeWindow;
 import com.navercorp.pinpoint.metric.common.model.chart.Point;
 import com.navercorp.pinpoint.metric.common.model.chart.SystemMetricPoint;
-import com.navercorp.pinpoint.metric.common.util.TimeWindowSampler;
-import com.navercorp.pinpoint.metric.common.util.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.metric.web.model.SampledSystemMetric;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -39,8 +39,9 @@ public class SystemMetricChartTest {
     @Test
     public void createSystemMetricChartTest() {
         long time = System.currentTimeMillis();
-        Range range = Range.newRange(time, time + 30000);
-        TimeWindowSampler sampler = new TimeWindowSlotCentricSampler();
+        Range range = Range.between(time, time + 30000);
+        // 10 sec, 200 slot
+        TimeWindowSampler sampler = new TimeWindowSlotCentricSampler(10 * 1000L, 200);
         TimeWindow timeWindow = new TimeWindow(range, sampler);
 
         List<Tag> tagList1 = List.of(new Tag("cpu", "cpu0"));

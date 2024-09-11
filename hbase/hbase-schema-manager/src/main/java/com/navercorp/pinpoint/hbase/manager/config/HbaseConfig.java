@@ -29,6 +29,13 @@ import com.navercorp.pinpoint.common.hbase.async.AsyncTableCustomizer;
 import com.navercorp.pinpoint.common.hbase.async.AsyncTableFactory;
 import com.navercorp.pinpoint.common.hbase.async.DefaultAsyncTableCustomizer;
 import com.navercorp.pinpoint.common.hbase.async.HbaseAsyncTableFactory;
+import com.navercorp.pinpoint.common.hbase.async.HbaseAsyncTemplate;
+import com.navercorp.pinpoint.common.hbase.scan.ResultScannerFactory;
+import com.navercorp.pinpoint.common.hbase.util.EmptyScanMetricReporter;
+import com.navercorp.pinpoint.common.hbase.util.ScanMetricReporter;
+import com.navercorp.pinpoint.common.profiler.concurrent.ExecutorFactory;
+import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
+import com.navercorp.pinpoint.common.util.CpuUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.AsyncConnection;
 import org.apache.hadoop.hbase.client.Connection;
@@ -40,6 +47,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
 
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * @author HyunGil Jeong
@@ -216,13 +225,26 @@ public class HbaseConfig {
     }
 
     @Bean
+    public HbaseAsyncTemplate hbaseAsyncTemplate(AsyncTableFactory asyncTableFactory) {
+        ExecutorService executor = newAsyncTemplateExecutor();
+        ScanMetricReporter scanMetricReporter = new EmptyScanMetricReporter();
+        ResultScannerFactory scannerFactory = new ResultScannerFactory(4);
+        return new HbaseAsyncTemplate(asyncTableFactory, scannerFactory, scanMetricReporter, executor);
+    }
+
+    private ExecutorService newAsyncTemplateExecutor() {
+        ThreadFactory threadFactory = new PinpointThreadFactory("Pinpoint-asyncTemplate", true);
+        return ExecutorFactory.newFixedThreadPool(CpuUtils.workerCount(), 1024*1024, threadFactory);
+    }
+
+    @Bean
     public HbaseTemplate hbaseTemplate(Configuration configuration,
                                        TableFactory hbaseTableFactory,
-                                       AsyncTableFactory hbaseAsyncTableFactory) {
+                                       HbaseAsyncTemplate asyncTemplate) {
         HbaseTemplate hbaseTemplate2 = new HbaseTemplate();
         hbaseTemplate2.setConfiguration(configuration);
         hbaseTemplate2.setTableFactory(hbaseTableFactory);
-        hbaseTemplate2.setAsyncTableFactory(hbaseAsyncTableFactory);
+        hbaseTemplate2.setAsyncTemplate(asyncTemplate);
         return hbaseTemplate2;
     }
 }

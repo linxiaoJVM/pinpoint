@@ -19,8 +19,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.navercorp.pinpoint.common.profiler.util.TransactionId;
-import com.navercorp.pinpoint.common.profiler.util.TransactionIdUtils;
 import com.navercorp.pinpoint.common.server.util.DateTimeFormatUtils;
+import com.navercorp.pinpoint.web.applicationmap.ApplicationMap;
+import com.navercorp.pinpoint.web.applicationmap.SimpleApplicationMap;
 import com.navercorp.pinpoint.web.applicationmap.histogram.TimeHistogramFormat;
 import com.navercorp.pinpoint.web.applicationmap.link.Link;
 import com.navercorp.pinpoint.web.applicationmap.nodes.Node;
@@ -58,16 +59,9 @@ public class TransactionInfoViewModel {
                                     LogLinkView logLinkView) {
         this.transactionId = transactionId;
         this.spanId = spanId;
-        if (nodes == null) {
-            this.nodes = Collections.EMPTY_LIST;
-        } else {
-            this.nodes = nodes;
-        }
-        if (links == null) {
-            this.links = Collections.EMPTY_LIST;
-        } else {
-            this.links = links;
-        }
+        this.nodes = Objects.requireNonNullElseGet(nodes, Collections::emptyList);
+        this.links = Objects.requireNonNullElseGet(links, Collections::emptyList);
+
         this.recordSet = recordSet;
         this.completeState = state;
         this.logLinkView = Objects.requireNonNull(logLinkView, "logLinkView");
@@ -84,7 +78,7 @@ public class TransactionInfoViewModel {
 
     @JsonProperty("transactionId")
     public String getTransactionId() {
-        return TransactionIdUtils.formatString(transactionId);
+        return transactionId.toString();
     }
 
     @JsonProperty("spanId")
@@ -162,7 +156,7 @@ public class TransactionInfoViewModel {
     }
 
     @JsonProperty("applicationMapData")
-    public Map<String, Collection<?>> getApplicationMapData() {
+    public ApplicationMap getApplicationMapData() {
 
         if (timeHistogramFormat == TimeHistogramFormat.V2) {
             for (Node node : nodes) {
@@ -173,10 +167,7 @@ public class TransactionInfoViewModel {
             }
         }
 
-        return Map.of(
-                "nodeDataArray", nodes,
-                "linkDataArray", links
-        );
+        return new SimpleApplicationMap(nodes, links);
     }
 
     enum Field {

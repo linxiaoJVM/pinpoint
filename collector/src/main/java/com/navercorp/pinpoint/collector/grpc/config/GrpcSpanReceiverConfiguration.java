@@ -16,19 +16,39 @@
 
 package com.navercorp.pinpoint.collector.grpc.config;
 
-import com.navercorp.pinpoint.collector.monitor.MonitoringExecutors;
-import com.navercorp.pinpoint.collector.receiver.BindAddress;
-import com.navercorp.pinpoint.common.server.thread.MonitoringExecutorProperties;
-import com.navercorp.pinpoint.common.server.util.CallerUtils;
-import com.navercorp.pinpoint.grpc.server.ServerOption;
+import com.google.protobuf.GeneratedMessageV3;
+import com.navercorp.pinpoint.collector.handler.SimpleHandler;
+import com.navercorp.pinpoint.collector.manage.HandlerManager;
+import com.navercorp.pinpoint.collector.receiver.DispatchHandler;
+import com.navercorp.pinpoint.collector.receiver.DispatchHandlerFactoryBean;
+import com.navercorp.pinpoint.collector.receiver.SpanDispatchHandler;
+import com.navercorp.pinpoint.collector.receiver.grpc.GrpcReceiver;
+import com.navercorp.pinpoint.collector.receiver.grpc.ServerInterceptorFactory;
+import com.navercorp.pinpoint.collector.receiver.grpc.flow.RateLimitClientStreamServerInterceptor;
+import com.navercorp.pinpoint.collector.receiver.grpc.monitor.Monitor;
+import com.navercorp.pinpoint.collector.receiver.grpc.service.ServerRequestFactory;
+import com.navercorp.pinpoint.collector.receiver.grpc.service.SpanService;
+import com.navercorp.pinpoint.collector.receiver.grpc.service.StreamCloseOnError;
+import com.navercorp.pinpoint.common.server.util.AcceptedTimeService;
+import com.navercorp.pinpoint.common.server.util.IgnoreAddressFilter;
+import com.navercorp.pinpoint.grpc.channelz.ChannelzRegistry;
+import io.github.bucket4j.Bandwidth;
+import io.grpc.BindableService;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
+import io.grpc.ServerServiceDefinition;
+import io.grpc.ServerTransportFilter;
+import io.netty.buffer.ByteBufAllocator;
 import org.springframework.beans.factory.FactoryBean;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
-import org.springframework.validation.annotation.Validated;
 
-import java.util.concurrent.ExecutorService;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.Executor;
 
 
 /**
@@ -40,74 +60,103 @@ public class GrpcSpanReceiverConfiguration {
     public GrpcSpanReceiverConfiguration() {
     }
 
-    @Bean
-    @Validated
-    @ConfigurationProperties("collector.receiver.grpc.span.bindaddress")
-    public BindAddress.Builder grpcSpanBindAddressBuilder() {
-        BindAddress.Builder builder = BindAddress.newBuilder();
-        builder.setPort(9993);
-        return builder;
+    @Configuration
+    @ConditionalOnProperty(name = "collector.receiver.grpc.span.stream.flow-control.type", havingValue = "rate-limit", matchIfMissing = true)
+    public static class RateLimitServerInterceptorConfiguration {
+        @Bean
+        public Bandwidth spanBandwidth(@Value("${collector.receiver.grpc.span.stream.flow-control.rate-limit.capacity:5000}") long capacity,
+                                       @Value("${collector.receiver.grpc.span.stream.flow-control.rate-limit.refill-greedy:1000}") long refillTokens) {
+            return Bandwidth
+                    .builder()
+                    .capacity(capacity)
+                    .refillGreedy(refillTokens, Duration.ofSeconds(1))
+                    .build();
+        }
+
+        @Bean
+        public ServerInterceptor spanStreamExecutorInterceptor(@Qualifier("grpcSpanWorkerExecutor")
+                                                               Executor executor,
+                                                               @Qualifier("spanBandwidth")
+                                                               Bandwidth bandwidth,
+                                                               @Qualifier("grpcSpanStreamProperties")
+                                                               GrpcStreamProperties properties) {
+            return new RateLimitClientStreamServerInterceptor("SpanStream", executor, bandwidth, properties.getThrottledLoggerRatio());
+        }
     }
 
     @Bean
-    @Validated
-    @ConfigurationProperties("collector.receiver.grpc.span.server.executor")
-    public MonitoringExecutorProperties grpcSpanServerExecutorProperties() {
-        return new MonitoringExecutorProperties();
+    public ServerServiceDefinition spanServerServiceDefinition(@Qualifier("grpcSpanDispatchHandlerFactoryBean")
+                                                               DispatchHandler<GeneratedMessageV3, GeneratedMessageV3> dispatchHandler,
+                                                               @Qualifier("spanStreamExecutorInterceptor")
+                                                               ServerInterceptor serverInterceptor,
+                                                               ServerRequestFactory serverRequestFactory,
+                                                               StreamCloseOnError streamCloseOnError) {
+        BindableService spanService = new SpanService(dispatchHandler, serverRequestFactory, streamCloseOnError);
+        return ServerInterceptors.intercept(spanService, serverInterceptor);
     }
 
     @Bean
-    @Validated
-    @ConfigurationProperties("collector.receiver.grpc.span.server-call.executor")
-    public MonitoringExecutorProperties grpcSpanServerCallExecutorProperties() {
-        return new MonitoringExecutorProperties();
+    public List<ServerServiceDefinition> spanServiceList(@Qualifier("spanServerServiceDefinition")
+                                                         ServerServiceDefinition serviceDefinition) {
+        return List.of(serviceDefinition);
     }
 
     @Bean
-    @Validated
-    @ConfigurationProperties("collector.receiver.grpc.span.worker.executor")
-    public MonitoringExecutorProperties grpcSpanWorkerExecutorProperties() {
-        return new MonitoringExecutorProperties();
+    public GrpcReceiver grpcSpanReceiver(@Qualifier("grpcSpanReceiverProperties")
+                                         GrpcReceiverProperties properties,
+                                         @Qualifier("monitoredByteBufAllocator") ByteBufAllocator byteBufAllocator,
+                                         IgnoreAddressFilter addressFilter,
+                                         @Qualifier("spanServiceList")
+                                         List<ServerServiceDefinition> spanServiceList,
+                                         @Qualifier("spanInterceptor")
+                                         List<ServerInterceptor> spanInterceptorList,
+                                         @Qualifier("serverTransportFilterList")
+                                         List<ServerTransportFilter> serverTransportFilterList,
+                                         ChannelzRegistry channelzRegistry,
+                                         @Qualifier("grpcSpanServerExecutor")
+                                         Executor grpcSpanExecutor,
+                                         Monitor monitor) {
+        GrpcReceiver grpcReceiver = new GrpcReceiver();
+        grpcReceiver.setBindAddress(properties.getBindAddress());
+        grpcReceiver.setAddressFilter(addressFilter);
+        grpcReceiver.setBindableServiceList(spanServiceList);
+        grpcReceiver.setServerInterceptorList(spanInterceptorList);
+        grpcReceiver.setTransportFilterList(serverTransportFilterList);
+        grpcReceiver.setChannelzRegistry(channelzRegistry);
+        grpcReceiver.setExecutor(grpcSpanExecutor);
+        grpcReceiver.setEnable(properties.isEnable());
+        grpcReceiver.setServerOption(properties.getServerOption());
+        grpcReceiver.setByteBufAllocator(byteBufAllocator);
+        grpcReceiver.setMonitor(monitor);
+        return grpcReceiver;
+    }
+
+
+    @Bean
+    public SpanDispatchHandler<GeneratedMessageV3, GeneratedMessageV3> grpcSpanDispatchHandler(
+            @Qualifier("grpcSpanHandler")
+            SimpleHandler<GeneratedMessageV3> spanDataHandler,
+            @Qualifier("grpcSpanChunkHandler")
+            SimpleHandler<GeneratedMessageV3> spanChunkHandler) {
+        return new SpanDispatchHandler<>(spanDataHandler, spanChunkHandler);
     }
 
     @Bean
-    @Validated
-    @ConfigurationProperties("collector.receiver.grpc.span.stream")
-    public GrpcStreamProperties grpcSpanStreamProperties() {
-        return new GrpcStreamProperties();
+    public FactoryBean<DispatchHandler<GeneratedMessageV3, GeneratedMessageV3>> grpcSpanDispatchHandlerFactoryBean(
+            SpanDispatchHandler<GeneratedMessageV3, GeneratedMessageV3> dispatchHandler,
+            AcceptedTimeService acceptedTimeService,
+            HandlerManager handlerManager) {
+        DispatchHandlerFactoryBean<GeneratedMessageV3, GeneratedMessageV3> bean = new DispatchHandlerFactoryBean<>();
+        bean.setDispatchHandler(dispatchHandler);
+        bean.setAcceptedTimeService(acceptedTimeService);
+        bean.setHandlerManager(handlerManager);
+        return bean;
     }
 
     @Bean
-    @ConfigurationProperties("collector.receiver.grpc.span")
-    public GrpcPropertiesServerOptionBuilder grpcSpanServerOption() {
-        // Server option
-        return new GrpcPropertiesServerOptionBuilder();
-    }
-
-    @Bean
-    public GrpcReceiverProperties grpcSpanReceiverProperties(Environment environment) {
-
-        boolean enable = environment.getProperty("collector.receiver.grpc.span.enable", boolean.class, false);
-
-        ServerOption serverOption = grpcSpanServerOption().build();
-
-        BindAddress bindAddress = grpcSpanBindAddressBuilder().build();
-
-        return new GrpcReceiverProperties(enable, bindAddress, serverOption);
-    }
-
-    @Bean
-    public FactoryBean<ExecutorService> grpcSpanWorkerExecutor(MonitoringExecutors executors) {
-        String beanName = CallerUtils.getCallerMethodName();
-        MonitoringExecutorProperties properties = grpcSpanWorkerExecutorProperties();
-        return executors.newExecutorFactoryBean(properties, beanName);
-    }
-
-    @Bean
-    public FactoryBean<ExecutorService> grpcSpanServerExecutor(MonitoringExecutors executors) {
-        String beanName = CallerUtils.getCallerMethodName();
-        MonitoringExecutorProperties properties = grpcSpanServerExecutorProperties();
-        return executors.newExecutorFactoryBean(properties, beanName);
+    @Qualifier("spanInterceptor")
+    public ServerInterceptor spanInterceptorList() {
+        return ServerInterceptorFactory.headerReader("span");
     }
 
 }

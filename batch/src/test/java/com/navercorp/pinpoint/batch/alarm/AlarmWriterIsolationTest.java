@@ -28,14 +28,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.springframework.batch.item.Chunk;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,7 +76,7 @@ public class AlarmWriterIsolationTest {
         mockingAlarmMessageSender(checker);
 
         // when
-        writer.write(List.of(new AppAlarmChecker(checkers)));
+        writer.write(Chunk.of(new AppAlarmChecker(checkers)));
 
         // then
         verify(alarmMessageSender).sendSms(checker, 1);
@@ -85,7 +84,6 @@ public class AlarmWriterIsolationTest {
     }
 
     @Test
-    @MockitoSettings(strictness = Strictness.LENIENT)
     public void whenSequenceCountIsEqualToTimingCountDoNotSendAlarm() {
         //given
         Rule rule = getRuleStub(APPLICATION_ID, RULE_ID);
@@ -98,7 +96,7 @@ public class AlarmWriterIsolationTest {
         mockingAlarmMessageSender(checker);
 
         // when
-        writer.write(List.of(new AppAlarmChecker(checkers)));
+        writer.write(Chunk.of(new AppAlarmChecker(checkers)));
 
         // then
         verify(alarmMessageSender, never()).sendSms(checker, 1);
@@ -111,12 +109,12 @@ public class AlarmWriterIsolationTest {
     }
 
     private void mockingAlarmMessageSender(AlarmChecker<Long> checker) {
-        doNothing().when(alarmMessageSender).sendSms(checker, 1);
-        doNothing().when(alarmMessageSender).sendEmail(checker, 1);
+        lenient().doNothing().when(alarmMessageSender).sendSms(checker, 1);
+        lenient().doNothing().when(alarmMessageSender).sendEmail(checker, 1);
     }
 
-    private Rule getRuleStub(String appliationId, String ruleId) {
-        Rule rule = new Rule(appliationId, "tomcat", CHECKER_NAME, 100, "testGroup", true, true, true, "");
+    private Rule getRuleStub(String applicationId, String ruleId) {
+        Rule rule = new Rule(applicationId, "tomcat", CHECKER_NAME, 100, "testGroup", true, true, true, "");
         rule.setRuleId(ruleId);
         return rule;
     }

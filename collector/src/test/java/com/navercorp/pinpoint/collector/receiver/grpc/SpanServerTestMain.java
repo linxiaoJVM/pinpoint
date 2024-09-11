@@ -17,12 +17,13 @@
 package com.navercorp.pinpoint.collector.receiver.grpc;
 
 import com.google.protobuf.GeneratedMessageV3;
-import com.navercorp.pinpoint.collector.grpc.config.GrpcStreamProperties;
 import com.navercorp.pinpoint.collector.receiver.BindAddress;
 import com.navercorp.pinpoint.collector.receiver.DispatchHandler;
+import com.navercorp.pinpoint.collector.receiver.grpc.flow.RateLimitClientStreamServerInterceptor;
 import com.navercorp.pinpoint.collector.receiver.grpc.service.DefaultServerRequestFactory;
+import com.navercorp.pinpoint.collector.receiver.grpc.service.ServerRequestFactory;
 import com.navercorp.pinpoint.collector.receiver.grpc.service.SpanService;
-import com.navercorp.pinpoint.collector.receiver.grpc.service.StreamExecutorServerInterceptorFactory;
+import com.navercorp.pinpoint.collector.receiver.grpc.service.StreamCloseOnError;
 import com.navercorp.pinpoint.common.server.util.AddressFilter;
 import com.navercorp.pinpoint.grpc.server.AgentHeaderReader;
 import com.navercorp.pinpoint.grpc.server.HeaderPropagationInterceptor;
@@ -31,13 +32,12 @@ import com.navercorp.pinpoint.grpc.trace.PResult;
 import com.navercorp.pinpoint.grpc.trace.PSpan;
 import com.navercorp.pinpoint.io.request.ServerRequest;
 import com.navercorp.pinpoint.io.request.ServerResponse;
-import io.grpc.ServerInterceptor;
+import io.github.bucket4j.Bandwidth;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
-import org.springframework.beans.factory.FactoryBean;
 
 import java.net.InetAddress;
-import java.util.Collections;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -56,7 +56,6 @@ import java.util.logging.Logger;
 public class SpanServerTestMain {
     public static final String IP = "0.0.0.0";
     public static final int PORT = 9993;
-    private static final AtomicInteger IncomingCounter = new AtomicInteger(0);
 
     public void run() throws Exception {
 //        InternalLoggerFactory.setDefaultFactory(Log4J2LoggerFactory.INSTANCE);
@@ -74,7 +73,7 @@ public class SpanServerTestMain {
 
         Executor executor = newWorkerExecutor(8);
         ServerServiceDefinition bindableService = newSpanBindableService(executor);
-        grpcReceiver.setBindableServiceList(Collections.singletonList(bindableService));
+        grpcReceiver.setBindableServiceList(List.of(bindableService));
         grpcReceiver.setAddressFilter(new MockAddressFilter());
         grpcReceiver.setExecutor(Executors.newFixedThreadPool(8));
         grpcReceiver.setEnable(true);
@@ -97,30 +96,21 @@ public class SpanServerTestMain {
 
     }
 
-    private ServerServiceDefinition newSpanBindableService(Executor executor) throws Exception {
-        GrpcStreamProperties streamProperties = newStreamProperties();
+    private ServerServiceDefinition newSpanBindableService(Executor executor) {
 
-        FactoryBean<ServerInterceptor> interceptorFactory = new StreamExecutorServerInterceptorFactory(executor,
-                Executors.newSingleThreadScheduledExecutor(), streamProperties);
-        ((StreamExecutorServerInterceptorFactory) interceptorFactory).setBeanName("SpanService");
+        Bandwidth bandwidth = Bandwidth.builder().capacity(1000).refillGreedy(200, Duration.ofSeconds(1)).build();
+        RateLimitClientStreamServerInterceptor rateLimit = new RateLimitClientStreamServerInterceptor("test-span", executor, bandwidth, 1);
 
-        ServerInterceptor interceptor = interceptorFactory.getObject();
-        SpanService spanService = new SpanService(new MockDispatchHandler(), new DefaultServerRequestFactory());
-        return ServerInterceptors.intercept(spanService, interceptor);
-    }
-
-    private GrpcStreamProperties newStreamProperties() {
-        GrpcStreamProperties properties = new GrpcStreamProperties();
-        properties.setCallInitRequestCount(100);
-        properties.setSchedulerPeriodMillis(1000);
-        properties.setSchedulerRecoveryMessageCount(100);
-        return properties;
+        MockDispatchHandler dispatchHandler = new MockDispatchHandler();
+        ServerRequestFactory serverRequestFactory = new DefaultServerRequestFactory();
+        SpanService spanService = new SpanService(dispatchHandler, serverRequestFactory, StreamCloseOnError.FALSE);
+        return ServerInterceptors.intercept(spanService, rateLimit);
     }
 
     private ExecutorService newWorkerExecutor(int thread) {
         return new ThreadPoolExecutor(thread, thread,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>(thread * 2));
+                new LinkedBlockingQueue<>(thread * 2));
     }
 
     public static void main(String[] args) throws Exception {

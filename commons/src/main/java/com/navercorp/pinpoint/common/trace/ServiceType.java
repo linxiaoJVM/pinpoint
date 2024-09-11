@@ -71,6 +71,10 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.TERMINAL;
  * <tr><td>1130</td><td>GRPC_SERVER</td></tr>
  * <tr><td>1140</td><td>REACTOR_NETTY</td></tr>
  * <tr><td>1141</td><td>REACTOR_NETTY_INTERNAL</td></tr>
+ * <tr><td>1150</td><td>ARMERIA</td></tr>
+ * <tr><td>1151</td><td>ARMERIA_INTERNAL</td></tr>
+ * <tr><td>1160</td><td>KSTOR</td></tr>
+ * <tr><td>1161</td><td>KSTOR_INTERNAL</td></tr>
  *
  * <tr><td>1300</td><td>C_CPP</td></tr>
  * <tr><td>1301</td><td>C_CPP_METHOD</td></tr>
@@ -251,6 +255,7 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.TERMINAL;
  * <tr><td>9063</td><td><i>HTTP_CLIENT_5_INTERNAL</i></td></tr>
  * <tr><td>9065</td><td><i>JDK_HTTP_CLIENT</i></td></tr>
  * <tr><td>9066</td><td><i>JDK_HTTP_CLIENT_INTERNAL</i></td></tr>
+ * <tr><td>9067</td><td>JDK_HTTPURLCONNECTOR_INTERNAL</td></tr>
  * <tr><td>9070</td><td><i>RESERVED</i></td></tr>
  * <tr><td><s>9080</s></td><td><s>APACHE_CXF_CLIENT</s></td></tr>
  * <tr><td>9081</td><td>APACHE_CXF_SERVICE_INVOKER</td></tr>
@@ -270,6 +275,8 @@ import static com.navercorp.pinpoint.common.trace.ServiceTypeProperty.TERMINAL;
  * <tr><td>9153</td><td>SPRING_WEBFLUX_CLIENT</td></tr>
  * <tr><td>9154</td><td>REACTOR_NETTY_CLIENT</td></tr>
  * <tr><td>9155</td><td>REACTOR_NETTY_CLIENT_INTERNAL</td></tr>
+ * <tr><td>9156</td><td>ARMERIA_CLIENT</td></tr>
+ * <tr><td>9157</td><td>ARMERIA_CLIENT_INTERNAL</td></tr>
  * <tr><td>9160</td><td>GRPC</td></tr>
  * <tr><td>9161</td><td>GRPC_INTERNAL</td></tr>
  * <tr><td>9162</td><td>GRPC_SERVER_INTERNAL</td></tr>

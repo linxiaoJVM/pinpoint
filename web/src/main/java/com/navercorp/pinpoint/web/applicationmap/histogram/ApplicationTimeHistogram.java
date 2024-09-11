@@ -16,11 +16,7 @@
 
 package com.navercorp.pinpoint.web.applicationmap.histogram;
 
-import com.navercorp.pinpoint.common.server.util.time.Range;
-import com.navercorp.pinpoint.web.view.TimeSeries.TimeSeriesView;
 import com.navercorp.pinpoint.web.view.TimeViewModel;
-import com.navercorp.pinpoint.web.view.histogram.TimeHistogramChartBuilder;
-import com.navercorp.pinpoint.web.view.histogram.TimeHistogramType;
 import com.navercorp.pinpoint.web.vo.Application;
 
 import java.util.Collections;
@@ -32,25 +28,20 @@ import java.util.Objects;
  */
 public class ApplicationTimeHistogram {
     private final Application application;
-    private final Range range;
     private final List<TimeHistogram> histogramList;
 
-    public ApplicationTimeHistogram(Application application, Range range) {
-        this(application, range, Collections.emptyList());
+    public ApplicationTimeHistogram(Application application) {
+        this(application, Collections.emptyList());
     }
 
-    public ApplicationTimeHistogram(Application application, Range range, List<TimeHistogram> histogramList) {
+    public ApplicationTimeHistogram(Application application, List<TimeHistogram> histogramList) {
         this.application = Objects.requireNonNull(application, "application");
-        this.range = Objects.requireNonNull(range, "range");
         this.histogramList = Objects.requireNonNull(histogramList, "histogramList");
     }
 
     public List<TimeViewModel> createViewModel(TimeHistogramFormat timeHistogramFormat) {
-        return new TimeViewModel.TimeViewModelBuilder(application, histogramList).setTimeHistogramFormat(timeHistogramFormat).build();
-    }
-
-    public TimeSeriesView createTimeSeriesView(TimeHistogramType timeHistogramType) {
-        return new TimeHistogramChartBuilder(histogramList).build(timeHistogramType);
+        TimeViewModel.Builder format = TimeViewModel.newBuilder(timeHistogramFormat);
+        return format.build(application, histogramList);
     }
 
     public List<TimeHistogram> getHistogramList() {

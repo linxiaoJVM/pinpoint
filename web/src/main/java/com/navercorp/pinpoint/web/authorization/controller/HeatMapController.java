@@ -32,7 +32,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @RestController()
-@RequestMapping("/heatmap")
+@RequestMapping("/api/heatmap")
 @Validated
 public class HeatMapController {
 
@@ -60,20 +60,20 @@ public class HeatMapController {
         final DragArea dragArea = DragArea.normalize(x1, x2, y1, y2);
 
         // TODO range check verification exception occurs. "from" is bigger than "to"
-        final Range range = Range.newUncheckedRange(x1, x2);
+        final Range range = Range.unchecked(x1, x2);
         logger.debug("drag scatter data. RANGE={}, LIMIT={}", range, limit);
         final Dot.Status dotStatus = toDotStatus(boolDotStatus);
         final DragAreaQuery query = new DragAreaQuery(dragArea, agentId, dotStatus);
 
         final LimitedScanResult<List<DotMetaData>> dotMetaData = heatMap.dragScatterDataV2(applicationName, query, limit);
         if (logger.isDebugEnabled()) {
-            logger.debug("dragScatterArea applicationName:{} dots:{}", applicationName, dotMetaData.getScanData().size());
+            logger.debug("dragScatterArea applicationName:{} dots:{}", applicationName, dotMetaData.scanData().size());
         }
 
-        final List<DotMetaData> scanData = dotMetaData.getScanData();
+        final List<DotMetaData> scanData = dotMetaData.scanData();
         final TransactionDotMetaDataViewModel transaction = new TransactionDotMetaDataViewModel(scanData);
         final boolean complete = scanData.size() < limit;
-        final PagingStatus scanStatus = new PagingStatus(complete, dotMetaData.getLimitedTime());
+        final PagingStatus scanStatus = new PagingStatus(complete, dotMetaData.limitedTime());
         return new ResultView(transaction.getMetadata(), scanStatus);
 
     }
@@ -88,44 +88,15 @@ public class HeatMapController {
         return Dot.Status.FAILED;
     }
 
-    public static class ResultView {
-        private final List<DotMetaDataView> metaDataList;
-        private final PagingStatus status;
-
-        public ResultView(List<DotMetaDataView> metaDataList, PagingStatus status) {
-            this.metaDataList = Objects.requireNonNull(metaDataList, "metaDataList");
-            this.status = Objects.requireNonNull(status, "status");
-        }
-
-        public List<DotMetaDataView> getMetadata() {
-            return metaDataList;
-        }
-
+    public record ResultView(List<DotMetaDataView> metadata, PagingStatus status) {
         @JsonUnwrapped
-        public PagingStatus getStatus() {
+        public PagingStatus status() {
             return status;
         }
     }
 
-
-    public static class PagingStatus {
-        private final boolean complete;
-        private final long resultFrom;
-
-        public PagingStatus(boolean complete, long resultFrom) {
-            this.complete = complete;
-            this.resultFrom = resultFrom;
-        }
-
-        public boolean getComplete() {
-            return complete;
-        }
-
-        public long getResultFrom() {
-            return resultFrom;
-        }
+    public record PagingStatus(boolean complete, long resultFrom) {
     }
-
 
     @GetMapping(value = "/get")
     public HeatMapController.HeatMapViewModel getHeatMapData(
@@ -134,14 +105,14 @@ public class HeatMapController {
             @RequestParam("to") @PositiveOrZero long to) {
 
         // TODO range check verification exception occurs. "from" is bigger than "to"
-        final Range range = Range.newUncheckedRange(from, to);
+        final Range range = Range.unchecked(from, to);
         logger.debug("fetch getHeatMapData. RANGE={}, ", range);
 
         final LimitedScanResult<HeatMap> scanResult =
                 this.heatMap.getHeatMap(applicationName, range, TimeUnit.SECONDS.toMillis(10), LimitUtils.MAX);
         final Status status = new Status(System.currentTimeMillis(), range);
 
-        return new HeatMapController.HeatMapViewModel(scanResult.getScanData(), status);
+        return new HeatMapController.HeatMapViewModel(scanResult.scanData(), status);
     }
 
 
@@ -159,7 +130,7 @@ public class HeatMapController {
             List<Point> pointList = heatMap.getData();
             final List<long[]> list = new ArrayList<>(pointList.size());
             for (Point point : pointList) {
-                long[] longs = {point.getX(), point.getY(), point.getSuccess(), point.getFail()};
+                long[] longs = {point.x(), point.y(), point.success(), point.fail()};
                 list.add(longs);
             }
             return list;

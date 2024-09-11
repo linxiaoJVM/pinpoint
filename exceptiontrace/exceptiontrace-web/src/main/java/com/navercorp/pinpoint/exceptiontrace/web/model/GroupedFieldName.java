@@ -21,11 +21,15 @@ import com.navercorp.pinpoint.common.util.StringUtils;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.navercorp.pinpoint.common.util.StringUtils.defaultIfEmpty;
+
 /**
  * @author intr3p1d
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GroupedFieldName {
+
+    public static final String EMPTY_STRING = "(empty error message)";
 
     private String uriTemplate;
     private String errorClassName;
@@ -35,9 +39,17 @@ public class GroupedFieldName {
     public GroupedFieldName() {
     }
 
-    public String inAString() {
-        return StringUtils.abbreviate(
-                Stream.of(uriTemplate, errorClassName, errorMessage, stackTraceHash)
+    public String inAString(int rowNum) {
+        if (uriTemplate == null && errorClassName == null && errorMessage == null && stackTraceHash == null) {
+            return null;
+        }
+        return rowNum + ") " + StringUtils.abbreviate(
+                Stream.of(
+                                uriTemplate,
+                                errorClassName,
+                                errorMessage,
+                                stackTraceHash
+                        )
                         .filter(StringUtils::hasLength)
                         .collect(Collectors.joining(", ")),
                 50

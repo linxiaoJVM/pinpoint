@@ -21,10 +21,10 @@ import com.navercorp.pinpoint.common.server.bo.stat.AgentStatDataPoint;
 import com.navercorp.pinpoint.common.server.util.time.Range;
 import com.navercorp.pinpoint.web.service.stat.AgentStatChartService;
 import com.navercorp.pinpoint.web.service.stat.AgentStatService;
-import com.navercorp.pinpoint.web.util.FixedTimeWindowSampler;
-import com.navercorp.pinpoint.web.util.TimeWindow;
-import com.navercorp.pinpoint.web.util.TimeWindowSampler;
-import com.navercorp.pinpoint.web.util.TimeWindowSlotCentricSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.FixedTimeWindowSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -46,10 +46,11 @@ import java.util.Map;
  * @author HyunGil Jeong
  */
 @RestController
-@RequestMapping("/getAgentStat/{chartType}")
+@RequestMapping("/api/getAgentStat/{chartType}")
 @Validated
 public class AgentStatController<DP extends AgentStatDataPoint> {
     private final Logger logger = LogManager.getLogger(this.getClass());
+    private final TimeWindowSampler defaultStatTimeWindowSampler = new TimeWindowSlotCentricSampler();
 
     private final Map<String, AgentStatService<DP>> agentStatServiceMap;
 
@@ -103,8 +104,7 @@ public class AgentStatController<DP extends AgentStatDataPoint> {
             @PathVariable("chartType") @NotBlank String chartType,
             @RequestParam("from") @PositiveOrZero long from,
             @RequestParam("to") @PositiveOrZero long to) {
-        final TimeWindowSampler sampler = new TimeWindowSlotCentricSampler();
-        final TimeWindow timeWindow = new TimeWindow(Range.between(from, to), sampler);
+        final TimeWindow timeWindow = new TimeWindow(Range.between(from, to), defaultStatTimeWindowSampler);
 
         final AgentStatChartService<?> agentStatChartService =
                 getChartService(this.agentStatChartServiceMap, chartType);
@@ -134,8 +134,7 @@ public class AgentStatController<DP extends AgentStatDataPoint> {
             @PathVariable("chartType") @NotBlank String chartType,
             @RequestParam("from") @PositiveOrZero long from,
             @RequestParam("to") @PositiveOrZero long to) {
-        final TimeWindowSampler sampler = new TimeWindowSlotCentricSampler();
-        final TimeWindow timeWindow = new TimeWindow(Range.between(from, to), sampler);
+        final TimeWindow timeWindow = new TimeWindow(Range.between(from, to), defaultStatTimeWindowSampler);
 
         final AgentStatChartService<? extends StatChart<?>> agentStatChartService =
                 getChartService(this.agentStatChartServiceMap, chartType);

@@ -24,15 +24,19 @@ import com.navercorp.pinpoint.common.hbase.HbaseTableFactory;
 import com.navercorp.pinpoint.common.hbase.HbaseTemplate;
 import com.navercorp.pinpoint.common.hbase.HbaseVersionCheckBean;
 import com.navercorp.pinpoint.common.hbase.TableFactory;
-import com.navercorp.pinpoint.common.hbase.async.AsyncHbasePutWriter;
 import com.navercorp.pinpoint.common.hbase.async.AsyncTableCustomizer;
 import com.navercorp.pinpoint.common.hbase.async.AsyncTableFactory;
-import com.navercorp.pinpoint.common.hbase.async.BatchAsyncHbasePutWriter;
 import com.navercorp.pinpoint.common.hbase.async.DefaultAsyncTableCustomizer;
 import com.navercorp.pinpoint.common.hbase.async.HbaseAsyncCacheConfiguration;
 import com.navercorp.pinpoint.common.hbase.async.HbaseAsyncTableFactory;
-import com.navercorp.pinpoint.common.hbase.async.HbasePutWriter;
-import com.navercorp.pinpoint.common.hbase.async.LoggingHbasePutWriter;
+import com.navercorp.pinpoint.common.hbase.async.HbaseAsyncTemplate;
+import com.navercorp.pinpoint.common.hbase.scan.ResultScannerFactory;
+import com.navercorp.pinpoint.common.hbase.util.DefaultScanMetricReporter;
+import com.navercorp.pinpoint.common.hbase.util.EmptyScanMetricReporter;
+import com.navercorp.pinpoint.common.hbase.util.ScanMetricReporter;
+import com.navercorp.pinpoint.common.profiler.concurrent.ExecutorFactory;
+import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
+import com.navercorp.pinpoint.common.util.CpuUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.AsyncConnection;
 import org.apache.hadoop.hbase.client.Connection;
@@ -47,9 +51,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 @org.springframework.context.annotation.Configuration
-@Import(HbaseAsyncCacheConfiguration.class)
+@Import({
+        HbaseAsyncCacheConfiguration.class,
+})
 public class HbaseTemplateConfiguration {
     private final Logger logger = LogManager.getLogger(HbaseTemplateConfiguration.class);
 
@@ -64,7 +72,9 @@ public class HbaseTemplateConfiguration {
     }
 
     @Bean
-    public AsyncTableFactory hbaseAsyncTableFactory(@Qualifier("hbaseAsyncConnection") AsyncConnection connection, AsyncTableCustomizer customizer) {
+    public AsyncTableFactory hbaseAsyncTableFactory(@Qualifier("hbaseAsyncConnection")
+                                                    AsyncConnection connection,
+                                                    AsyncTableCustomizer customizer) {
         return new HbaseAsyncTableFactory(connection, customizer);
     }
 
@@ -77,12 +87,51 @@ public class HbaseTemplateConfiguration {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "hbase.client.scan-metric-reporter.enable", havingValue = "true")
+    public ScanMetricReporter scannerMetricReporter() {
+        return new DefaultScanMetricReporter();
+    }
+
+    @Bean("scannerMetricReporter")
+    @ConditionalOnProperty(name = "hbase.client.scan-metric-reporter.enable", havingValue = "false", matchIfMissing = true)
+    public ScanMetricReporter emptyScannerMetricReporter() {
+        return new EmptyScanMetricReporter();
+    }
+
+    @Bean
+    public ResultScannerFactory resultScannerFactory(Optional<ParallelScan> parallelScan) {
+        int partitionSize = getPartitionSize(parallelScan);
+        return new ResultScannerFactory(partitionSize);
+    }
+
+    private int getPartitionSize(Optional<ParallelScan> parallelScan) {
+        return parallelScan
+                .map(ParallelScan::getMaxConcurrentAsyncScanner)
+                .orElse(ParallelScan.DEFAULT_MAX_CONCURRENT_ASYNC_SCANNER);
+    }
+
+    @Bean
+    public HbaseAsyncTemplate asyncTemplate(@Qualifier("hbaseAsyncTableFactory") AsyncTableFactory asyncTableFactory,
+                                            ScanMetricReporter scanMetricReporter,
+                                            ResultScannerFactory resultScannerFactory) {
+        ExecutorService executor = newAsyncTemplateExecutor();
+        return new HbaseAsyncTemplate(asyncTableFactory, resultScannerFactory, scanMetricReporter, executor);
+    }
+
+    private ExecutorService newAsyncTemplateExecutor() {
+        ThreadFactory threadFactory = new PinpointThreadFactory("Pinpoint-asyncTemplate", true);
+        return ExecutorFactory.newFixedThreadPool(CpuUtils.workerCount(), 1024*1024, threadFactory);
+    }
+
+    @Bean
     @Primary
     public HbaseTemplate hbaseTemplate(@Qualifier("hbaseConfiguration") Configuration configurable,
                                        @Qualifier("hbaseTableFactory") TableFactory tableFactory,
-                                       @Qualifier("hbaseAsyncTableFactory") AsyncTableFactory asyncTableFactory,
+                                       @Qualifier("asyncTemplate") HbaseAsyncTemplate asyncTemplate,
                                        Optional<ParallelScan> parallelScan,
-                                       @Value("${hbase.client.nativeAsync:false}") boolean nativeAsync) {
+                                       @Value("${hbase.client.nativeAsync:false}") boolean nativeAsync,
+                                       ResultScannerFactory resultScannerFactory,
+                                       ScanMetricReporter scanMetricReporter) {
         HbaseTemplate template2 = new HbaseTemplate();
         template2.setConfiguration(configurable);
         template2.setTableFactory(tableFactory);
@@ -93,27 +142,14 @@ public class HbaseTemplateConfiguration {
             template2.setMaxThreads(scan.getMaxThreads());
             template2.setMaxThreadsPerParallelScan(scan.getMaxThreadsPerParallelScan());
         }
+        template2.setResultScannerFactory(resultScannerFactory);
 
-        template2.setAsyncTableFactory(asyncTableFactory);
+        template2.setAsyncTemplate(asyncTemplate);
         template2.setNativeAsync(nativeAsync);
+        template2.setScanMetricReporter(scanMetricReporter);
         return template2;
     }
 
-    @Bean
-    @ConditionalOnProperty(name = "hbase.client.put-writer", havingValue = "asyncTable")
-    public HbasePutWriter asyncHbasePutWriter(@Qualifier("hbaseAsyncTableFactory") AsyncTableFactory asyncTableFactory) {
-        AsyncHbasePutWriter writer = new AsyncHbasePutWriter(asyncTableFactory);
-        logger.info("HbasePutWriter {}", writer);
-        return new LoggingHbasePutWriter(writer);
-    }
-
-    @Bean
-    @ConditionalOnProperty(name = "hbase.client.put-writer", havingValue = "asyncBufferedMutator", matchIfMissing = true)
-    public HbasePutWriter batchHbasePutWriter(@Qualifier("hbaseAsyncTableFactory") AsyncTableFactory asyncTableFactory) {
-        BatchAsyncHbasePutWriter writer = new BatchAsyncHbasePutWriter(asyncTableFactory);
-        logger.info("HbasePutWriter {}", writer);
-        return new LoggingHbasePutWriter(writer);
-    }
 
     @Bean
     public AdminFactory hbaseAdminFactory(@Qualifier("hbaseConnection") Connection connection) {

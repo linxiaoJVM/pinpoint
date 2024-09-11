@@ -5,15 +5,20 @@ import com.navercorp.pinpoint.collector.config.HbaseAsyncConfiguration;
 import com.navercorp.pinpoint.collector.config.SchedulerConfiguration;
 import com.navercorp.pinpoint.collector.dao.hbase.encode.ApplicationIndexRowKeyEncoderV1;
 import com.navercorp.pinpoint.collector.dao.hbase.encode.ApplicationIndexRowKeyEncoderV2;
+import com.navercorp.pinpoint.collector.util.DurabilityApplier;
 import com.navercorp.pinpoint.common.hbase.config.DistributorConfiguration;
 import com.navercorp.pinpoint.common.hbase.config.HbaseNamespaceConfiguration;
+import com.navercorp.pinpoint.common.hbase.config.HbasePutWriterConfiguration;
 import com.navercorp.pinpoint.common.hbase.config.HbaseTemplateConfiguration;
 import com.navercorp.pinpoint.common.server.CommonsHbaseConfiguration;
 import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.common.server.bo.serializer.RowKeyEncoder;
 import com.navercorp.pinpoint.common.server.hbase.config.HbaseClientConfiguration;
 import com.sematext.hbase.wd.AbstractRowKeyDistributor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -29,6 +34,8 @@ import org.springframework.context.annotation.PropertySource;
 
         HbaseClientConfiguration.class,
         HbaseTemplateConfiguration.class,
+        HbasePutWriterConfiguration.class,
+
         BatchHbaseClientConfiguration.class,
 
         HbaseAsyncConfiguration.class,
@@ -42,6 +49,7 @@ import org.springframework.context.annotation.PropertySource;
         "classpath:profiles/${pinpoint.profiles.active:local}/hbase.properties"
 })
 public class CollectorHbaseModule {
+    private final Logger logger = LogManager.getLogger(CollectorHbaseModule.class);
 
     @Bean("applicationIndexRowKeyEncoder")
     @ConditionalOnProperty(name = "collector.scatter.serverside-scan", havingValue = "v1")
@@ -55,6 +63,12 @@ public class CollectorHbaseModule {
     public RowKeyEncoder<SpanBo> applicationIndexRowKeyEncoderV2(@Qualifier("applicationTraceIndexDistributor")
                                                                  AbstractRowKeyDistributor rowKeyDistributor) {
         return new ApplicationIndexRowKeyEncoderV2(rowKeyDistributor);
+    }
+
+    @Bean
+    public DurabilityApplier spanPutWriterDurabilityApplier(@Value("${collector.span.durability:USE_DEFAULT}") String spanDurability) {
+        logger.info("Span(Trace Put) durability:{}", spanDurability);
+        return new DurabilityApplier(spanDurability);
     }
 
 }

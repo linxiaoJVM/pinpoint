@@ -5,7 +5,6 @@ import com.navercorp.pinpoint.web.hyperlink.HyperLinkFactory;
 import com.navercorp.pinpoint.web.hyperlink.LinkSources;
 import com.navercorp.pinpoint.web.vo.agent.AgentAndStatus;
 import com.navercorp.pinpoint.web.vo.agent.AgentInfo;
-import com.navercorp.pinpoint.web.vo.agent.AgentStatusFilter;
 import com.navercorp.pinpoint.web.vo.agent.AgentStatus;
 import com.navercorp.pinpoint.web.vo.agent.AgentStatusAndLink;
 
@@ -14,6 +13,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 public class AgentsMapByHost {
     private final InstancesListMap<AgentStatusAndLink> instancesListMap;
@@ -22,7 +22,7 @@ public class AgentsMapByHost {
     private static final Comparator<String> CONTAINER_GOES_UP = Comparator.comparing((String s) -> !s.equals(CONTAINER))
             .thenComparing(Comparator.naturalOrder());
 
-    private AgentsMapByHost(InstancesListMap<AgentStatusAndLink> instancesListMap) {
+    public AgentsMapByHost(InstancesListMap<AgentStatusAndLink> instancesListMap) {
         this.instancesListMap = Objects.requireNonNull(instancesListMap, "agentsListMap");
     }
 
@@ -30,25 +30,26 @@ public class AgentsMapByHost {
         return new ArrayList<>(instancesListMap.getListMap());
     }
 
-    public static AgentsMapByHost newAgentsMapByHost(AgentStatusFilter filter,
+    public static AgentsMapByHost newAgentsMapByHost(Predicate<AgentAndStatus> agentStatusPredicate,
                                                      SortByAgentInfo<AgentStatusAndLink> sortByAgentInfo,
                                                      HyperLinkFactory hyperLinkFactory,
                                                      Collection<AgentAndStatus> agentCollection) {
-        Objects.requireNonNull(filter, "filter");
+        Objects.requireNonNull(agentStatusPredicate, "agentStatusPredicate");
         Objects.requireNonNull(sortByAgentInfo, "sortBy");
         Objects.requireNonNull(agentCollection, "agentCollection");
 
-        InstancesListMapBuilder<AgentAndStatus, AgentStatusAndLink> instancesListMapBuilder =
+        InstancesListMap<AgentStatusAndLink> instancesListMap =
                 new InstancesListMapBuilder<>(
                         AgentsMapByHost::containerOrPhysical,
                         CONTAINER_GOES_UP,
                         sortByAgentInfo.getComparator(),
-                        agentCollection
-                );
-        instancesListMapBuilder.withFilter((AgentAndStatus a) -> filter.filter(a.getStatus()))
-                .withFinisher(x -> newAgentStatusAndLink(x, hyperLinkFactory));
+                        agentCollection,
+                        x -> newAgentStatusAndLink(x, hyperLinkFactory)
+                )
+                        .withFilterBefore(agentStatusPredicate)
+                        .build();
 
-        return new AgentsMapByHost(instancesListMapBuilder.build());
+        return new AgentsMapByHost(instancesListMap);
     }
 
     private static String containerOrPhysical(AgentStatusAndLink agentStatusAndLink) {
@@ -63,6 +64,10 @@ public class AgentsMapByHost {
         AgentStatus status = agentAndStatus.getStatus();
         List<HyperLink> hyperLinks = hyperLinkFactory.build(LinkSources.from(agentInfo));
         return new AgentStatusAndLink(agentInfo, status, hyperLinks);
+    }
+
+    public int size() {
+        return instancesListMap.size();
     }
 
     @Override

@@ -17,6 +17,7 @@
 package com.navercorp.pinpoint.common.hbase.parallel;
 
 import com.navercorp.pinpoint.common.hbase.HbaseAccessor;
+import com.navercorp.pinpoint.common.hbase.scan.ScanUtils;
 import com.sematext.hbase.wd.AbstractRowKeyDistributor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Result;
@@ -174,7 +175,7 @@ public class ParallelResultScanner implements ResultScanner {
     @Override
     public Iterator<Result> iterator() {
         // Identical to HTable.ClientScanner implementation
-        return new Iterator<Result>() {
+        return new Iterator<>() {
             // The next RowResult, possibly pre-read
             Result next = null;
 

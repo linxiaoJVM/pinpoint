@@ -18,29 +18,36 @@ package com.navercorp.pinpoint.realtime.collector.receiver;
 import com.navercorp.pinpoint.grpc.trace.PCmdMessage;
 import com.navercorp.pinpoint.grpc.trace.PCmdRequest;
 import com.navercorp.pinpoint.grpc.trace.ProfilerCommandServiceGrpc;
+import io.grpc.Metadata;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * @author youngjin.kim2
  */
 public class EmptyCommandService extends ProfilerCommandServiceGrpc.ProfilerCommandServiceImplBase {
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     @Override
     public StreamObserver<PCmdMessage> handleCommand(StreamObserver<PCmdRequest> responseObserver) {
         return new StreamObserver<>() {
             @Override
             public void onNext(PCmdMessage pCmdMessage) {
-
+                logger.debug("handleCommand onNext:{}", pCmdMessage);
             }
 
             @Override
             public void onError(Throwable throwable) {
-
+                Status status = Status.fromThrowable(throwable);
+                Metadata metadata = Status.trailersFromThrowable(throwable);
+                logger.debug("handleCommand onError {} {}", status, metadata);
             }
 
             @Override
             public void onCompleted() {
-
+                logger.debug("handleCommand onCompleted");
             }
         };
     }
@@ -50,17 +57,19 @@ public class EmptyCommandService extends ProfilerCommandServiceGrpc.ProfilerComm
         return new StreamObserver<>() {
             @Override
             public void onNext(PCmdMessage pCmdMessage) {
-
+                logger.debug("handleCommandV2 onNext:{}", pCmdMessage);
             }
 
             @Override
             public void onError(Throwable throwable) {
-
+                Status status = Status.fromThrowable(throwable);
+                Metadata metadata = Status.trailersFromThrowable(throwable);
+                logger.debug("handleCommandV2 onError {} {}", status, metadata);
             }
 
             @Override
             public void onCompleted() {
-
+                logger.debug("handleCommandV2 onCompleted");
             }
         };
     }

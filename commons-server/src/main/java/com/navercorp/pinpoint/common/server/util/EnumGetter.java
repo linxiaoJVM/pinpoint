@@ -28,24 +28,40 @@ public class EnumGetter<E extends Enum<E>> {
         this.set = EnumSet.allOf(eClass);
     }
 
+    public EnumGetter(EnumSet<E> set) {
+        this.set = set;
+    }
+
     public E fromValueWithFallBack(
             Function<E, String> getter,
             String value,
             E defaultEnum
     ) {
-        E ele = fromValue(getter, value);
+        E ele = fromValueIgnoreCase(getter, value);
         if (ele == null) {
             return defaultEnum;
         }
         return ele;
     }
 
-    public E fromValue(
+    public E fromValueIgnoreCase(
             Function<E, String> getter,
             String value
     ) {
         for (E ele : set) {
             if (getter.apply(ele).equalsIgnoreCase(value)) {
+                return ele;
+            }
+        }
+        return null;
+    }
+
+    public <V> E fromValue(
+            Function<E, V> getter,
+            V value
+    ) {
+        for (E ele : set) {
+            if (getter.apply(ele).equals(value)) {
                 return ele;
             }
         }

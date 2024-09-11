@@ -43,6 +43,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -56,6 +57,7 @@ import java.util.Objects;
  * @author jaehong.kim
  */
 @RestController
+@RequestMapping("/api")
 @Validated
 public class ScatterChartController {
 
@@ -122,7 +124,7 @@ public class ScatterChartController {
         final int limit = LimitUtils.checkRange(limitParam);
 
         // TODO: range check verification exception occurs. "from" is bigger than "to"
-        final Range range = Range.newUncheckedRange(from, to);
+        final Range range = Range.unchecked(from, to);
         logger.debug(
                 "fetch scatter data. RANGE: {}, X-Group-Unit: {}, Y-Group-Unit: {}, LIMIT: {}, " +
                         "BACKWARD_DIRECTION: {}, FILTER: {}",
@@ -172,7 +174,7 @@ public class ScatterChartController {
         final LimitedScanResult<List<TransactionId>> limitedScanResult =
                 flow.selectTraceIdsFromApplicationTraceIndex(applicationName, range, limit, backwardDirection);
 
-        final List<TransactionId> transactionIdList = limitedScanResult.getScanData();
+        final List<TransactionId> transactionIdList = limitedScanResult.scanData();
         if (logger.isTraceEnabled()) {
             logger.trace("submitted transactionId count={}", transactionIdList.size());
         }
@@ -192,7 +194,7 @@ public class ScatterChartController {
                     backwardDirection,
                     DateTimeFormatUtils.format(range.getFrom()),
                     DateTimeFormatUtils.format(range.getTo()),
-                    DateTimeFormatUtils.format(limitedScanResult.getLimitedTime()),
+                    DateTimeFormatUtils.format(limitedScanResult.limitedTime()),
                     transactionIdList.size()
             );
         }

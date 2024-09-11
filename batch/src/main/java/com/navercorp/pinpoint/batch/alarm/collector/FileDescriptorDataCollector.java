@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author minwoo.jung
  */
-public class FileDescriptorDataCollector extends DataCollector {
+public class FileDescriptorDataCollector extends DataCollector implements FileDescriptorDataGetter {
     private final AgentStatDao<FileDescriptorBo> fileDescriptorDao;
     private final List<String> agentIds;
     private final long timeSlotEndTime;
@@ -58,7 +58,7 @@ public class FileDescriptorDataCollector extends DataCollector {
             return;
         }
 
-        Range range = Range.newUncheckedRange(timeSlotEndTime - slotInterval, timeSlotEndTime);
+        Range range = Range.between(timeSlotEndTime - slotInterval, timeSlotEndTime);
 
         for(String agentId : agentIds) {
             List<FileDescriptorBo> fileDescriptorBoList = fileDescriptorDao.getAgentStatList(agentId, range);
@@ -81,6 +81,7 @@ public class FileDescriptorDataCollector extends DataCollector {
         init.set(true);
     }
 
+    @Override
     public Map<String, Long> getFileDescriptorCount() {
         return fileDescriptorCount;
     }

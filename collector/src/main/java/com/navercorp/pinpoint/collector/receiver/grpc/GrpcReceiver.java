@@ -17,21 +17,25 @@
 package com.navercorp.pinpoint.collector.receiver.grpc;
 
 import com.navercorp.pinpoint.collector.receiver.BindAddress;
+import com.navercorp.pinpoint.collector.receiver.grpc.monitor.Monitor;
 import com.navercorp.pinpoint.common.server.util.AddressFilter;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.grpc.channelz.ChannelzRegistry;
+import com.navercorp.pinpoint.grpc.server.ConnectionCountServerTransportFilter;
 import com.navercorp.pinpoint.grpc.server.MetadataServerTransportFilter;
 import com.navercorp.pinpoint.grpc.server.ServerFactory;
 import com.navercorp.pinpoint.grpc.server.ServerOption;
+import com.navercorp.pinpoint.grpc.server.StreamCountInterceptor;
 import com.navercorp.pinpoint.grpc.server.TransportMetadataFactory;
 import com.navercorp.pinpoint.grpc.server.TransportMetadataServerInterceptor;
-import io.grpc.BindableService;
+import com.navercorp.pinpoint.grpc.util.ServerUtils;
 import io.grpc.Server;
 import io.grpc.ServerCallExecutorSupplier;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.ServerTransportFilter;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
 import jakarta.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +43,6 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.NestedExceptionUtils;
 
 import java.io.Closeable;
@@ -65,7 +68,7 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
     private Executor executor;
     private ServerCallExecutorSupplier serverCallExecutorSupplier;
 
-    private List<?> serviceList = new ArrayList<>();
+    private List<ServerServiceDefinition> serviceList = new ArrayList<>();
 
     private AddressFilter addressFilter;
 
@@ -73,11 +76,14 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
     private List<ServerTransportFilter> transportFilterList;
 
     private ServerOption serverOption;
+    private ByteBufAllocator byteBufAllocator;
 
     private SslContext sslContext;
 
     private Server server;
     private ChannelzRegistry channelzRegistry;
+
+    private Monitor monitor = Monitor.NONE;
 
 
     @Override
@@ -94,13 +100,16 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
         Objects.requireNonNull(this.serverOption, "serverOption");
 
         if (sslContext != null) {
-            this.serverFactory = new ServerFactory(beanName, this.bindAddress.getIp(), this.bindAddress.getPort(), this.executor, this.serverCallExecutorSupplier, serverOption, sslContext);
+            this.serverFactory = new ServerFactory(beanName, this.bindAddress.getIp(), this.bindAddress.getPort(), this.executor, this.serverCallExecutorSupplier, serverOption, byteBufAllocator, sslContext);
         } else {
-            this.serverFactory = new ServerFactory(beanName, this.bindAddress.getIp(), this.bindAddress.getPort(), this.executor, this.serverCallExecutorSupplier, serverOption);
+            this.serverFactory = new ServerFactory(beanName, this.bindAddress.getIp(), this.bindAddress.getPort(), this.executor, this.serverCallExecutorSupplier, serverOption, byteBufAllocator);
         }
 
         ServerTransportFilter permissionServerTransportFilter = new PermissionServerTransportFilter(this.beanName, addressFilter);
         this.serverFactory.addTransportFilter(permissionServerTransportFilter);
+
+        ConnectionCountServerTransportFilter countFilter = new ConnectionCountServerTransportFilter();
+        this.serverFactory.addTransportFilter(countFilter);
 
         TransportMetadataFactory transportMetadataFactory = new TransportMetadataFactory(beanName);
         // Mandatory interceptor
@@ -117,6 +126,9 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
         ServerInterceptor transportMetadataServerInterceptor = new TransportMetadataServerInterceptor();
         this.serverFactory.addInterceptor(transportMetadataServerInterceptor);
 
+        StreamCountInterceptor streamCountInterceptor = new StreamCountInterceptor();
+        this.serverFactory.addInterceptor(streamCountInterceptor);
+
         if (CollectionUtils.hasLength(serverInterceptorList)) {
             for (ServerInterceptor serverInterceptor : serverInterceptorList) {
                 this.serverFactory.addInterceptor(serverInterceptor);
@@ -125,6 +137,10 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
         if (channelzRegistry != null) {
             this.serverFactory.setChannelzRegistry(channelzRegistry);
         }
+
+        this.monitor.register(() -> {
+            logger.info("{} CurrentTransport:{}, CurrentGrpcStream:{}", beanName, countFilter.getCurrentConnection(), streamCountInterceptor.getCurrentStream());
+        });
 
         // Add service
         addService();
@@ -148,14 +164,8 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
 
     private void addService() {
         // Add service
-        for (Object service : serviceList) {
-            if (service instanceof BindableService bindableService) {
-                this.serverFactory.addService(bindableService);
-            } else if (service instanceof ServerServiceDefinition serviceDefinition) {
-                this.serverFactory.addService(serviceDefinition);
-            } else {
-                throw new IllegalStateException("unsupported service type " + service);
-            }
+        for (ServerServiceDefinition service : serviceList) {
+            this.serverFactory.addService(service);
         }
     }
 
@@ -166,31 +176,19 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
 
         final long maxWaitTime = serverOption.getGrpcMaxTermWaitTimeMillis();
 
-        server.shutdown();
-        if (awaitServerTermination(maxWaitTime)) {
-            return;
+        if (!ServerUtils.shutdownAndAwaitTermination(server, maxWaitTime, TimeUnit.MILLISECONDS)) {
+            logger.warn("{} server shutdown error", beanName);
         }
-
-        server.shutdownNow();
-        awaitServerTermination(1000);
     }
 
-    private boolean awaitServerTermination(long maxWaitTimeMillis) {
-        try {
-            return server.awaitTermination(maxWaitTimeMillis, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            logger.warn("awaitServerTermination({}ms) was interrupted", maxWaitTimeMillis, e);
-            Thread.currentThread().interrupt();
-        }
-
-        return false;
-    }
 
     @Override
     public void destroy() throws Exception {
         if (logger.isInfoEnabled()) {
             logger.info("Destroy {} server {}", this.beanName, this.server);
         }
+
+        monitor.close();
 
         shutdownServer();
 
@@ -241,37 +239,23 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
         this.serverOption = serverOption;
     }
 
+    public void setByteBufAllocator(ByteBufAllocator byteBufAllocator) {
+        this.byteBufAllocator = byteBufAllocator;
+    }
 
     public void setSslContext(SslContext sslContext) {
         this.sslContext = sslContext;
     }
 
-    private static final Class<?>[] BINDABLESERVICE_TYPE = {BindableService.class, ServerServiceDefinition.class};
-
-    private static boolean supportType(Object service) {
-        for (Class<?> bindableService : BINDABLESERVICE_TYPE) {
-            if (bindableService.isInstance(service)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public void setBindableServiceList(List<?> serviceList) {
-        for (Object service : serviceList) {
-            if (!supportType(service)) {
-                throw new IllegalStateException("unsupported type " + service);
-            }
-        }
-
-        this.serviceList = serviceList;
+    public void setBindableServiceList(List<ServerServiceDefinition> serviceList) {
+        Objects.requireNonNull(serviceList, "serviceList");
+        this.serviceList = List.copyOf(serviceList);
     }
 
     public void setTransportFilterList(List<ServerTransportFilter> transportFilterList) {
         this.transportFilterList = transportFilterList;
     }
 
-    @Autowired
     public void setServerInterceptorList(List<ServerInterceptor> serverInterceptorList) {
         this.serverInterceptorList = serverInterceptorList;
     }
@@ -280,4 +264,7 @@ public class GrpcReceiver implements InitializingBean, DisposableBean, BeanNameA
         this.channelzRegistry = Objects.requireNonNull(channelzRegistry, "channelzRegistry");
     }
 
+    public void setMonitor(Monitor monitor) {
+        this.monitor = Objects.requireNonNull(monitor, "monitor");
+    }
 }

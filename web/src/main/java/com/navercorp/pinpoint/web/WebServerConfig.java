@@ -4,18 +4,12 @@ import com.navercorp.pinpoint.web.interceptor.PerformanceLoggingInterceptor;
 import com.navercorp.pinpoint.web.servlet.HttpIntentRoutingFilter;
 import com.navercorp.pinpoint.web.servlet.VersionPrefixRewriter;
 import jakarta.servlet.Filter;
-import jakarta.servlet.MultipartConfigElement;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.boot.web.servlet.support.ErrorPageFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
-import org.springframework.web.servlet.DispatcherServlet;
 
 import java.util.List;
 
@@ -38,8 +32,10 @@ public class WebServerConfig {
     }
 
     @Bean
-    public Filter rewriteFilter() {
-        final VersionPrefixRewriter rewriter = new VersionPrefixRewriter();
+    public Filter rewriteFilter(@Value("${pinpoint.web.version-prefix.main-path:/index.html}") String mainPath,
+                                @Value("${pinpoint.web.version-prefix.special-paths:}") List<String> specialPaths,
+                                @Value("${pinpoint.web.version-prefix.resource-paths:/assets,/fronts,/img}") List<String> resourcePaths) {
+        final VersionPrefixRewriter rewriter = new VersionPrefixRewriter(mainPath, specialPaths, resourcePaths);
         return new HttpIntentRoutingFilter(rewriter);
     }
 
@@ -47,18 +43,5 @@ public class WebServerConfig {
     public PerformanceLoggingInterceptor performanceLoggingInterceptor(
             @Value("${pinpoint.web.performance-logging-interceptor.threshold:3000}") int threshold) {
         return new PerformanceLoggingInterceptor(threshold);
-    }
-
-    @Bean
-    public ServletRegistrationBean<DispatcherServlet> servletRegistrationBean(
-            DispatcherServlet dispatcherServlet,
-            WebMvcProperties webMvcProperties,
-            ObjectProvider<MultipartConfigElement> multipartConfig) {
-
-        final ServletRegistrationBean<DispatcherServlet> bean = new ServletRegistrationBean<>(dispatcherServlet, "/api/*", "/monitor/*");
-        bean.setName(DispatcherServletAutoConfiguration.DEFAULT_DISPATCHER_SERVLET_REGISTRATION_BEAN_NAME);
-        bean.setLoadOnStartup(webMvcProperties.getServlet().getLoadOnStartup());
-        bean.setMultipartConfig(multipartConfig.getObject());
-        return bean;
     }
 }

@@ -9,6 +9,7 @@ import io.grpc.ServerCallExecutorSupplier;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.ServerTransportFilter;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,14 +33,15 @@ public class GrpcSslModule {
 
     @Bean
     public GrpcReceiver grpcAgentSslReceiver(@Qualifier("grpcAgentSslReceiverProperties") GrpcSslReceiverProperties properties,
-                                            @Qualifier("grpcAgentReceiverProperties") GrpcReceiverProperties grpcReceiverProperties,
-                                            AddressFilter addressFilter,
-                                            @Qualifier("agentServiceList") List<?> serviceList,
-                                            @Qualifier("agentInterceptorList")List<ServerInterceptor> serverInterceptorList,
-                                            ChannelzRegistry channelzRegistry,
-                                            @Qualifier("grpcAgentServerExecutor") Executor executor,
-                                            @Qualifier("grpcAgentServerCallExecutorSupplier") ServerCallExecutorSupplier serverCallExecutorSupplier) throws SSLException {
-        GrpcReceiver receiver = createReceiver(properties, grpcReceiverProperties, addressFilter, serviceList, serverInterceptorList, channelzRegistry, executor);
+                                             @Qualifier("monitoredByteBufAllocator") ByteBufAllocator byteBufAllocator,
+                                             @Qualifier("grpcAgentReceiverProperties") GrpcReceiverProperties grpcReceiverProperties,
+                                             AddressFilter addressFilter,
+                                             @Qualifier("agentServiceList") List<ServerServiceDefinition> serviceList,
+                                             @Qualifier("agentInterceptor") List<ServerInterceptor> serverInterceptorList,
+                                             ChannelzRegistry channelzRegistry,
+                                             @Qualifier("grpcAgentServerExecutor") Executor executor,
+                                             @Qualifier("grpcAgentServerCallExecutorSupplier") ServerCallExecutorSupplier serverCallExecutorSupplier) throws SSLException {
+        GrpcReceiver receiver = createReceiver(properties, byteBufAllocator, grpcReceiverProperties, addressFilter, serviceList, serverInterceptorList, channelzRegistry, executor);
         receiver.setServerCallExecutorSupplier(serverCallExecutorSupplier);
 
         return receiver;
@@ -47,42 +49,46 @@ public class GrpcSslModule {
 
     @Bean
     public GrpcReceiver grpcSpanSslReceiver(@Qualifier("grpcSpanSslReceiverProperties") GrpcSslReceiverProperties properties,
+                                            @Qualifier("monitoredByteBufAllocator") ByteBufAllocator byteBufAllocator,
                                             @Qualifier("grpcSpanReceiverProperties") GrpcReceiverProperties grpcReceiverProperties,
                                             AddressFilter addressFilter,
                                             @Qualifier("spanServiceList") List<ServerServiceDefinition> serviceList,
-                                            @Qualifier("spanInterceptorList") List<ServerInterceptor> serverInterceptorList,
+                                            @Qualifier("spanInterceptor") List<ServerInterceptor> serverInterceptorList,
                                             ChannelzRegistry channelzRegistry,
                                             @Qualifier("grpcSpanServerExecutor") Executor executor,
                                             @Qualifier("serverTransportFilterList") List<ServerTransportFilter> transportFilterList) throws SSLException {
-        GrpcReceiver receiver = createReceiver(properties, grpcReceiverProperties, addressFilter, serviceList, serverInterceptorList, channelzRegistry, executor);
+        GrpcReceiver receiver = createReceiver(properties, byteBufAllocator, grpcReceiverProperties, addressFilter, serviceList, serverInterceptorList, channelzRegistry, executor);
         receiver.setTransportFilterList(transportFilterList);
         return receiver;
     }
 
     @Bean
     public GrpcReceiver grpcStatSslReceiver(@Qualifier("grpcStatSslReceiverProperties") GrpcSslReceiverProperties properties,
+                                            @Qualifier("monitoredByteBufAllocator") ByteBufAllocator byteBufAllocator,
                                             @Qualifier("grpcStatReceiverProperties") GrpcReceiverProperties grpcReceiverProperties,
                                             AddressFilter addressFilter,
                                             @Qualifier("statServiceList") List<ServerServiceDefinition> serviceList,
-                                            @Qualifier("statInterceptorList") List<ServerInterceptor> serverInterceptorList,
+                                            @Qualifier("statInterceptor") List<ServerInterceptor> serverInterceptorList,
                                             ChannelzRegistry channelzRegistry,
                                             @Qualifier("grpcStatServerExecutor") Executor executor,
                                             @Qualifier("serverTransportFilterList") List<ServerTransportFilter> transportFilterList) throws SSLException {
-        GrpcReceiver receiver = createReceiver(properties, grpcReceiverProperties, addressFilter, serviceList, serverInterceptorList, channelzRegistry, executor);
+        GrpcReceiver receiver = createReceiver(properties, byteBufAllocator, grpcReceiverProperties, addressFilter, serviceList, serverInterceptorList, channelzRegistry, executor);
         receiver.setTransportFilterList(transportFilterList);
         return receiver;
     }
 
     private GrpcReceiver createReceiver(GrpcSslReceiverProperties properties,
+                                        @Qualifier("monitoredByteBufAllocator") ByteBufAllocator byteBufAllocator,
                                         GrpcReceiverProperties grpcReceiverProperties,
                                         AddressFilter addressFilter,
-                                        List<?> serviceList,
+                                        List<ServerServiceDefinition> serviceList,
                                         List<ServerInterceptor> serverInterceptorList,
                                         ChannelzRegistry channelzRegistry,
                                         Executor executor) throws SSLException {
         GrpcReceiver receiver = new GrpcReceiver();
         receiver.setBindAddress(properties.getBindAddress());
         receiver.setServerOption(grpcReceiverProperties.getServerOption());
+        receiver.setByteBufAllocator(byteBufAllocator);
 
         receiver.setEnable(true);
 

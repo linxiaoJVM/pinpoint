@@ -43,6 +43,17 @@ public class KafkaConfiguration {
         return new DefaultKafkaProducerFactory<>(config);
     }
 
+    @Deprecated
+    @Bean
+    public ProducerFactory kafkaProducerByteArrayKeyFactory(KafkaProperties properties) {
+        logger.info("kafka {}:{}", ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+        logger.debug("kafka config:{}", properties);
+
+        Map<String, Object> config = toConfig(properties);
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, properties.getByteArrayKeySerializer());
+        return new DefaultKafkaProducerFactory<>(config);
+    }
+
     @Bean
     public KafkaProperties kafkaProperties(Environment env) {
         KafkaProperties properties = new KafkaProperties();

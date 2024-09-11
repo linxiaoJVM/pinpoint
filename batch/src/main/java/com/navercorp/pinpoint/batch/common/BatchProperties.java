@@ -49,6 +49,15 @@ public class BatchProperties {
     @Value("${job.alarm.cron}")
     private String alarmJobCron;
 
+    @Value("${job.alarm.agent.inspector.stat.table.count}")
+    private int alarmAgentInspectorStatTableCount;
+
+    @Value("${job.alarm.agent.inspector.stat.table.prefix}")
+    private String agentInspectorStatTablePrefix;
+
+    @Value("${job.alarm.agent.inspector.stat.table.padding.length}")
+    private int agentInspectorStatTablePaddingLength;
+
     @Value("${job.agent.count.enable:true}")
     private boolean agentCountJobEnable;
 
@@ -81,6 +90,9 @@ public class BatchProperties {
 
     @Value("${job.cleanup.inactive.applications.cron}")
     private String cleanupInactiveApplicationsJobCron;
+
+    @Value("${alarm.collector.version:1}")
+    private int collectorVersion;
 
     private static final int MINIMUM_CLEANUP_INACTIVE_AGENTS_DURATION_DAYS = 7;
 
@@ -170,15 +182,33 @@ public class BatchProperties {
         return cleanupInactiveApplicationsJobCron;
     }
 
+    public int getCollectorVersion() {
+        return collectorVersion;
+    }
+
+    public int getAlarmAgentInspectorStatTableCount() {
+        return alarmAgentInspectorStatTableCount;
+    }
+
+    public String getAgentInspectorStatTablePrefix() {
+        return agentInspectorStatTablePrefix;
+    }
+
+    public int getAgentInspectorStatTablePaddingLength() {
+        return agentInspectorStatTablePaddingLength;
+    }
+
     @Override
     public String toString() {
         return "BatchProperties{" +
-                "logger=" + logger +
-                ", batchEnv='" + batchEnv + '\'' +
+                "batchEnv='" + batchEnv + '\'' +
                 ", flinkServerList=" + Arrays.toString(flinkServerList) +
                 ", flinkRestPort=" + flinkRestPort +
                 ", alarmJobEnable=" + alarmJobEnable +
                 ", alarmJobCron='" + alarmJobCron + '\'' +
+                ", alarmAgentInspectorStatTableCount=" + alarmAgentInspectorStatTableCount +
+                ", agentInspectorStatTablePrefix='" + agentInspectorStatTablePrefix + '\'' +
+                ", agentInspectorStatTablePaddingLength=" + agentInspectorStatTablePaddingLength +
                 ", agentCountJobEnable=" + agentCountJobEnable +
                 ", agentCountJobCron='" + agentCountJobCron + '\'' +
                 ", flinkCheckJobEnable=" + flinkCheckJobEnable +
@@ -190,6 +220,7 @@ public class BatchProperties {
                 ", cleanupInactiveAgentsDurationDays=" + cleanupInactiveAgentsDurationDays +
                 ", cleanupInactiveApplicationsJobEnable=" + cleanupInactiveApplicationsJobEnable +
                 ", cleanupInactiveApplicationsJobCron='" + cleanupInactiveApplicationsJobCron + '\'' +
+                ", collectorVersion=" + collectorVersion +
                 '}';
     }
 }

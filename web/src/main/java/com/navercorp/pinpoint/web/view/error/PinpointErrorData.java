@@ -12,10 +12,16 @@ import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PinpointErrorData {
+    private final String hostName;
     private final RequestInfo requestInfo;
 
-    public PinpointErrorData(WebRequest request) {
+    public PinpointErrorData(String hostName, WebRequest request) {
+        this.hostName = hostName;
         this.requestInfo = new RequestInfo(request);
+    }
+
+    public String getHostName() {
+        return hostName;
     }
 
     public RequestInfo getRequestInfo() {
@@ -25,19 +31,16 @@ public class PinpointErrorData {
     public static class RequestInfo {
         private static final String UNKNOWN = "UNKNOWN";
         private final String method;
-        private final String url;
         private final Map<String, List<String>> headers;
         private final Map<String, String[]> parameters;
 
         public RequestInfo(WebRequest request) {
             if (request instanceof ServletWebRequest webRequest) {
                 this.method = webRequest.getRequest().getMethod();
-                this.url = String.valueOf(webRequest.getRequest().getRequestURL());
                 this.headers = getRequestHeader(webRequest);
                 this.parameters = request.getParameterMap();
             } else {
                 this.method = "UNKNOWN";
-                this.url = "UNKNOWN";
                 this.headers = null;
                 this.parameters = null;
             }
@@ -45,10 +48,6 @@ public class PinpointErrorData {
 
         public String getMethod() {
             return method;
-        }
-
-        public String getUrl() {
-            return url;
         }
 
         public Map<String, List<String>> getHeaders() {
@@ -82,7 +81,6 @@ public class PinpointErrorData {
         public String toString() {
             return "RequestInfo{" +
                     "method='" + method + '\'' +
-                    ", url='" + url + '\'' +
                     ", headers=" + headers +
                     ", parameters=" + parameters +
                     '}';

@@ -2,14 +2,14 @@ package com.navercorp.pinpoint.collector.sampler;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.function.Function;
+import java.util.function.ToLongFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 public class SamplerTest {
 
-    Function<Long, Long> identityFunction = (num -> num);
+    ToLongFunction<Long> identityFunction = (num -> num);
 
     @Test
     public void falseSamplerTest() {
@@ -62,7 +62,8 @@ public class SamplerTest {
 
     @Test
     public void percentageSamplerTest() {
-        long samplingRate = 500; // 5%
+        String percentSamplingRateStr = "5.0"; // 5%
+        long samplingRate = PercentRateSampler.parseSamplingRateString(percentSamplingRateStr);
 
         Sampler<Long> sampler = new PercentRateSampler<>(samplingRate, identityFunction);
         for (long i = 0L; i < 10L; i++) {

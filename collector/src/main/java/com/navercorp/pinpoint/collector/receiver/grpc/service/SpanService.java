@@ -20,9 +20,6 @@ import com.google.protobuf.Empty;
 import com.google.protobuf.GeneratedMessageV3;
 import com.navercorp.pinpoint.collector.receiver.DispatchHandler;
 import com.navercorp.pinpoint.grpc.MessageFormatUtils;
-import com.navercorp.pinpoint.grpc.StatusError;
-import com.navercorp.pinpoint.grpc.StatusErrors;
-import com.navercorp.pinpoint.grpc.server.ServerContext;
 import com.navercorp.pinpoint.grpc.trace.PSpan;
 import com.navercorp.pinpoint.grpc.trace.PSpanChunk;
 import com.navercorp.pinpoint.grpc.trace.PSpanMessage;
@@ -34,15 +31,14 @@ import com.navercorp.pinpoint.io.request.DefaultMessage;
 import com.navercorp.pinpoint.io.request.Message;
 import com.navercorp.pinpoint.io.request.ServerRequest;
 import com.navercorp.pinpoint.thrift.io.DefaultTBaseLocator;
-import io.grpc.Status;
-import io.grpc.StatusException;
-import io.grpc.StatusRuntimeException;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jaehong.kim
@@ -50,59 +46,42 @@ import java.util.Objects;
 public class SpanService extends SpanGrpc.SpanImplBase {
     private final Logger logger = LogManager.getLogger(this.getClass());
     private final boolean isDebug = logger.isDebugEnabled();
+
+    private final AtomicLong serverStreamId = new AtomicLong();
+
+
     private final DispatchHandler<GeneratedMessageV3, GeneratedMessageV3> dispatchHandler;
     private final ServerRequestFactory serverRequestFactory;
+    private final StreamCloseOnError streamCloseOnError;
 
-    public SpanService(DispatchHandler<GeneratedMessageV3, GeneratedMessageV3> dispatchHandler, ServerRequestFactory serverRequestFactory) {
+    public SpanService(DispatchHandler<GeneratedMessageV3, GeneratedMessageV3> dispatchHandler,
+                       ServerRequestFactory serverRequestFactory,
+                       StreamCloseOnError streamCloseOnError) {
         this.dispatchHandler = Objects.requireNonNull(dispatchHandler, "dispatchHandler");
         this.serverRequestFactory = Objects.requireNonNull(serverRequestFactory, "serverRequestFactory");
+        this.streamCloseOnError = Objects.requireNonNull(streamCloseOnError, "streamCloseOnError");
     }
 
     @Override
-    public StreamObserver<PSpanMessage> sendSpan(final StreamObserver<Empty> responseObserver) {
-        StreamObserver<PSpanMessage> observer = new StreamObserver<>() {
-            @Override
-            public void onNext(PSpanMessage spanMessage) {
-                if (isDebug) {
-                    logger.debug("Send PSpan={}", MessageFormatUtils.debugLog(spanMessage));
-                }
+    public StreamObserver<PSpanMessage> sendSpan(final StreamObserver<Empty> responseStream) {
+        final ServerCallStreamObserver<Empty> responseObserver = (ServerCallStreamObserver<Empty>) responseStream;
+        return new ServerCallStream<>(logger, serverStreamId.incrementAndGet(), responseObserver, this::messageDispatch, streamCloseOnError, Empty::getDefaultInstance);
+    }
 
-                if (spanMessage.hasSpan()) {
-                    final Message<PSpan> message = newMessage(spanMessage.getSpan(), DefaultTBaseLocator.SPAN);
-                    send(message, responseObserver);
-                } else if (spanMessage.hasSpanChunk()) {
-                    final Message<PSpanChunk> message = newMessage(spanMessage.getSpanChunk(), DefaultTBaseLocator.SPANCHUNK);
-                    send(message, responseObserver);
-                } else {
-                    if (isDebug) {
-                        logger.debug("Found empty span message {}", MessageFormatUtils.debugLog(spanMessage));
-                    }
-                }
-            }
+    private void messageDispatch(PSpanMessage spanMessage, ServerCallStream<PSpanMessage, Empty> stream) {
+        if (isDebug) {
+            logger.debug("Send PSpan={}", MessageFormatUtils.debugLog(spanMessage));
+        }
 
-            @Override
-            public void onError(Throwable throwable) {
-                com.navercorp.pinpoint.grpc.Header header = ServerContext.getAgentInfo();
-
-                final StatusError statusError = StatusErrors.throwable(throwable);
-                if (statusError.isSimpleError()) {
-                    logger.info("Failed to span stream, {} cause={}", header, statusError.getMessage(), statusError.getThrowable());
-                } else {
-                    logger.warn("Failed to span stream, {} cause={}", header, statusError.getMessage(), statusError.getThrowable());
-                }
-            }
-
-            @Override
-            public void onCompleted() {
-                com.navercorp.pinpoint.grpc.Header header = ServerContext.getAgentInfo();
-                logger.info("onCompleted {}", header);
-
-                Empty empty = Empty.newBuilder().build();
-                responseObserver.onNext(empty);
-                responseObserver.onCompleted();
-            }
-        };
-        return observer;
+        if (spanMessage.hasSpan()) {
+            final Message<PSpan> message = newMessage(spanMessage.getSpan(), DefaultTBaseLocator.SPAN);
+            dispatch(message, stream);
+        } else if (spanMessage.hasSpanChunk()) {
+            final Message<PSpanChunk> message = newMessage(spanMessage.getSpanChunk(), DefaultTBaseLocator.SPANCHUNK);
+            dispatch(message, stream);
+        } else {
+            logger.info("Found empty span message {}", MessageFormatUtils.debugLog(spanMessage));
+        }
     }
 
     private <T> Message<T> newMessage(T requestData, short serviceType) {
@@ -111,19 +90,13 @@ public class SpanService extends SpanGrpc.SpanImplBase {
         return new DefaultMessage<>(header, headerEntity, requestData);
     }
 
-    private void send(final Message<? extends GeneratedMessageV3> message, StreamObserver<Empty> responseObserver) {
+    private void dispatch(final Message<? extends GeneratedMessageV3> message, ServerCallStream<PSpanMessage, Empty> responseObserver) {
         try {
             ServerRequest<GeneratedMessageV3> request = (ServerRequest<GeneratedMessageV3>) serverRequestFactory.newServerRequest(message);
-            this.dispatchHandler.dispatchSendMessage(request);
-        } catch (Exception e) {
-            logger.warn("Failed to request. message={}", message, e);
-            if (e instanceof StatusException || e instanceof StatusRuntimeException) {
-                responseObserver.onError(e);
-            } else {
-                // Avoid detailed exception
-                responseObserver.onError(Status.INTERNAL.withDescription("Bad Request").asException());
-            }
+            dispatchHandler.dispatchSendMessage(request);
+        } catch (Throwable e) {
+            logger.warn("Failed to request. message={}", MessageFormatUtils.debugLog(message), e);
+            responseObserver.onNextError(e);
         }
     }
-
 }

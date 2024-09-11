@@ -15,7 +15,7 @@ public class InstancesListMap<T> {
 
     private final List<InstancesList<T>> listMap;
 
-    private InstancesListMap(List<InstancesList<T>> listMap) {
+    public InstancesListMap(List<InstancesList<T>> listMap) {
         this.listMap = Objects.requireNonNull(listMap, "listMap");
     }
 
@@ -51,10 +51,18 @@ public class InstancesListMap<T> {
         return listMap;
     }
 
+    public int size() {
+        return listMap.stream()
+                .map(InstancesList::getInstancesList)
+                .mapToInt(List::size)
+                .sum();
+    }
+
     @Override
     public String toString() {
         return "InstancesListMap{" +
                 "listMap=" + listMap +
                 '}';
     }
+
 }

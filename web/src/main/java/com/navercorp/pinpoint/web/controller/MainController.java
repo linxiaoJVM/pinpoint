@@ -20,6 +20,7 @@ import com.navercorp.pinpoint.web.service.CacheService;
 import com.navercorp.pinpoint.web.service.CommonService;
 import com.navercorp.pinpoint.web.util.etag.ETag;
 import com.navercorp.pinpoint.web.util.etag.ETagUtils;
+import com.navercorp.pinpoint.web.util.TagApplicationsUtils;
 import com.navercorp.pinpoint.web.validation.NullOrNotBlank;
 import com.navercorp.pinpoint.web.view.ApplicationGroup;
 import com.navercorp.pinpoint.web.view.ServerTime;
@@ -63,7 +64,7 @@ public class MainController {
         this.cacheService = Objects.requireNonNull(cacheService, "cacheService");
     }
 
-    @GetMapping(value = "/applications")
+    @GetMapping(value = "/api/applications")
     public ResponseEntity<ApplicationGroup> getApplicationGroup(
             @RequestHeader(value = "If-None-Match", required = false) @NullOrNotBlank String eTagHeader,
             @RequestParam(value = "clearCache", required = false) @NullOrNotBlank String clearCache
@@ -78,7 +79,7 @@ public class MainController {
 
             final TagApplications cachedApplications = cacheService.get(KEY);
             if (cachedApplications != null) {
-                if (eTag.getTag().equals(cachedApplications.getTag())) {
+                if (eTag.tag().equals(cachedApplications.getTag())) {
                     logger.debug("applicationList {} cache hit", KEY);
                     return notModified();
                 } else {
@@ -97,7 +98,7 @@ public class MainController {
 
 
         // Update atomicity between multiple nodes is not guaranteed
-        final TagApplications tagApplications = wrapApplicationList(applicationList);
+        final TagApplications tagApplications = TagApplicationsUtils.wrapApplicationList(applicationList);
 
         cacheService.put(KEY, tagApplications);
 
@@ -114,19 +115,6 @@ public class MainController {
                 .body(new ApplicationGroup(applicationList));
     }
 
-    private static TagApplications wrapApplicationList(List<Application> applicationList) {
-        String tag = newTag(applicationList);
-        return new TagApplications(tag, applicationList);
-    }
-
-
-    private static String newTag(List<Application> applicationList) {
-        // Precondition : If the application list of hbase is the same,
-        // ETag value of multiple web servers is also the same.
-        // need MD5 hash (128 bit)
-        return String.valueOf(applicationList.hashCode());
-    }
-
     private static ResponseEntity<ApplicationGroup> notModified() {
         return ResponseEntity
                 .status(HttpStatus.NOT_MODIFIED)
@@ -137,7 +125,7 @@ public class MainController {
         return eTag == null || clearCache != null;
     }
 
-    @GetMapping(value = "/serverTime")
+    @GetMapping(value = {"/api/serverTime", "/api-public/serverTime"})
     public ServerTime getServerTime() {
         return new ServerTime();
     }

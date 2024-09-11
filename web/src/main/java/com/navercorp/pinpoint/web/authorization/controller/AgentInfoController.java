@@ -23,6 +23,7 @@ import com.navercorp.pinpoint.common.util.IdValidateUtils;
 import com.navercorp.pinpoint.web.response.CodeResult;
 import com.navercorp.pinpoint.web.service.AgentEventService;
 import com.navercorp.pinpoint.web.service.AgentInfoService;
+import com.navercorp.pinpoint.web.service.component.AgentEventQuery;
 import com.navercorp.pinpoint.web.view.tree.SimpleTreeView;
 import com.navercorp.pinpoint.web.view.tree.TreeNode;
 import com.navercorp.pinpoint.web.view.tree.TreeView;
@@ -31,8 +32,7 @@ import com.navercorp.pinpoint.web.vo.agent.AgentAndStatus;
 import com.navercorp.pinpoint.web.vo.agent.AgentStatus;
 import com.navercorp.pinpoint.web.vo.agent.AgentStatusAndLink;
 import com.navercorp.pinpoint.web.vo.agent.AgentStatusFilter;
-import com.navercorp.pinpoint.web.vo.agent.AgentStatusFilterChain;
-import com.navercorp.pinpoint.web.vo.agent.DefaultAgentStatusFilter;
+import com.navercorp.pinpoint.web.vo.agent.AgentStatusFilters;
 import com.navercorp.pinpoint.web.vo.agent.DetailedAgentAndStatus;
 import com.navercorp.pinpoint.web.vo.timeline.inspector.InspectorTimeline;
 import com.navercorp.pinpoint.web.vo.tree.AgentsMapByApplication;
@@ -58,6 +58,7 @@ import java.util.Set;
  * @author HyunGil Jeong
  */
 @RestController
+@RequestMapping("/api")
 @Validated
 public class AgentInfoController {
     private final AgentInfoService agentInfoService;
@@ -81,7 +82,7 @@ public class AgentInfoController {
     public TreeView<TreeNode<AgentAndStatus>> getAgentList(
             @RequestParam("from") @PositiveOrZero long from,
             @RequestParam("to") @PositiveOrZero long to) {
-        final AgentStatusFilter filter = new DefaultAgentStatusFilter(from);
+        final AgentStatusFilter filter = AgentStatusFilters.recentRunning(from);
         final AgentsMapByApplication<AgentAndStatus> allAgentsList =
                 this.agentInfoService.getAllAgentsList(filter, Range.between(from, to));
         return treeView(allAgentsList);
@@ -92,7 +93,7 @@ public class AgentInfoController {
     public TreeView<TreeNode<AgentAndStatus>> getAgentList(
             @RequestParam("timestamp") @PositiveOrZero long timestamp) {
         final AgentsMapByApplication<AgentAndStatus> allAgentsList =
-                this.agentInfoService.getAllAgentsList(AgentStatusFilter::accept, Range.between(timestamp, timestamp));
+                this.agentInfoService.getAllAgentsList(AgentStatusFilters.acceptAll(), Range.between(timestamp, timestamp));
         return treeView(allAgentsList);
     }
 
@@ -114,7 +115,7 @@ public class AgentInfoController {
             @RequestParam("application") @NotBlank String applicationName,
             @RequestParam("from") @PositiveOrZero long from,
             @RequestParam("to") @PositiveOrZero long to) {
-        final AgentStatusFilter currentRunFilter = new AgentStatusFilterChain(new DefaultAgentStatusFilter(from));
+        final AgentStatusFilter currentRunFilter = AgentStatusFilters.recentRunning(from);
         final AgentsMapByHost list = this.agentInfoService.getAgentsListByApplicationName(
                 currentRunFilter,
                 applicationName,
@@ -128,9 +129,8 @@ public class AgentInfoController {
     public TreeView<TreeNode<AgentStatusAndLink>> getAgentList(
             @RequestParam("application") @NotBlank String applicationName,
             @RequestParam("timestamp") @PositiveOrZero long timestamp) {
-        final AgentStatusFilter runningAgentFilter = new AgentStatusFilterChain(AgentStatusFilter::filterRunning);
         final AgentsMapByHost list = this.agentInfoService.getAgentsListByApplicationName(
-                runningAgentFilter,
+                AgentStatusFilters.running(),
                 applicationName,
                 Range.between(timestamp, timestamp),
                 DEFAULT_SORT_BY
@@ -186,7 +186,8 @@ public class AgentInfoController {
             @RequestParam(value = "exclude", defaultValue = "") int[] excludeEventTypeCodes) {
         final Range range = Range.between(from, to);
         final Set<AgentEventType> excludeEventTypes = getAgentEventTypes(excludeEventTypeCodes);
-        return this.agentEventService.getAgentEvents(agentId, range, excludeEventTypes);
+        AgentEventQuery exclude = AgentEventQuery.exclude(excludeEventTypes);
+        return this.agentEventService.getAgentEvents(agentId, range, exclude);
     }
 
     private static Set<AgentEventType> getAgentEventTypes(int[] excludeEventTypeCodes) {

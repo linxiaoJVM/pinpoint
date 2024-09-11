@@ -20,15 +20,14 @@ import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
 import com.navercorp.pinpoint.common.util.CpuUtils;
 import com.navercorp.pinpoint.grpc.ExecutorUtils;
 import com.navercorp.pinpoint.grpc.channelz.ChannelzRegistry;
-import io.grpc.BindableService;
 import io.grpc.InternalWithLogId;
 import io.grpc.Server;
 import io.grpc.ServerCallExecutorSupplier;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.ServerTransportFilter;
-import io.grpc.internal.ServerImplBuilder;
 import io.grpc.netty.NettyServerBuilder;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
@@ -39,7 +38,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.net.ssl.SSLException;
-import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,29 +69,33 @@ public class ServerFactory {
     private final Executor serverExecutor;
     private final ServerCallExecutorSupplier callExecutor;
 
-    private final List<Object> bindableServices = new ArrayList<>();
+    private final List<ServerServiceDefinition> bindableServices = new ArrayList<>();
     private final List<ServerTransportFilter> serverTransportFilters = new ArrayList<>();
     private final List<ServerInterceptor> serverInterceptors = new ArrayList<>();
 
     private final ServerOption serverOption;
+    private final ByteBufAllocator byteBufAllocator;
     private final SslContext sslContext;
     private ChannelzRegistry channelzRegistry;
 
     public ServerFactory(String name, String hostname, int port,
                          Executor serverExecutor,
                          ServerCallExecutorSupplier callExecutor,
-                         ServerOption serverOption) {
-        this(name, hostname, port, serverExecutor, callExecutor, serverOption, null);
+                         ServerOption serverOption,
+                         ByteBufAllocator byteBufAllocator) {
+        this(name, hostname, port, serverExecutor, callExecutor, serverOption, byteBufAllocator, null);
     }
 
     public ServerFactory(String name, String hostname, int port,
                          Executor serverExecutor,
                          ServerCallExecutorSupplier callExecutor,
                          ServerOption serverOption,
+                         ByteBufAllocator byteBufAllocator,
                          SslContext sslContext) {
         this.name = Objects.requireNonNull(name, "name");
         this.hostname = Objects.requireNonNull(hostname, "hostname");
         this.serverOption = Objects.requireNonNull(serverOption, "serverOption");
+        this.byteBufAllocator = Objects.requireNonNull(byteBufAllocator, "byteBufAllocator");
 
         this.port = port;
 
@@ -126,11 +128,6 @@ public class ServerFactory {
         this.channelzRegistry = Objects.requireNonNull(channelzRegistry, "channelzRegistry");
     }
 
-    public void addService(BindableService bindableService) {
-        Objects.requireNonNull(bindableService, "bindableService");
-        this.bindableServices.add(bindableService.bindService());
-    }
-
     public void addService(ServerServiceDefinition serverServiceDefinition) {
         Objects.requireNonNull(serverServiceDefinition, "serverServiceDefinition");
         this.bindableServices.add(serverServiceDefinition);
@@ -155,26 +152,19 @@ public class ServerFactory {
         serverBuilder.bossEventLoopGroup(bossEventLoopGroup);
         serverBuilder.workerEventLoopGroup(workerEventLoopGroup);
 
-        ServerImplBuilder serverImplBuilder = extractServerImplBuilder(serverBuilder);
-        setupInternal(serverImplBuilder);
+        NettyStatsOptions.disableStats(serverBuilder);
 
-        for (Object service : this.bindableServices) {
-
-            if (service instanceof BindableService) {
-                logger.info("Add BindableService={}, server={}", service, name);
-                serverBuilder.addService((BindableService) service);
-            } else if (service instanceof ServerServiceDefinition) {
-                final ServerServiceDefinition definition = (ServerServiceDefinition) service;
-                logger.info("Add ServerServiceDefinition={}, server={}", definition.getServiceDescriptor(), name);
-                serverBuilder.addService(definition);
-            }
+        for (ServerServiceDefinition service : this.bindableServices) {
+            logger.info("Add ServerServiceDefinition={}, server={}", service.getServiceDescriptor(), name);
+            serverBuilder.addService(service);
         }
+
         for (ServerTransportFilter transportFilter : this.serverTransportFilters) {
-            logger.info("Add transportFilter={}, server={}", transportFilter, name);
+            logger.info("Add ServerTransportFilter={}, server={}", transportFilter, name);
             serverBuilder.addTransportFilter(transportFilter);
         }
         for (ServerInterceptor serverInterceptor : this.serverInterceptors) {
-            logger.info("Add intercept={}, server={}", serverInterceptor, name);
+            logger.info("Add ServerInterceptor={}, server={}", serverInterceptor, name);
             serverBuilder.intercept(serverInterceptor);
         }
 
@@ -202,19 +192,6 @@ public class ServerFactory {
         return server;
     }
 
-    public static ServerImplBuilder extractServerImplBuilder(NettyServerBuilder serverBuilder)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field serverImplBuilderField = NettyServerBuilder.class.getDeclaredField("serverImplBuilder");
-        serverImplBuilderField.setAccessible(true);
-        return (ServerImplBuilder) serverImplBuilderField.get(serverBuilder);
-    }
-
-    private void setupInternal(ServerImplBuilder builder) {
-        builder.setTracingEnabled(false);
-        builder.setStatsEnabled(false);
-        builder.setStatsRecordRealTimeMetrics(false);
-        builder.setStatsRecordStartedRpcs(false);
-    }
 
     private void setupServerOption(NettyServerBuilder builder) {
         // TODO @see PinpointServerAcceptor
@@ -223,6 +200,7 @@ public class ServerFactory {
         builder.withChildOption(ChannelOption.SO_RCVBUF, this.serverOption.getReceiveBufferSize());
         final WriteBufferWaterMark disabledWriteBufferWaterMark = new WriteBufferWaterMark(0, Integer.MAX_VALUE);
         builder.withChildOption(ChannelOption.WRITE_BUFFER_WATER_MARK, disabledWriteBufferWaterMark);
+        builder.withChildOption(ChannelOption.ALLOCATOR, this.byteBufAllocator);
 
         builder.handshakeTimeout(this.serverOption.getHandshakeTimeout(), TimeUnit.MILLISECONDS);
         builder.flowControlWindow(this.serverOption.getFlowControlWindow());

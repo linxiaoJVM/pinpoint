@@ -54,6 +54,7 @@ mappings:
   - definitionId: "cpu"
     metricName: "cpuLoad"
     title: "JVM/System CPU Usage"
+    postProcess: "percentageScale"
     fields:
       - fieldName: "jvm"
         matchingRule: EXACT_ONE
@@ -218,6 +219,7 @@ mappings:
     title: "Data Source"
     grouping: "TAG"
     preProcess: "usingDataSourceTagForAgent"
+    postProcess: "matchingServiceType"
     fields:
       - fieldName: "activeConnectionSize"
         fieldAlias: "activeAvg"

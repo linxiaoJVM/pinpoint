@@ -1,9 +1,10 @@
 package com.navercorp.pinpoint.web.authorization.controller;
 
 import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSampler;
 import com.navercorp.pinpoint.web.service.appmetric.ApplicationDataSourceService;
-import com.navercorp.pinpoint.web.util.TimeWindow;
-import com.navercorp.pinpoint.web.util.TimeWindowSlotCentricSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChart;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -11,15 +12,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
+@RequestMapping("/api")
 @Validated
 public class ApplicationDataSourceController {
     private final Logger logger = LogManager.getLogger(this.getClass());
+    private final TimeWindowSampler defaultTimeWindowSampler = new TimeWindowSlotCentricSampler();
 
     private final ApplicationDataSourceService applicationDataSourceService;
 
@@ -33,8 +37,7 @@ public class ApplicationDataSourceController {
             @RequestParam("from") @PositiveOrZero long from,
             @RequestParam("to") @PositiveOrZero long to
     ) {
-        TimeWindowSlotCentricSampler sampler = new TimeWindowSlotCentricSampler();
-        TimeWindow timeWindow = new TimeWindow(Range.between(from, to), sampler);
+        TimeWindow timeWindow = new TimeWindow(Range.between(from, to), defaultTimeWindowSampler);
         try {
             return this.applicationDataSourceService.selectApplicationChart(applicationId, timeWindow);
         } catch (Exception e ) {

@@ -78,7 +78,8 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         Scan scan = createScan(agentId, 0, timestamp);
 
         TableName agentLifeCycleTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
-        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations.find(agentLifeCycleTableName, scan, new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, timestamp));
+        ResultsExtractor<AgentLifeCycleBo> resultsExtractor = getRecentAgentLifeCycleResultsExtractor(timestamp);
+        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations.find(agentLifeCycleTableName, scan, resultsExtractor);
         return createAgentStatus(agentId, agentLifeCycleBo);
     }
 
@@ -94,9 +95,14 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         Scan scan = createScan(agentId, fromTimestamp, toTimestamp);
 
         TableName agentLifeCycleTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
-        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations.find(agentLifeCycleTableName, scan, new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, timestamp));
+        ResultsExtractor<AgentLifeCycleBo> resultsExtractor = getRecentAgentLifeCycleResultsExtractor(timestamp);
+        AgentLifeCycleBo agentLifeCycleBo = this.hbaseOperations.find(agentLifeCycleTableName, scan, resultsExtractor);
         AgentStatus agentStatus = createAgentStatus(agentId, agentLifeCycleBo);
         return Optional.of(agentStatus);
+    }
+
+    private ResultsExtractor<AgentLifeCycleBo> getRecentAgentLifeCycleResultsExtractor(long timestamp) {
+        return new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, timestamp);
     }
 
     /**
@@ -113,23 +119,23 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         List<Scan> scans = new ArrayList<>(agentKeyList.size());
         for (SimpleAgentKey agentInfo : agentKeyList) {
             if (agentInfo != null) {
-                final String agentId = agentInfo.getAgentId();
+                final String agentId = agentInfo.agentId();
                 // startTimestamp is stored in reverse order
-                final long toTimestamp = agentInfo.getAgentStartTime();
+                final long toTimestamp = agentInfo.agentStartTime();
                 final long fromTimestamp = toTimestamp - 1;
                 scans.add(createScan(agentId, fromTimestamp, toTimestamp));
             }
         }
 
-        ResultsExtractor<AgentLifeCycleBo> action = new MostRecentAgentLifeCycleResultsExtractor(this.agentLifeCycleMapper, agentStatusQuery.getQueryTimestamp());
         TableName agentLifeCycleTableName = tableNameProvider.getTableName(DESCRIPTOR.getTable());
+        ResultsExtractor<AgentLifeCycleBo> action = getRecentAgentLifeCycleResultsExtractor(agentStatusQuery.getQueryTimestamp());
         List<AgentLifeCycleBo> agentLifeCycles = this.hbaseOperations.findParallel(agentLifeCycleTableName, scans, action);
 
         int idx = 0;
         List<Optional<AgentStatus>> agentStatusResult = new ArrayList<>(agentKeyList.size());
         for (SimpleAgentKey agentInfo : agentKeyList) {
             if (agentInfo != null) {
-                AgentStatus agentStatus = createAgentStatus(agentInfo.getAgentId(), agentLifeCycles.get(idx++));
+                AgentStatus agentStatus = createAgentStatus(agentInfo.agentId(), agentLifeCycles.get(idx++));
                 agentStatusResult.add(Optional.of(agentStatus));
             } else {
                 agentStatusResult.add(Optional.empty());
@@ -168,7 +174,7 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         private final long queryTimestamp;
 
         private MostRecentAgentLifeCycleResultsExtractor(RowMapper<AgentLifeCycleBo> agentLifeCycleMapper, long queryTimestamp) {
-            this.agentLifeCycleMapper = agentLifeCycleMapper;
+            this.agentLifeCycleMapper = Objects.requireNonNull(agentLifeCycleMapper, "agentLifeCycleMapper");
             this.queryTimestamp = queryTimestamp;
         }
 

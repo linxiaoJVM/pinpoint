@@ -18,6 +18,7 @@ package com.navercorp.pinpoint.grpc.server;
 
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.grpc.ChannelTypeEnum;
+import io.netty.buffer.ByteBufAllocator;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -60,9 +61,9 @@ public class ServerOption {
     // Sets a custom max connection idle time, connection being idle for longer than which will be gracefully terminated.
     private final long maxConnectionIdle;
     // Sets a custom max connection age, connection lasting longer than which will be gracefully terminated.
-//    private final long maxConnectionAge = DEFAULT_MAX_CONNECTION_AGE;
+    private long maxConnectionAge = DEFAULT_MAX_CONNECTION_AGE;
     // Sets a custom grace time for the graceful connection termination. Once the max connection age is reached, RPCs have the grace time to complete.
-//    private final long maxConnectionAgeGrace = DEFAULT_MAX_CONNECTION_AGE_GRACE;
+    private long maxConnectionAgeGrace = DEFAULT_MAX_CONNECTION_AGE_GRACE;
 
     // The maximum number of concurrent calls permitted for each incoming connection. Defaults to no limit.
     private final int maxConcurrentCallsPerConnection;
@@ -78,24 +79,33 @@ public class ServerOption {
     // ChannelOption
     private final int receiveBufferSize;
 
+    private final ByteBufAllocator allocator;
+
     private final long grpcMaxTermWaitTimeMillis;
 
     public final ChannelTypeEnum channelTypeEnum;
 
-    ServerOption(long keepAliveTime, long keepAliveTimeout, long permitKeepAliveTime, long maxConnectionIdle,
+    ServerOption(long keepAliveTime, long keepAliveTimeout, long permitKeepAliveTime,
+                 long maxConnectionIdle, long maxConnectionAge, long maxConnectionAgeGrace,
                  int maxConcurrentCallsPerConnection, int maxInboundMessageSize, int maxHeaderListSize,
-                 long handshakeTimeout, int flowControlWindow, int receiveBufferSize, long grpcMaxTermWaitTimeMillis,
+                 long handshakeTimeout, int flowControlWindow, int receiveBufferSize,
+                 ByteBufAllocator allocator, long grpcMaxTermWaitTimeMillis,
                  ChannelTypeEnum channelTypeEnum) {
         this.keepAliveTime = keepAliveTime;
         this.keepAliveTimeout = keepAliveTimeout;
         this.permitKeepAliveTime = permitKeepAliveTime;
+
         this.maxConnectionIdle = maxConnectionIdle;
+        this.maxConnectionAge = maxConnectionAge;
+        this.maxConnectionAgeGrace = maxConnectionAgeGrace;
+
         this.maxConcurrentCallsPerConnection = maxConcurrentCallsPerConnection;
         this.maxInboundMessageSize = maxInboundMessageSize;
         this.maxHeaderListSize = maxHeaderListSize;
         this.handshakeTimeout = handshakeTimeout;
         this.flowControlWindow = flowControlWindow;
         this.receiveBufferSize = receiveBufferSize;
+        this.allocator = allocator;
         this.grpcMaxTermWaitTimeMillis = grpcMaxTermWaitTimeMillis;
         this.channelTypeEnum = Objects.requireNonNull(channelTypeEnum, "channelTypeEnum");
     }
@@ -121,11 +131,11 @@ public class ServerOption {
     }
 
     public long getMaxConnectionAge() {
-        return DEFAULT_MAX_CONNECTION_AGE;
+        return maxConnectionAge;
     }
 
     public long getMaxConnectionAgeGrace() {
-        return DEFAULT_MAX_CONNECTION_AGE_GRACE;
+        return maxConnectionAgeGrace;
     }
 
     public int getMaxConcurrentCallsPerConnection() {
@@ -152,6 +162,10 @@ public class ServerOption {
         return receiveBufferSize;
     }
 
+    public ByteBufAllocator getAllocator() {
+        return allocator;
+    }
+
     public long getGrpcMaxTermWaitTimeMillis() {
         return grpcMaxTermWaitTimeMillis;
     }
@@ -172,6 +186,8 @@ public class ServerOption {
                 ", permitKeepAliveTime=" + permitKeepAliveTime +
                 ", permitKeepAliveWithoutCalls=" + permitKeepAliveWithoutCalls +
                 ", maxConnectionIdle=" + maxConnectionIdle +
+                ", maxConnectionAge=" + maxConnectionAge +
+                ", maxConnectionAgeGrace=" + maxConnectionAgeGrace +
                 ", maxConcurrentCallsPerConnection=" + maxConcurrentCallsPerConnection +
                 ", maxInboundMessageSize=" + maxInboundMessageSize +
                 ", maxHeaderListSize=" + maxHeaderListSize +
@@ -193,6 +209,9 @@ public class ServerOption {
 
         // Sets a custom max connection idle time, connection being idle for longer than which will be gracefully terminated.
         private long maxConnectionIdle = DEFAULT_MAX_CONNECTION_IDLE;
+        private long maxConnectionAge = DEFAULT_MAX_CONNECTION_AGE;
+        private long maxConnectionAgeGrace = DEFAULT_MAX_CONNECTION_AGE_GRACE;
+
         // The maximum number of concurrent calls permitted for each incoming connection. Defaults to no limit.
         private int maxConcurrentCallsPerConnection = DEFAULT_MAX_CONCURRENT_CALLS_PER_CONNECTION;
 
@@ -207,6 +226,8 @@ public class ServerOption {
 
         private int receiveBufferSize = DEFAULT_RECEIVE_BUFFER_SIZE;
 
+        private ByteBufAllocator allocator;
+
         private long grpcMaxTermWaitTimeMillis = DEFAULT_GRPC_MAX_TERM_WAIT_TIME_MILLIS;
 
         private ChannelTypeEnum channelTypeEnum = ChannelTypeEnum.valueOf(DEFAULT_CHANNEL_TYPE);
@@ -215,10 +236,11 @@ public class ServerOption {
         }
 
         public ServerOption build() {
-            final ServerOption serverOption = new ServerOption(keepAliveTime, keepAliveTimeout, permitKeepAliveTime,
-                    maxConnectionIdle, maxConcurrentCallsPerConnection, maxInboundMessageSize,
-                    maxHeaderListSize, handshakeTimeout, flowControlWindow, receiveBufferSize, grpcMaxTermWaitTimeMillis, channelTypeEnum);
-            return serverOption;
+            return new ServerOption(keepAliveTime, keepAliveTimeout, permitKeepAliveTime,
+                    maxConnectionIdle, maxConnectionAge, maxConnectionAgeGrace,
+                    maxConcurrentCallsPerConnection, maxInboundMessageSize,
+                    maxHeaderListSize, handshakeTimeout, flowControlWindow, receiveBufferSize, allocator,
+                    grpcMaxTermWaitTimeMillis, channelTypeEnum);
         }
 
         public void setKeepAliveTime(long keepAliveTime) {
@@ -239,6 +261,16 @@ public class ServerOption {
         public void setMaxConnectionIdle(long maxConnectionIdle) {
             Assert.isTrue(maxConnectionIdle > 0, "maxConnectionIdle " + maxConnectionIdle + " must be positive");
             this.maxConnectionIdle = maxConnectionIdle;
+        }
+
+        public void setMaxConnectionAge(long maxConnectionAge) {
+            Assert.isTrue(maxConnectionAge > 0, "maxConnectionAge " + maxConnectionAge + " must be positive");
+            this.maxConnectionAge = maxConnectionAge;
+        }
+
+        public void setMaxConnectionAgeGrace(long maxConnectionAgeGrace) {
+            Assert.isTrue(maxConnectionAgeGrace > 0, "maxConnectionAgeGrace " + maxConnectionAgeGrace + " must be positive");
+            this.maxConnectionAgeGrace = maxConnectionAgeGrace;
         }
 
         public void setMaxConcurrentCallsPerConnection(int maxConcurrentCallsPerConnection) {
@@ -271,6 +303,10 @@ public class ServerOption {
             this.receiveBufferSize = receiveBufferSize;
         }
 
+        public void setAllocator(ByteBufAllocator allocator) {
+            this.allocator = allocator;
+        }
+
         public void setGrpcMaxTermWaitTimeMillis(long grpcMaxTermWaitTimeMillis) {
             Assert.isTrue(grpcMaxTermWaitTimeMillis > 0, "grpcMaxTermWaitTimeMillis " + grpcMaxTermWaitTimeMillis + " must be positive");
             this.grpcMaxTermWaitTimeMillis = grpcMaxTermWaitTimeMillis;
@@ -288,6 +324,8 @@ public class ServerOption {
                     ", keepAliveTimeout=" + keepAliveTimeout +
                     ", permitKeepAliveTime=" + permitKeepAliveTime +
                     ", maxConnectionIdle=" + maxConnectionIdle +
+                    ", maxConnectionAge=" + maxConnectionAge +
+                    ", maxConnectionAgeGrace=" + maxConnectionAgeGrace +
                     ", maxConcurrentCallsPerConnection=" + maxConcurrentCallsPerConnection +
                     ", maxInboundMessageSize=" + maxInboundMessageSize +
                     ", maxHeaderListSize=" + maxHeaderListSize +

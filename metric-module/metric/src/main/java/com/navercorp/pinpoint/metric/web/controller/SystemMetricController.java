@@ -16,20 +16,22 @@
 
 package com.navercorp.pinpoint.metric.web.controller;
 
-import com.navercorp.pinpoint.metric.common.model.Range;
+import com.navercorp.pinpoint.common.server.util.time.RangeValidator;
+import com.navercorp.pinpoint.common.server.util.time.Range;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.metric.common.model.Tag;
-import com.navercorp.pinpoint.metric.common.model.TimeWindow;
-import com.navercorp.pinpoint.metric.common.util.TimeWindowSampler;
-import com.navercorp.pinpoint.metric.common.util.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.metric.web.model.MetricDataSearchKey;
 import com.navercorp.pinpoint.metric.web.model.MetricInfo;
 import com.navercorp.pinpoint.metric.web.model.SystemMetricData;
 import com.navercorp.pinpoint.metric.web.service.SystemMetricDataService;
 import com.navercorp.pinpoint.metric.web.service.SystemMetricHostInfoService;
 import com.navercorp.pinpoint.metric.web.service.YMLSystemMetricBasicGroupManager;
-import com.navercorp.pinpoint.metric.web.util.TagUtils;
+import com.navercorp.pinpoint.metric.common.util.TagUtils;
 import com.navercorp.pinpoint.metric.web.view.SystemMetricView;
 import com.navercorp.pinpoint.pinot.tenant.TenantProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,23 +44,26 @@ import java.util.Objects;
  * @author Hyunjoon Cho
  */
 @RestController
-@RequestMapping(value = "/systemMetric")
+@RequestMapping(value = "/api/systemMetric")
 public class SystemMetricController {
     private final SystemMetricDataService systemMetricDataService;
     private final SystemMetricHostInfoService systemMetricHostInfoService;
     private final YMLSystemMetricBasicGroupManager systemMetricBasicGroupManager;
     private final TenantProvider tenantProvider;
-
     private final TimeWindowSampler DEFAULT_TIME_WINDOW_SAMPLER = new TimeWindowSlotCentricSampler(10000L, 200);
+    private final RangeValidator rangeValidator;
     
     public SystemMetricController(SystemMetricDataService systemMetricDataService,
                                   SystemMetricHostInfoService systemMetricHostInfoService,
                                   YMLSystemMetricBasicGroupManager systemMetricBasicGroupManager,
-                                  TenantProvider tenantProvider) {
+                                  TenantProvider tenantProvider,
+                                  @Qualifier("rangeValidator30d") RangeValidator rangeValidator
+                                  ) {
         this.systemMetricDataService = Objects.requireNonNull(systemMetricDataService, "systemMetricService");
         this.systemMetricHostInfoService = Objects.requireNonNull(systemMetricHostInfoService, "systemMetricHostInfoService");
         this.systemMetricBasicGroupManager = Objects.requireNonNull(systemMetricBasicGroupManager, "systemMetricBasicGroupManager");
         this.tenantProvider = Objects.requireNonNull(tenantProvider, "tenantProvider");
+        this.rangeValidator = Objects.requireNonNull(rangeValidator, "rangeValidator");
     }
 
     @GetMapping(value = "/hostGroup")
@@ -94,8 +99,11 @@ public class SystemMetricController {
                                                    @RequestParam("from") long from,
                                                    @RequestParam("to") long to,
                                                    @RequestParam(value = "tags", required = false) String tags) {
+        Range range = Range.between(from, to);
+        rangeValidator.validate(range.getFromInstant(), range.getToInstant());
+
         String tenantId = tenantProvider.getTenantId();
-        TimeWindow timeWindow = new TimeWindow(Range.newRange(from, to), DEFAULT_TIME_WINDOW_SAMPLER);
+        TimeWindow timeWindow = new TimeWindow(Range.between(from, to), DEFAULT_TIME_WINDOW_SAMPLER);
         MetricDataSearchKey metricDataSearchKey = new MetricDataSearchKey(tenantId, hostGroupName, hostName, systemMetricBasicGroupManager.findMetricName(metricDefinitionId), metricDefinitionId, timeWindow);
         List<Tag> tagList = TagUtils.parseTags(tags);
 

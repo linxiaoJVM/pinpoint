@@ -40,8 +40,6 @@ import com.navercorp.pinpoint.batch.alarm.checker.TotalCountToCalleeChecker;
 import com.navercorp.pinpoint.batch.alarm.collector.AgentEventDataCollector;
 import com.navercorp.pinpoint.batch.alarm.collector.AgentStatDataCollector;
 import com.navercorp.pinpoint.batch.alarm.collector.DataCollector;
-import com.navercorp.pinpoint.batch.alarm.collector.DataSourceDataCollector;
-import com.navercorp.pinpoint.batch.alarm.collector.FileDescriptorDataCollector;
 import com.navercorp.pinpoint.batch.alarm.collector.MapStatisticsCallerDataCollector;
 import com.navercorp.pinpoint.batch.alarm.collector.ResponseTimeDataCollector;
 import com.navercorp.pinpoint.web.alarm.CheckerCategory;
@@ -57,7 +55,6 @@ import java.util.List;
 public class AlarmCheckerConfiguration {
 
     private final Logger logger = LogManager.getLogger(AlarmCheckerConfiguration.class);
-
 
     public AlarmCheckerConfiguration() {
         logger.info("Install AlarmCheckerConfiguration");
@@ -249,7 +246,7 @@ public class AlarmCheckerConfiguration {
         return new AlarmCheckerFactory() {
             @Override
             public AlarmChecker<?> createChecker(DataCollector dataCollector, Rule rule) {
-                return new HeapUsageRateChecker((AgentStatDataCollector) dataCollector, rule);
+                return new HeapUsageRateChecker(dataCollector, rule);
             }
 
             @Override
@@ -264,7 +261,7 @@ public class AlarmCheckerConfiguration {
         return new AlarmCheckerFactory() {
             @Override
             public AlarmChecker<?> createChecker(DataCollector dataCollector, Rule rule) {
-                return new JvmCpuUsageRateChecker((AgentStatDataCollector) dataCollector, rule);
+                return new JvmCpuUsageRateChecker(dataCollector, rule);
             }
 
             @Override
@@ -279,7 +276,7 @@ public class AlarmCheckerConfiguration {
         return new AlarmCheckerFactory() {
             @Override
             public AlarmChecker<?> createChecker(DataCollector dataCollector, Rule rule) {
-                return new SystemCpuUsageRateChecker((AgentStatDataCollector) dataCollector, rule);
+                return new SystemCpuUsageRateChecker(dataCollector, rule);
             }
 
             @Override
@@ -294,7 +291,7 @@ public class AlarmCheckerConfiguration {
         return new AlarmCheckerFactory() {
             @Override
             public AlarmChecker<?> createChecker(DataCollector dataCollector, Rule rule) {
-                return new DataSourceConnectionUsageRateChecker((DataSourceDataCollector) dataCollector, rule);
+                return new DataSourceConnectionUsageRateChecker(dataCollector, rule);
             }
 
             @Override
@@ -324,7 +321,7 @@ public class AlarmCheckerConfiguration {
         return new AlarmCheckerFactory() {
             @Override
             public AlarmChecker<?> createChecker(DataCollector dataCollector, Rule rule) {
-                return new FileDescriptorChecker((FileDescriptorDataCollector) dataCollector, rule);
+                return new FileDescriptorChecker(dataCollector, rule);
             }
 
             @Override

@@ -17,8 +17,10 @@
 package com.navercorp.pinpoint.collector.grpc.config;
 
 import com.navercorp.pinpoint.grpc.server.ServerOption;
+import io.netty.buffer.ByteBufAllocator;
 import org.springframework.util.unit.DataSize;
 
+import java.time.Duration;
 import java.util.Objects;
 
 /**
@@ -60,6 +62,21 @@ public class GrpcPropertiesServerOptionBuilder {
 
     public void setConnectionIdleTimeoutMillis(long maxConnectionIdle) {
         builder.setMaxConnectionIdle(maxConnectionIdle);
+    }
+
+    public void setMaxConnectionAge(Duration maxConnectionAgeDuration) {
+        long maxConnectionAge = maxConnectionAgeDuration.toMillis();
+        if (maxConnectionAge == -1) {
+            maxConnectionAge = Long.MAX_VALUE;
+        }
+        builder.setMaxConnectionAge(maxConnectionAge);
+    }
+
+    public void setMaxConnectionAgeGraceMillis(long maxConnectionAgeGrace) {
+        if (maxConnectionAgeGrace == -1) {
+            maxConnectionAgeGrace = Long.MAX_VALUE;
+        }
+        builder.setMaxConnectionAgeGrace(maxConnectionAgeGrace);
     }
 
     public void setConcurrentCallsPerConnectionMax(int maxConcurrentCallsPerConnection) {

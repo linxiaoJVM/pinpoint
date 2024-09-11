@@ -1,22 +1,18 @@
 /*
+ * Copyright 2024 NAVER Corp.
  *
- *  * Copyright 2024 NAVER Corp.
- *  *
- *  * Licensed under the Apache License, Version 2.0 (the "License");
- *  * you may not use this file except in compliance with the License.
- *  * You may obtain a copy of the License at
- *  *
- *  * http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  * Unless required by applicable law or agreed to in writing, software
- *  * distributed under the License is distributed on an "AS IS" BASIS,
- *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  * See the License for the specific language governing permissions and
- *  * limitations under the License.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package com.navercorp.pinpoint.inspector.web.service;
 
 import com.navercorp.pinpoint.common.server.util.time.Range;
@@ -29,9 +25,9 @@ import com.navercorp.pinpoint.inspector.web.model.InspectorMetricValue;
 import com.navercorp.pinpoint.metric.common.model.TagUtils;
 import com.navercorp.pinpoint.web.component.ApplicationFactory;
 import com.navercorp.pinpoint.web.service.ApdexScoreService;
-import com.navercorp.pinpoint.web.util.TimeWindow;
-import com.navercorp.pinpoint.web.util.TimeWindowSampler;
-import com.navercorp.pinpoint.web.util.TimeWindowSlotCentricSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindow;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSampler;
+import com.navercorp.pinpoint.common.server.util.timewindow.TimeWindowSlotCentricSampler;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.navercorp.pinpoint.web.vo.chart.Chart;
 import com.navercorp.pinpoint.web.vo.stat.chart.StatChartGroup;
@@ -56,6 +52,9 @@ import java.util.Objects;
 public class DefaultApdexStatService implements ApdexStatService {
 
     private static final TimeWindowSampler APDEX_SCORE_TIME_WINDOW_SAMPLER = new TimeWindowSlotCentricSampler(60 * 1000, 200);
+    public static final String MIN = "MIN";
+    public static final String AVG = "AVG";
+    public static final String MAX = "MAX";
 
     private final ApplicationFactory applicationFactory;
 
@@ -81,7 +80,7 @@ public class DefaultApdexStatService implements ApdexStatService {
         TimeWindow timeWindow = new TimeWindow(range, APDEX_SCORE_TIME_WINDOW_SAMPLER);
         Application application = applicationFactory.createApplicationByTypeName(applicationName, serviceTypeName);
 
-        AgentApdexScoreChart agentApdexScoreChart = (AgentApdexScoreChart) apdexScoreService.selectAgentChart(application, range, timeWindow, agentId);
+        AgentApdexScoreChart agentApdexScoreChart = (AgentApdexScoreChart) apdexScoreService.selectAgentChart(application, timeWindow, agentId);
 
         return convertToInspectorMetricData(metricDefinition, agentApdexScoreChart);
     }
@@ -92,7 +91,7 @@ public class DefaultApdexStatService implements ApdexStatService {
         final Range range = Range.between(from, to);
         TimeWindow timeWindow = new TimeWindow(range, APDEX_SCORE_TIME_WINDOW_SAMPLER);
         Application application = applicationFactory.createApplicationByTypeName(applicationName, serviceTypeName);
-        ApplicationApdexScoreChart applicationApdexScoreChart = (ApplicationApdexScoreChart) apdexScoreService.selectApplicationChart(application, range, timeWindow);
+        ApplicationApdexScoreChart applicationApdexScoreChart = (ApplicationApdexScoreChart) apdexScoreService.selectApplicationChart(application, timeWindow);
 
         return convertToInspectorMetricData(metricDefinition, applicationApdexScoreChart);
     }
@@ -118,9 +117,9 @@ public class DefaultApdexStatService implements ApdexStatService {
 
         Field field = metricDefinition.getFields().get(0);
         List<InspectorMetricValue> metricValueList = new ArrayList<>(3);
-        metricValueList.add(new InspectorMetricValue("AVG", field.getTags(), field.getChartType(), field.getUnit(), avgValueList));
-        metricValueList.add(new InspectorMetricValue("MIN", field.getTags(), field.getChartType(), field.getUnit(), minValueList));
-        metricValueList.add(new InspectorMetricValue("MAX", field.getTags(), field.getChartType(), field.getUnit(), maxValueList));
+        metricValueList.add(new InspectorMetricValue(MIN, field.getTags(), field.getChartType(), field.getUnit(), minValueList));
+        metricValueList.add(new InspectorMetricValue(AVG, field.getTags(), field.getChartType(), field.getUnit(), avgValueList));
+        metricValueList.add(new InspectorMetricValue(MAX, field.getTags(), field.getChartType(), field.getUnit(), maxValueList));
 
         return new InspectorMetricData(metricDefinition.getTitle(), timestampList, metricValueList);
     }

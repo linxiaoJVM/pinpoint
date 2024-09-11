@@ -6,16 +6,16 @@
     <parent>
         <artifactId>pinpoint</artifactId>
         <groupId>com.navercorp.pinpoint</groupId>
-        <version>3.0.0-SNAPSHOT</version>
+        <version>3.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-inspector-module</artifactId>
     <packaging>pom</packaging>
 
     <modules>
-<!--        <module>inspector-common</module>-->
         <module>inspector-collector</module>
         <module>inspector-web</module>
+        <module>inspector-commons</module>
     </modules>
 
 </project>

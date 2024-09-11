@@ -5,12 +5,12 @@
 [![Maven](https://img.shields.io/github/actions/workflow/status/pinpoint-apm/pinpoint/maven.yml?branch=master&label=build&logo=github)](https://github.com/pinpoint-apm/pinpoint/actions?query=workflow%3AMaven)
 [![codecov](https://codecov.io/gh/pinpoint-apm/pinpoint/branch/master/graph/badge.svg)](https://codecov.io/gh/pinpoint-apm/pinpoint)
 
-## Latest Release (2023/10/10)
+## Latest Release (2024/05/30)
 
-We're happy to announce the release of Pinpoint v2.5.3.
-Please check the release note at (https://github.com/pinpoint-apm/pinpoint/releases/tag/v2.5.3).
+We're happy to announce the release of Pinpoint v3.0.0.
+Please check the release note at (https://github.com/pinpoint-apm/pinpoint/releases/tag/v3.0.0).
 
-The current stable version is [v2.5.3](https://github.com/pinpoint-apm/pinpoint/releases/tag/v2.5.3).
+The current stable version is [v3.0.0](https://github.com/pinpoint-apm/pinpoint/releases/tag/v3.0.0).
 
 ## Live Demo
 
@@ -140,8 +140,7 @@ Pinot compatibility table:
 
 ## Community
 
-[Github issues](https://github.com/pinpoint-apm/pinpoint/issues)  
-[Google group](https://groups.google.com/forum/#!forum/pinpoint_user)  
+[Github issues](https://github.com/pinpoint-apm/pinpoint/issues)   
 [Gitter](https://gitter.im/naver/pinpoint)  
 
 We have Chinese community now, welcome to join!

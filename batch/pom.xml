@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint</artifactId>
-        <version>3.0.0-SNAPSHOT</version>
+        <version>3.0.1-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -73,10 +73,19 @@
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-agent-plugins</artifactId>
             <type>pom</type>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.navercorp.pinpoint</groupId>
             <artifactId>pinpoint-batch-alarmsender</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-metric-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.navercorp.pinpoint</groupId>
+            <artifactId>pinpoint-inspector-commons</artifactId>
         </dependency>
 
         <dependency>
@@ -254,7 +263,6 @@
                 <version>${plugin.surefire.version}</version>
                 <configuration>
                     <enableAssertions>false</enableAssertions>
-                    <encoding>${encoding}</encoding>
                 </configuration>
             </plugin>
         </plugins>
